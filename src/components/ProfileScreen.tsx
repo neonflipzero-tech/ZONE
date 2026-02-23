@@ -1,25 +1,42 @@
-import React, { useRef } from 'react';
-import { motion } from 'motion/react';
-import { UserState, getRankForLevel } from '../store';
-import { Trophy, Flame, LogOut, Camera, User, Shield } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { UserState, getRankForLevel, PathType } from '../store';
+import { Trophy, Flame, LogOut, Camera, User, Shield, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ProfileScreenProps {
   state: UserState;
   onLogout: () => void;
   updateState: (updates: Partial<UserState>) => void;
+  changePath: (path: PathType) => void;
 }
 
-export default function ProfileScreen({ state, onLogout, updateState }: ProfileScreenProps) {
+export default function ProfileScreen({ state, onLogout, updateState, changePath }: ProfileScreenProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isGoalDropdownOpen, setIsGoalDropdownOpen] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        updateState({ profilePicture: reader.result as string });
+        setPreviewImage(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const confirmImage = () => {
+    if (previewImage) {
+      updateState({ profilePicture: previewImage });
+      setPreviewImage(null);
+    }
+  };
+
+  const cancelImage = () => {
+    setPreviewImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -75,12 +92,6 @@ export default function ProfileScreen({ state, onLogout, updateState }: ProfileS
           </div>
         </div>
 
-        {/* Path Info */}
-        <div className="bg-surface border border-white/5 rounded-2xl p-5 mb-8">
-          <h3 className="text-sm text-secondary font-mono uppercase tracking-wider mb-2">Chosen Path</h3>
-          <div className="text-xl font-bold text-primary">{state.chosenPath?.replace('_', ' ')}</div>
-        </div>
-
         {/* Badges */}
         <div className="mb-8">
           <h3 className="text-xl font-display font-bold mb-4">Badges</h3>
@@ -104,15 +115,111 @@ export default function ProfileScreen({ state, onLogout, updateState }: ProfileS
         {/* Settings */}
         <div>
           <h3 className="text-xl font-display font-bold mb-4">Settings</h3>
-          <button 
-            onClick={onLogout}
-            className="w-full bg-surface hover:bg-surface-hover border border-white/5 rounded-2xl p-4 flex items-center justify-between text-accent transition-colors"
-          >
-            <span className="font-bold">Log Out</span>
-            <LogOut className="w-5 h-5" />
-          </button>
+          <div className="bg-surface border border-white/5 rounded-2xl overflow-hidden">
+            {/* Goal Setting */}
+            <div className="p-4 border-b border-white/5">
+              <div 
+                className="flex justify-between items-center cursor-pointer"
+                onClick={() => setIsGoalDropdownOpen(!isGoalDropdownOpen)}
+              >
+                <span className="font-bold">Goal</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-secondary">{state.chosenPath?.replace('_', ' ')}</span>
+                  {isGoalDropdownOpen ? <ChevronUp className="w-5 h-5 text-secondary" /> : <ChevronDown className="w-5 h-5 text-secondary" />}
+                </div>
+              </div>
+              
+              <AnimatePresence>
+                {isGoalDropdownOpen && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="pt-4 space-y-2">
+                      {(['PRODUCTIVE', 'STRONGER', 'EXTROVERT', 'DISCIPLINE', 'MENTAL_HEALTH'] as PathType[]).map(path => (
+                        <button
+                          key={path}
+                          onClick={() => {
+                            changePath(path);
+                            setIsGoalDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${
+                            state.chosenPath === path 
+                              ? 'bg-primary/10 border-primary text-primary font-bold' 
+                              : 'bg-background border-white/5 text-secondary hover:border-white/20 hover:text-primary'
+                          }`}
+                        >
+                          {path.replace('_', ' ')}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Language Setting */}
+            <div className="p-4 flex items-center justify-between border-b border-white/5">
+              <span className="font-bold">Language</span>
+              <div className="flex bg-background rounded-lg p-1 border border-white/10">
+                <button 
+                  onClick={() => updateState({ language: 'en' })}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${state.language === 'en' ? 'bg-primary text-background' : 'text-secondary hover:text-primary'}`}
+                >
+                  EN
+                </button>
+                <button 
+                  onClick={() => updateState({ language: 'id' })}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${state.language === 'id' ? 'bg-primary text-background' : 'text-secondary hover:text-primary'}`}
+                >
+                  ID
+                </button>
+              </div>
+            </div>
+
+            <button 
+              onClick={onLogout}
+              className="w-full p-4 flex items-center justify-between text-accent hover:bg-white/5 transition-colors"
+            >
+              <span className="font-bold">Log Out</span>
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Profile Picture Preview Modal */}
+      <AnimatePresence>
+        {previewImage && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm flex flex-col items-center justify-center px-6"
+          >
+            <h2 className="text-2xl font-display font-bold mb-8">Adjust Profile Picture</h2>
+            <div className="w-64 h-64 rounded-full overflow-hidden border-4 border-surface bg-surface flex items-center justify-center shadow-2xl shadow-accent/20 mb-8">
+              <img src={previewImage} alt="Preview" className="w-full h-full object-cover" />
+            </div>
+            <div className="flex space-x-4 w-full max-w-xs">
+              <button 
+                onClick={cancelImage}
+                className="flex-1 py-3 rounded-xl font-bold bg-surface text-primary border border-white/10 hover:bg-surface-hover transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmImage}
+                className="flex-1 py-3 rounded-xl font-bold bg-primary text-background hover:bg-gray-200 transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

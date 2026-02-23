@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { PathType, PATH_QUOTES } from '../store';
 import { Trophy } from 'lucide-react';
+import { sounds } from '../utils/sounds';
 
 interface RankUpScreenProps {
   rankName: string;
@@ -13,6 +15,10 @@ export default function RankUpScreen({ rankName, rankColor, path, onContinue }: 
   const quotes = PATH_QUOTES[path];
   const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
 
+  useEffect(() => {
+    sounds.playRankUp();
+  }, []);
+
   return (
     <motion.div 
       initial={{ opacity: 0, scale: 0.95 }}
@@ -23,15 +29,15 @@ export default function RankUpScreen({ rankName, rankColor, path, onContinue }: 
       <div className="absolute inset-0 overflow-hidden pointer-events-none flex items-center justify-center">
         <motion.div 
           animate={{ 
-            scale: [1, 1.2, 1],
             opacity: [0.1, 0.3, 0.1] 
           }}
           transition={{ 
             duration: 4, 
             repeat: Infinity,
-            ease: "easeInOut" 
+            ease: "linear" 
           }}
-          className="w-[150vw] h-[150vw] rounded-full bg-accent/20 blur-[100px]"
+          className="w-[100vw] h-[100vw] rounded-full bg-accent/20 blur-[80px]"
+          style={{ willChange: 'opacity' }}
         />
       </div>
 

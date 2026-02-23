@@ -71,8 +71,8 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }}
           className="mb-12 text-center"
         >
-          <h1 className="text-6xl font-display font-bold tracking-tighter mb-2 bg-gradient-to-r from-white via-primary to-secondary bg-clip-text text-transparent">LOCK IN</h1>
-          <p className="text-secondary text-sm tracking-widest uppercase font-medium">No Distractions. Just Progress.</p>
+          <h1 className="text-7xl font-display font-black tracking-tighter mb-2 bg-gradient-to-r from-white via-primary to-secondary bg-clip-text text-transparent">ZONE</h1>
+          <p className="text-secondary text-sm tracking-widest uppercase font-medium">Enter The Zone. Just Progress.</p>
         </motion.div>
 
         <motion.div 
@@ -133,7 +133,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             {isLoading ? (
               <div className="w-5 h-5 border-2 border-background border-t-transparent rounded-full animate-spin" />
             ) : (
-              <span>{isLoginMode ? 'Log In' : 'Sign Up'}</span>
+              <span>{isLoginMode ? 'Enter Zone' : 'Join Zone'}</span>
             )}
           </button>
           
