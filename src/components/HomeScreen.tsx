@@ -29,17 +29,27 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
     let interval: NodeJS.Timeout;
     if (isTimerRunning && timeLeft !== null && timeLeft > 0) {
       interval = setInterval(() => {
-        setTimeLeft(prev => (prev !== null && prev > 0 ? prev - 1 : 0));
+        setTimeLeft(prev => {
+          if (prev === null) return null;
+          if (prev <= 1) {
+            return 0;
+          }
+          return prev - 1;
+        });
       }, 1000);
-    } else if (isTimerRunning && timeLeft === 0) {
+    }
+    return () => clearInterval(interval);
+  }, [isTimerRunning]); // Only depend on isTimerRunning to avoid clearing interval on every tick or parent re-render
+
+  useEffect(() => {
+    if (isTimerRunning && timeLeft === 0) {
       setIsTimerRunning(false);
       if (selectedMission) {
         onCompleteMission(selectedMission.id);
         setSelectedMission(null);
       }
     }
-    return () => clearInterval(interval);
-  }, [isTimerRunning, timeLeft, selectedMission, onCompleteMission]);
+  }, [timeLeft, isTimerRunning, selectedMission, onCompleteMission]);
 
   const handleMissionClick = (mission: Mission) => {
     if (mission.completed) return;
@@ -114,7 +124,7 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
 
           {/* Tabs */}
           <div className="flex bg-surface rounded-xl p-1 mb-6 border border-white/5">
-            {(['REGULAR', 'DAILY', 'WEEKLY'] as MissionType[]).map((tab, index) => (
+            {(['REGULAR', 'DAILY', 'WEEKLY'] as MissionType[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -124,7 +134,7 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
                     : 'text-secondary hover:text-primary'
                 }`}
               >
-                {index + 1} | {tab} MISSION
+                {tab}
               </button>
             ))}
           </div>
@@ -140,32 +150,35 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
           </div>
 
           <div className="space-y-3">
-            {displayedMissions.map((mission, index) => (
-              <motion.div
-                key={mission.id}
-                initial={{ y: 10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: index * 0.1 }}
-                onClick={() => handleMissionClick(mission)}
-                className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all ${
-                  mission.completed 
-                    ? 'bg-surface/30 border-white/5 opacity-50' 
-                    : 'bg-gradient-to-br from-surface to-surface-hover border-white/10 cursor-pointer hover:border-white/30 hover:shadow-lg hover:shadow-accent/5'
-                }`}
-              >
-                {mission.completed ? (
-                  <CheckCircle2 className="w-6 h-6 text-accent shrink-0" />
-                ) : (
-                  <Circle className="w-6 h-6 text-secondary shrink-0" />
-                )}
-                <span className={`font-medium ${mission.completed ? 'line-through text-secondary' : 'text-primary'}`}>
-                  {mission.text}
-                </span>
-                {!mission.completed && (
-                  <span className="ml-auto text-xs font-mono text-accent">+50 XP</span>
-                )}
-              </motion.div>
-            ))}
+            {displayedMissions.map((mission, index) => {
+              const xpReward = mission.type === 'WEEKLY' ? 200 : mission.type === 'DAILY' ? 100 : 50;
+              return (
+                <motion.div
+                  key={mission.id}
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: index * 0.1 }}
+                  onClick={() => handleMissionClick(mission)}
+                  className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all ${
+                    mission.completed 
+                      ? 'bg-surface/30 border-white/5 opacity-50' 
+                      : 'bg-gradient-to-br from-surface to-surface-hover border-white/10 cursor-pointer hover:border-white/30 hover:shadow-lg hover:shadow-accent/5'
+                  }`}
+                >
+                  {mission.completed ? (
+                    <CheckCircle2 className="w-6 h-6 text-accent shrink-0" />
+                  ) : (
+                    <Circle className="w-6 h-6 text-secondary shrink-0" />
+                  )}
+                  <span className={`font-medium ${mission.completed ? 'line-through text-secondary' : 'text-primary'}`}>
+                    {mission.text}
+                  </span>
+                  {!mission.completed && (
+                    <span className="ml-auto text-xs font-mono text-accent">+{xpReward} XP</span>
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
         </section>
 
@@ -201,7 +214,7 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
                   {selectedMission.type} MISSION
                 </span>
                 <span className="px-4 py-2 bg-accent/10 text-accent rounded-full text-sm font-mono font-bold border border-accent/20">
-                  +50 XP
+                  +{selectedMission.type === 'WEEKLY' ? 200 : selectedMission.type === 'DAILY' ? 100 : 50} XP
                 </span>
               </div>
               

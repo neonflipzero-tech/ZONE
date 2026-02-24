@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 
 interface LoginScreenProps {
   onLogin: (email: string, username: string) => void;
@@ -8,6 +9,7 @@ interface LoginScreenProps {
 export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -54,8 +56,55 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           onLogin(normalizedEmail, username.trim());
         }
       }
-    }, 1000);
+    }, 2500);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-background space-y-10 p-6 text-center">
+        <div className="relative w-32 h-32 flex items-center justify-center">
+          <motion.div
+            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.8, 0.3] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute inset-0 bg-white/5 rounded-xl blur-xl"
+          />
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-2 border-[1px] border-dashed border-white/30 rounded-lg"
+          />
+          <motion.div
+            animate={{ rotate: -360 }}
+            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-6 border-[2px] border-dotted border-white/50 rounded-lg"
+          />
+          <motion.div
+            animate={{ scale: [0.8, 1, 0.8], rotate: [0, 90, 180, 270, 360] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="w-10 h-10 bg-white rounded-sm shadow-[0_0_40px_rgba(255,255,255,1)] flex items-center justify-center"
+          >
+            <div className="w-3 h-3 bg-black/80 rounded-sm" />
+          </motion.div>
+        </div>
+        <div>
+          <motion.h2 
+            animate={{ opacity: [0.5, 1, 0.5], y: [0, -5, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="text-3xl font-display font-bold text-white mb-3 tracking-widest uppercase"
+          >
+            Syncing
+          </motion.h2>
+          <motion.p 
+            animate={{ opacity: [0.3, 0.7, 0.3] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+            className="text-white/50 font-mono text-xs uppercase tracking-[0.3em]"
+          >
+            Establishing Connection...
+          </motion.p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div 
@@ -111,16 +160,25 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               )}
             </AnimatePresence>
 
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setError('');
-              }}
-              className="w-full bg-surface border border-white/10 rounded-xl px-4 py-4 text-primary placeholder:text-secondary focus:outline-none focus:border-accent transition-colors"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError('');
+                }}
+                className="w-full bg-surface border border-white/10 rounded-xl px-4 py-4 pr-12 text-primary placeholder:text-secondary focus:outline-none focus:border-accent transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-secondary hover:text-primary transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
             
             {error && <p className="text-accent text-sm px-2">{error}</p>}
           </div>

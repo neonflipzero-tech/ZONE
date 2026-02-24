@@ -50,7 +50,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
       className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24"
     >
       <div className="px-6 pt-12 pb-6">
-        <h1 className="text-2xl font-display font-bold tracking-tight mb-8">Profile</h1>
+        <h1 className="text-2xl font-display font-bold tracking-tight mb-8">{state.language === 'id' ? 'Profil' : 'Profile'}</h1>
         
         {/* Profile Picture & Username */}
         <div className="flex flex-col items-center mb-10">
@@ -77,7 +77,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
           <div className="flex items-center space-x-2 mt-2">
             <Shield className={`w-4 h-4 ${currentRank.color}`} />
             <span className={`text-sm font-bold ${currentRank.color}`}>{currentRank.name}</span>
-            <span className="text-sm text-secondary font-mono uppercase tracking-wider">• Level {state.level}</span>
+            <span className="text-sm text-secondary font-mono uppercase tracking-wider">• {state.language === 'id' ? 'Level' : 'Level'} {state.level}</span>
           </div>
         </div>
 
@@ -86,7 +86,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
           <div className="bg-surface border border-white/5 rounded-2xl p-5 flex items-center justify-between bg-gradient-to-br from-surface to-surface-hover">
             <div>
               <div className="text-3xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-accent to-orange-500">{state.xp} XP</div>
-              <div className="text-xs text-secondary font-mono uppercase tracking-wider mt-1">Total Experience</div>
+              <div className="text-xs text-secondary font-mono uppercase tracking-wider mt-1">{state.language === 'id' ? 'Total Pengalaman' : 'Total Experience'}</div>
             </div>
             <Flame className="w-10 h-10 text-accent" />
           </div>
@@ -94,11 +94,11 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
 
         {/* Badges */}
         <div className="mb-8">
-          <h3 className="text-xl font-display font-bold mb-4">Badges</h3>
+          <h3 className="text-xl font-display font-bold mb-4">{state.language === 'id' ? 'Lencana' : 'Badges'}</h3>
           {state.badges.length === 0 ? (
             <div className="bg-surface border border-white/5 rounded-2xl p-8 text-center text-secondary">
               <Trophy className="w-8 h-8 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">Complete missions to earn badges.</p>
+              <p className="text-sm">{state.language === 'id' ? 'Selesaikan misi untuk mendapatkan lencana.' : 'Complete missions to earn badges.'}</p>
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-3">
@@ -114,7 +114,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
 
         {/* Settings */}
         <div>
-          <h3 className="text-xl font-display font-bold mb-4">Settings</h3>
+          <h3 className="text-xl font-display font-bold mb-4">{state.language === 'id' ? 'Pengaturan' : 'Settings'}</h3>
           <div className="bg-surface border border-white/5 rounded-2xl overflow-hidden">
             {/* Goal Setting */}
             <div className="p-4 border-b border-white/5">
@@ -122,7 +122,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 className="flex justify-between items-center cursor-pointer"
                 onClick={() => setIsGoalDropdownOpen(!isGoalDropdownOpen)}
               >
-                <span className="font-bold">Goal</span>
+                <span className="font-bold">{state.language === 'id' ? 'Tujuan' : 'Goal'}</span>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-secondary">{state.chosenPath?.replace('_', ' ')}</span>
                   {isGoalDropdownOpen ? <ChevronUp className="w-5 h-5 text-secondary" /> : <ChevronDown className="w-5 h-5 text-secondary" />}
@@ -162,7 +162,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
 
             {/* Language Setting */}
             <div className="p-4 flex items-center justify-between border-b border-white/5">
-              <span className="font-bold">Language</span>
+              <span className="font-bold">{state.language === 'id' ? 'Bahasa' : 'Language'}</span>
               <div className="flex bg-background rounded-lg p-1 border border-white/10">
                 <button 
                   onClick={() => updateState({ language: 'en' })}
@@ -183,7 +183,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
               onClick={onLogout}
               className="w-full p-4 flex items-center justify-between text-accent hover:bg-white/5 transition-colors"
             >
-              <span className="font-bold">Log Out</span>
+              <span className="font-bold">{state.language === 'id' ? 'Keluar' : 'Log Out'}</span>
               <LogOut className="w-5 h-5" />
             </button>
           </div>
@@ -199,7 +199,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm flex flex-col items-center justify-center px-6"
           >
-            <h2 className="text-2xl font-display font-bold mb-8">Adjust Profile Picture</h2>
+            <h2 className="text-2xl font-display font-bold mb-8">{state.language === 'id' ? 'Sesuaikan Foto Profil' : 'Adjust Profile Picture'}</h2>
             <div className="w-64 h-64 rounded-full overflow-hidden border-4 border-surface bg-surface flex items-center justify-center shadow-2xl shadow-accent/20 mb-8">
               <img src={previewImage} alt="Preview" className="w-full h-full object-cover" />
             </div>
@@ -208,13 +208,13 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 onClick={cancelImage}
                 className="flex-1 py-3 rounded-xl font-bold bg-surface text-primary border border-white/10 hover:bg-surface-hover transition-colors"
               >
-                Cancel
+                {state.language === 'id' ? 'Batal' : 'Cancel'}
               </button>
               <button 
                 onClick={confirmImage}
                 className="flex-1 py-3 rounded-xl font-bold bg-primary text-background hover:bg-gray-200 transition-colors"
               >
-                Save
+                {state.language === 'id' ? 'Simpan' : 'Save'}
               </button>
             </div>
           </motion.div>

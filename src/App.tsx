@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useAppState, PathType, getRankForLevel } from './store';
 import LoginScreen from './components/LoginScreen';
 import OnboardingScreen from './components/OnboardingScreen';
 import HomeScreen from './components/HomeScreen';
 import ProfileScreen from './components/ProfileScreen';
-import RankUpScreen from './components/RankUpScreen';
 import RankScreen from './components/RankScreen';
 import LeaderboardScreen from './components/LeaderboardScreen';
 import StreakScreen from './components/StreakScreen';
@@ -27,6 +26,21 @@ export default function App() {
   } = useAppState();
 
   const [activeTab, setActiveTab] = useState<Tab>('home');
+  const activeTabRef = useRef<Tab>(activeTab);
+  const preAnimationTabRef = useRef<Tab | null>(null);
+  const [isAppLoading, setIsAppLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate initial app load
+    const timer = setTimeout(() => {
+      setIsAppLoading(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
 
   useEffect(() => {
     if (state?.isLoggedIn && state?.onboardingCompleted && state?.chosenPath) {
@@ -36,7 +50,11 @@ export default function App() {
 
   useEffect(() => {
     if (state?.animatingLevelUp) {
+      preAnimationTabRef.current = activeTabRef.current;
       setActiveTab('journey');
+    } else if (state?.animatingLevelUp === false && preAnimationTabRef.current) {
+      setActiveTab(preAnimationTabRef.current);
+      preAnimationTabRef.current = null;
     }
   }, [state?.animatingLevelUp]);
 
@@ -48,16 +66,6 @@ export default function App() {
     updateState({ chosenPath: path, onboardingCompleted: true });
   };
 
-  // Check for rank up
-  const currentRank = state ? getRankForLevel(state.level) : null;
-  const showRankUp = state && currentRank && currentRank.name !== state.highestRankAchieved;
-
-  const handleDismissRankUp = () => {
-    if (currentRank) {
-      updateState({ highestRankAchieved: currentRank.name });
-    }
-  };
-
   const handleDismissStreak = () => {
     updateState({ showStreakAnimation: false });
   };
@@ -65,20 +73,42 @@ export default function App() {
   // Render logic
   let content;
 
-  if (!state || !state.isLoggedIn) {
+  if (isAppLoading) {
+    content = (
+      <div className="flex flex-col items-center justify-center h-full bg-background space-y-10 p-6 text-center">
+        <div className="relative w-24 h-24 flex items-center justify-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-0 border-2 border-white/20 rounded-lg"
+          />
+          <motion.div
+            animate={{ rotate: -360 }}
+            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-3 border-2 border-white/40 rounded-lg"
+          />
+          <motion.div
+            animate={{ scale: [0.8, 1.2, 0.8], rotate: [0, 90, 180, 270, 360] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="w-8 h-8 bg-white rounded-sm shadow-[0_0_30px_rgba(255,255,255,0.8)]"
+          />
+        </div>
+        <div>
+          <motion.h2 
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+            className="text-3xl font-display font-bold text-white mb-3 tracking-tight"
+          >
+            ZONE
+          </motion.h2>
+          <p className="text-white/50 font-mono text-sm uppercase tracking-widest">Loading Your Journey...</p>
+        </div>
+      </div>
+    );
+  } else if (!state || !state.isLoggedIn) {
     content = <LoginScreen onLogin={handleLogin} />;
   } else if (!state.onboardingCompleted) {
     content = <OnboardingScreen onSelectPath={handleSelectPath} />;
-  } else if (showRankUp && state.chosenPath) {
-    content = (
-      <RankUpScreen 
-        key="rankup"
-        rankName={currentRank.name}
-        rankColor={currentRank.color}
-        path={state.chosenPath}
-        onContinue={handleDismissRankUp}
-      />
-    );
   } else if (state.showStreakAnimation) {
     content = (
       <StreakScreen 
@@ -91,9 +121,9 @@ export default function App() {
     content = (
       <>
         <div className="flex-1 relative overflow-hidden bg-black">
-          <AnimatePresence mode="wait">
+          <AnimatePresence>
             {activeTab === 'home' && (
-              <motion.div key="home" className="h-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div key="home" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <HomeScreen 
                   state={state} 
                   onCompleteMission={completeMission} 
@@ -102,22 +132,22 @@ export default function App() {
               </motion.div>
             )}
             {activeTab === 'leaderboard' && (
-              <motion.div key="leaderboard" className="h-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div key="leaderboard" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <LeaderboardScreen state={state} />
               </motion.div>
             )}
             {activeTab === 'journey' && (
-              <motion.div key="journey" className="h-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div key="journey" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <JourneyScreen state={state} updateState={updateState} />
               </motion.div>
             )}
             {activeTab === 'rank' && (
-              <motion.div key="rank" className="h-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div key="rank" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <RankScreen state={state} />
               </motion.div>
             )}
             {activeTab === 'profile' && (
-              <motion.div key="profile" className="h-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div key="profile" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <ProfileScreen 
                   state={state}
                   onLogout={logout}

@@ -21,17 +21,8 @@ export default function StreakScreen({ streak, onContinue }: StreakScreenProps) 
       className="absolute inset-0 z-50 bg-background flex flex-col items-center justify-center px-6 text-center"
     >
       <div className="absolute inset-0 overflow-hidden pointer-events-none flex items-center justify-center">
-        <motion.div 
-          animate={{ 
-            opacity: [0.1, 0.3, 0.1] 
-          }}
-          transition={{ 
-            duration: 2, 
-            repeat: Infinity,
-            ease: "linear" 
-          }}
-          className="w-[100vw] h-[100vw] rounded-full bg-orange-500/20 blur-[80px]"
-          style={{ willChange: 'opacity' }}
+        <div 
+          className="w-[100vw] h-[100vw] rounded-full bg-orange-500/10 blur-3xl"
         />
       </div>
 
@@ -42,10 +33,8 @@ export default function StreakScreen({ streak, onContinue }: StreakScreenProps) 
         className="relative z-10 flex flex-col items-center"
       >
         <div className="w-32 h-32 rounded-full bg-surface border border-white/10 flex items-center justify-center mb-6 shadow-2xl shadow-orange-500/20 relative">
-          <motion.div
-            animate={{ scale: [1, 1.2, 1] }}
-            transition={{ duration: 1, repeat: Infinity }}
-            className="absolute inset-0 rounded-full bg-orange-500/20 blur-xl"
+          <div
+            className="absolute inset-0 rounded-full bg-orange-500/20 blur-xl animate-pulse"
           />
           <Flame className="w-16 h-16 text-orange-500 relative z-10" />
         </div>
