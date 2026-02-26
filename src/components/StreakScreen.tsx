@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Flame } from 'lucide-react';
+import { Flame, Share2 } from 'lucide-react';
 import { sounds } from '../utils/sounds';
+import { shareContent, shareElementAsImage } from '../utils/share';
 
 interface StreakScreenProps {
   streak: number;
@@ -27,10 +28,11 @@ export default function StreakScreen({ streak, onContinue }: StreakScreenProps) 
       </div>
 
       <motion.div
+        id="streak-card"
         initial={{ y: 50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3, type: "spring" }}
-        className="relative z-10 flex flex-col items-center"
+        className="relative z-10 flex flex-col items-center p-8 rounded-3xl"
       >
         <div className="w-32 h-32 rounded-full bg-surface border border-white/10 flex items-center justify-center mb-6 shadow-2xl shadow-orange-500/20 relative">
           <div
@@ -51,12 +53,25 @@ export default function StreakScreen({ streak, onContinue }: StreakScreenProps) 
           <p className="text-lg font-medium italic text-primary/90">"Consistency is the key to mastery. Keep the fire burning!"</p>
         </div>
 
-        <button
-          onClick={onContinue}
-          className="w-full max-w-xs bg-orange-500 text-background font-bold py-4 rounded-xl hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20"
-        >
-          Keep Going
-        </button>
+        <div className="flex flex-col space-y-4 w-full max-w-xs" data-html2canvas-ignore>
+          <button
+            onClick={() => shareElementAsImage(
+              'streak-card',
+              'My ZONE Streak',
+              `I'm on a ${streak}-day streak on ZONE! Can you keep up with my consistency?`
+            )}
+            className="w-full flex items-center justify-center space-x-2 bg-surface border border-white/10 text-primary font-bold py-4 rounded-xl hover:bg-white/5 transition-colors"
+          >
+            <Share2 className="w-5 h-5" />
+            <span>Share Streak</span>
+          </button>
+          <button
+            onClick={onContinue}
+            className="w-full bg-orange-500 text-background font-bold py-4 rounded-xl hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20"
+          >
+            Keep Going
+          </button>
+        </div>
       </motion.div>
     </motion.div>
   );

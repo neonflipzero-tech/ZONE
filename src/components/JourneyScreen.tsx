@@ -1,7 +1,9 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { UserState, getRankForLevel, RANKS } from '../store';
-import { Shield, Lock, Star, Check, User } from 'lucide-react';
+import { Shield, Lock, Star, Check, User, Share2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import ProfileFrame from './ProfileFrame';
+import { shareContent, shareElementAsImage } from '../utils/share';
 
 interface JourneyScreenProps {
   state: UserState;
@@ -131,7 +133,7 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
             transition={{ duration: 0.5, type: "spring" }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-xl"
           >
-            <div className="text-center flex flex-col items-center">
+            <div id="rank-up-card" className="text-center flex flex-col items-center p-8 rounded-3xl relative">
               <div
                 className="absolute w-96 h-96 bg-accent/20 rounded-full blur-3xl -z-10 animate-pulse"
               />
@@ -148,10 +150,26 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.5 }}
-                className={`text-2xl font-mono uppercase tracking-widest ${currentRank.color}`}
+                className={`text-2xl font-mono uppercase tracking-widest ${currentRank.color} mb-8`}
               >
                 {currentRank.name}
               </motion.p>
+              <motion.button
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.7 }}
+                onClick={() => {
+                  shareElementAsImage(
+                    'rank-up-card',
+                    'I Ranked Up!',
+                    `I just reached ${currentRank.name} (Level ${state.level}) on ZONE! Join me and lock in.`
+                  );
+                }}
+                className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/20 px-6 py-3 rounded-full font-bold transition-colors backdrop-blur-md"
+              >
+                <Share2 className="w-5 h-5" />
+                <span>Share Milestone</span>
+              </motion.button>
             </div>
           </motion.div>
         )}
@@ -159,16 +177,27 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
 
       <div className="relative w-full max-w-sm mx-auto py-10 px-4 flex flex-col items-center">
         {/* The Path Line */}
-        <div className="absolute top-0 bottom-0 w-2 bg-surface border-x border-white/5 left-1/2 -translate-x-1/2 z-0 rounded-full" />
-        
-        {/* Active Path Line (up to current level) */}
-        <div 
-          className="absolute bottom-0 w-2 bg-gradient-to-t from-accent to-orange-500 left-1/2 -translate-x-1/2 z-0 rounded-full transition-all duration-1000"
-          style={{ 
-            height: `${((displayLevelPfp) / maxLevelToShow) * 100}%`,
-            maxHeight: '100%'
-          }} 
-        />
+        {(() => {
+          const reversedLevels = [...levels].reverse();
+          const currentIndex = reversedLevels.findIndex(l => l === displayLevelPfp);
+          const progress = currentIndex >= 0 ? currentIndex / (levels.length - 1) : 0;
+
+          return (
+            <div className="absolute top-[120px] bottom-[120px] left-1/2 -translate-x-1/2 w-2 z-0 flex flex-col justify-end">
+              {/* Background Line */}
+              <div className="absolute inset-0 bg-white/10 rounded-full" />
+              
+              {/* Progress Line (Pink) */}
+              <motion.div 
+                className="w-full bg-[#ec4899] rounded-full relative z-10"
+                initial={{ height: 0 }}
+                animate={{ height: `${progress * 100}%` }}
+                transition={{ duration: 1.5, ease: "easeInOut" }}
+                style={{ boxShadow: '0 0 15px #ec4899, 0 0 30px #ec4899' }}
+              />
+            </div>
+          );
+        })()}
 
         {levels.map((level, index) => {
           const isCharacterHere = level === displayLevelCharacter;
@@ -176,8 +205,6 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
           const isCompleted = level < displayLevelPfp;
           const isLocked = level > displayLevelPfp;
           
-          // Alternate sides
-          const isLeft = level % 2 === 0;
           const rankForLevel = getRankForLevel(level);
           const isMilestone = RANKS.some(r => r.minLevel === level);
 
@@ -185,13 +212,13 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
             <div 
               key={level} 
               id={`level-${level}`}
-              className={`relative w-full flex items-center justify-center my-6 z-10 ${isLeft ? 'flex-row-reverse' : 'flex-row'}`}
+              className="relative w-full flex items-center justify-center my-12 z-10"
             >
-              {/* Spacer for alternating layout */}
-              <div className="w-1/2" />
-
               {/* Node */}
-              <div className="relative flex items-center justify-center">
+              <div 
+                className="relative flex items-center justify-center"
+                style={{ width: '64px' }}
+              >
                 {isPfpHere && (
                   <motion.div 
                     layoutId="glow"
@@ -225,25 +252,21 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                 )}
                 
                 <div 
-                  className={`w-16 h-16 rounded-full flex items-center justify-center border-4 shadow-xl relative z-10 transition-all ${
+                  className={`w-16 h-16 flex items-center justify-center relative z-10 transition-all ${
                     isPfpHere 
-                      ? 'bg-surface border-accent shadow-accent/20 scale-110' 
+                      ? 'scale-110' 
                       : isCompleted 
-                        ? 'bg-accent border-accent/50' 
-                        : 'bg-surface border-white/10'
+                        ? 'bg-accent border-accent/50 rounded-full border-4 shadow-xl' 
+                        : 'bg-surface border-white/10 rounded-full border-4 shadow-xl'
                   } ${isMilestone && !isCompleted && !isPfpHere ? 'border-yellow-500/50' : ''}`}
                 >
                   {isPfpHere ? (
                     <motion.div 
                       layoutId="pfp"
                       transition={{ type: "spring", stiffness: 50, damping: 15 }}
-                      className="w-full h-full rounded-full overflow-hidden p-1 bg-surface"
+                      className="w-full h-full flex items-center justify-center"
                     >
-                      {state.profilePicture ? (
-                        <img src={state.profilePicture} alt="You" className="w-full h-full object-cover rounded-full" />
-                      ) : (
-                        <User className="w-6 h-6 text-accent m-auto mt-3" />
-                      )}
+                      <ProfileFrame frame={state.equippedFrame} src={state.profilePicture} size="md" />
                     </motion.div>
                   ) : isCompleted ? (
                     <Check className="w-6 h-6 text-background" />
@@ -255,7 +278,7 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                 </div>
 
                 {/* Level Label */}
-                <div className={`absolute ${isLeft ? 'right-20' : 'left-20'} whitespace-nowrap`}>
+                <div className={`absolute ${level % 2 === 0 ? 'right-20' : 'left-20'} whitespace-nowrap`}>
                   <div className={`font-bold text-lg ${isPfpHere ? 'text-accent' : isCompleted ? 'text-primary' : 'text-secondary'}`}>
                     Level {level}
                   </div>
@@ -264,11 +287,14 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                       {rankForLevel.name}
                     </div>
                   )}
+                  {isMilestone && (
+                    <div className="mt-1 flex items-center space-x-1 text-[10px] text-yellow-500/80 bg-yellow-500/10 px-2 py-0.5 rounded-full border border-yellow-500/20 w-max">
+                      <Star className="w-3 h-3" />
+                      <span>{state.language === 'id' ? 'Bingkai Baru!' : 'New Frame!'}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {/* Spacer */}
-              <div className="w-1/2" />
             </div>
           );
         })}

@@ -41,6 +41,11 @@ export interface UserState {
   showStreakAnimation: boolean;
   animatingLevelUp: boolean;
   previousLevel: number;
+  dailyStats: Record<string, number>;
+  unlockedFrames: string[];
+  equippedFrame: string | null;
+  titles: string[];
+  equippedTitle: string | null;
 }
 
 export const RANKS = [
@@ -61,6 +66,47 @@ export function getRankForLevel(level: number) {
     }
   }
   return RANKS[0];
+}
+
+export function calculateOVR(state: UserState) {
+  const getPathScore = (path: PathType) => {
+    const p = state.chosenPath === path 
+      ? { level: state.level, xp: state.xp } 
+      : (state.pathProgress[path] || { level: 1, xp: 0 });
+    return Math.floor(Math.min(99, 40 + (p.level * 1.5) + (p.xp / 100)));
+  };
+
+  const physical = getPathScore('STRONGER');
+  const mental = getPathScore('MENTAL_HEALTH');
+  const intellect = getPathScore('PRODUCTIVE');
+  const social = getPathScore('EXTROVERT');
+  
+  // Discipline: streak
+  const discipline = Math.floor(Math.min(99, 40 + (state.streak * 1.5)));
+
+  // Ambition: total levels across all paths + badges
+  let totalLevels = state.level;
+  Object.keys(state.pathProgress).forEach(k => {
+    if (k !== state.chosenPath) {
+      totalLevels += state.pathProgress[k as PathType]?.level || 1;
+    }
+  });
+  const ambition = Math.floor(Math.min(99, 40 + (totalLevels * 1.5) + (state.badges.length * 1.5)));
+
+  // Weighted average
+  const ovr = Math.floor((physical + discipline + mental + ambition + intellect + social) / 6);
+
+  return {
+    ovr,
+    stats: {
+      physical,
+      discipline,
+      mental,
+      ambition,
+      intellect,
+      social
+    }
+  };
 }
 
 export const PATH_QUOTES: Record<PathType, string[]> = {
@@ -111,6 +157,11 @@ const createDefaultState = (username: string): UserState => ({
   showStreakAnimation: false,
   animatingLevelUp: false,
   previousLevel: 1,
+  dailyStats: {},
+  unlockedFrames: ['frame-default', 'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram'],
+  equippedFrame: null,
+  titles: ['Newbie'],
+  equippedTitle: 'Newbie',
 });
 
 const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
@@ -545,6 +596,15 @@ export function useAppState() {
 
     // Ensure all mission types have the correct number of missions
     (['REGULAR', 'DAILY', 'WEEKLY'] as MissionType[]).forEach((type) => {
+      if (type === 'REGULAR') {
+        // Remove completed regular missions so they get replaced
+        const beforeCount = currentMissions.length;
+        currentMissions = currentMissions.filter(m => !(m.type === 'REGULAR' && m.completed));
+        if (currentMissions.length !== beforeCount) {
+          missionsChanged = true;
+        }
+      }
+      
       let existingMissions = currentMissions.filter(m => m.type === type);
       const expectedCount = 3; // Max 3 missions per type
 
@@ -638,11 +698,19 @@ export function useAppState() {
       let newXp = prev.xp + xpReward;
       let newLevel = prev.level;
       let newBadges = [...prev.badges];
+      let newUnlockedFrames = prev.unlockedFrames ? [...prev.unlockedFrames] : ['frame-default', 'frame-rgb'];
+      let newTitles = prev.titles ? [...prev.titles] : ['Newbie'];
 
       if (newXp >= newLevel * 100) {
         newXp = newXp - newLevel * 100;
         newLevel += 1;
         leveledUp = true;
+        
+        const newRank = getRankForLevel(newLevel);
+        const frameName = `frame-${newRank.name.toLowerCase()}`;
+        if (!newUnlockedFrames.includes(frameName)) {
+          newUnlockedFrames.push(frameName);
+        }
       }
 
       const allMissionsCompleted = newMissions.every(m => m.completed);
@@ -652,8 +720,12 @@ export function useAppState() {
 
       // Streak logic
       const today = new Date().toDateString();
+      const todayISO = new Date().toISOString().split('T')[0];
       let newStreak = prev.streak || 0;
       let shouldShowStreakAnimation = false;
+      
+      let newDailyStats = prev.dailyStats ? { ...prev.dailyStats } : {};
+      newDailyStats[todayISO] = (newDailyStats[todayISO] || 0) + 1;
       
       if (prev.lastActiveDate !== today) {
         if (prev.lastActiveDate) {
@@ -675,6 +747,28 @@ export function useAppState() {
         }
       }
 
+      // Titles logic
+      const currentHour = new Date().getHours();
+      
+      if (currentHour >= 4 && currentHour <= 7 && !newTitles.includes('The Early Bird')) {
+        newTitles.push('The Early Bird');
+      }
+      if ((currentHour >= 22 || currentHour <= 2) && !newTitles.includes('Night Owl')) {
+        newTitles.push('Night Owl');
+      }
+      if (newStreak >= 5 && !newTitles.includes('Unstoppable')) {
+        newTitles.push('Unstoppable');
+      }
+      if (newStreak >= 30 && !newTitles.includes('Legend')) {
+        newTitles.push('Legend');
+      }
+      if (newLevel >= 10 && !newTitles.includes('Veteran')) {
+        newTitles.push('Veteran');
+      }
+      if (newLevel >= 50 && !newTitles.includes('Master')) {
+        newTitles.push('Master');
+      }
+
       return {
         ...prev,
         missions: newMissions,
@@ -687,6 +781,9 @@ export function useAppState() {
         animatingLevelUp: leveledUp ? true : prev.animatingLevelUp,
         previousLevel: leveledUp ? prev.level : prev.previousLevel,
         highestRankAchieved: getRankForLevel(newLevel).name,
+        dailyStats: newDailyStats,
+        unlockedFrames: newUnlockedFrames,
+        titles: newTitles,
       };
     });
 

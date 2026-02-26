@@ -2,6 +2,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useState, useEffect } from 'react';
 import { UserState, MissionType, getRankForLevel, Mission } from '../store';
 import { CheckCircle2, Circle, Flame, Trophy, User, Shield, Timer } from 'lucide-react';
+import { t } from '../utils/translations';
+import { sounds } from '../utils/sounds';
+import ProfileFrame from './ProfileFrame';
 
 interface HomeScreenProps {
   state: UserState;
@@ -34,6 +37,7 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
           if (prev <= 1) {
             return 0;
           }
+          sounds.playTick();
           return prev - 1;
         });
       }, 1000);
@@ -87,13 +91,9 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
       {/* Header */}
       <div className="px-6 pt-12 pb-6 flex justify-between items-center sticky top-0 bg-background/80 backdrop-blur-md z-10">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10 bg-surface flex items-center justify-center relative">
-            {state.profilePicture ? (
-              <img src={state.profilePicture} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              <User className="w-5 h-5 text-secondary" />
-            )}
-            <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border border-background ${currentRank.bg}`}></div>
+          <div className="relative">
+            <ProfileFrame frame={state.equippedFrame} src={state.profilePicture} size="sm" />
+            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border border-background z-10 ${currentRank.bg}`}></div>
           </div>
           <div>
             <h1 className="text-xl font-display font-black tracking-tight">ZONE</h1>
@@ -101,6 +101,9 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
               <Shield className={`w-3 h-3 ${currentRank.color}`} />
               <p className={`text-xs font-mono uppercase tracking-wider ${currentRank.color}`}>{currentRank.name} • Lvl {state.level}</p>
             </div>
+            {state.equippedTitle && (
+              <p className="text-[10px] font-mono uppercase tracking-widest text-accent/80 mt-0.5">{state.equippedTitle}</p>
+            )}
           </div>
         </div>
         <div className="flex items-center space-x-3">
@@ -118,7 +121,7 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
         {/* Missions */}
         <section>
           <div className="flex justify-between items-end mb-4">
-            <h3 className="text-xl font-display font-bold">Missions</h3>
+            <h3 className="text-xl font-display font-bold">{t('home.title', state.language)}</h3>
             <span className="text-sm text-secondary font-mono">{completedMissionsCount}/{totalMissions}</span>
           </div>
 
@@ -134,7 +137,7 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
                     : 'text-secondary hover:text-primary'
                 }`}
               >
-                {tab}
+                {t(`home.tab.${tab.toLowerCase()}`, state.language)}
               </button>
             ))}
           </div>
@@ -181,21 +184,6 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
             })}
           </div>
         </section>
-
-        {/* Recent Badges Preview */}
-        {state.badges.length > 0 && (
-          <section>
-            <h3 className="text-xl font-display font-bold mb-4">Recent Unlocks</h3>
-            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-              {state.badges.map((badge, i) => (
-                <div key={i} className="bg-gradient-to-b from-surface to-surface-hover border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center min-w-[100px] shrink-0 shadow-sm shadow-accent/5">
-                  <Trophy className="w-6 h-6 text-accent mb-2" />
-                  <span className="text-xs font-bold text-center text-primary">{badge}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
       </div>
 
       {/* Mission Action Modal */}
@@ -229,7 +217,13 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
                       <div className="text-6xl font-mono font-bold text-accent mb-4">
                         {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                       </div>
-                      <p className="text-secondary">Keep going!</p>
+                      <p className="text-secondary">{t('home.timer.keep_going', state.language)}</p>
+                      <button
+                        onClick={() => setIsTimerRunning(false)}
+                        className="mt-8 px-8 py-3 rounded-full border border-red-500/50 text-red-500 hover:bg-red-500/10 transition-colors font-bold"
+                      >
+                        {t('home.timer.stop', state.language)}
+                      </button>
                     </div>
                   ) : (
                     <button
@@ -237,7 +231,7 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
                       className="w-full py-5 rounded-2xl font-bold text-lg bg-primary text-background hover:bg-gray-200 transition-colors shadow-xl shadow-primary/20 flex items-center justify-center space-x-2"
                     >
                       <Timer className="w-6 h-6" />
-                      <span>Start Timer</span>
+                      <span>{t('home.timer.start', state.language)}</span>
                     </button>
                   )
                 ) : (
@@ -248,7 +242,7 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
                     }}
                     className="w-full py-5 rounded-2xl font-bold text-lg bg-primary text-background hover:bg-gray-200 transition-colors shadow-xl shadow-primary/20"
                   >
-                    Start & Complete
+                    {t('home.mission.start_complete', state.language)}
                   </button>
                 )}
                 
@@ -261,13 +255,13 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
                       }}
                       className="w-full py-5 rounded-2xl font-bold text-lg bg-surface text-secondary border border-white/10 hover:bg-surface-hover hover:text-primary transition-colors"
                     >
-                      I can't do it
+                      {state.language === 'id' ? 'Saya tidak bisa melakukannya' : "I can't do it"}
                     </button>
                     <button
                       onClick={handleCloseModal}
                       className="w-full py-5 rounded-2xl font-bold text-lg text-secondary hover:text-primary transition-colors"
                     >
-                      Cancel
+                      {state.language === 'id' ? 'Batal' : 'Cancel'}
                     </button>
                   </>
                 )}

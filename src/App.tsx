@@ -49,6 +49,23 @@ export default function App() {
   }, [state?.isLoggedIn, state?.onboardingCompleted, state?.chosenPath]);
 
   useEffect(() => {
+    if (state?.isLoggedIn && state?.username) {
+      fetch('/api/leaderboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: state.username,
+          level: state.level,
+          xp: state.xp,
+          equippedFrame: state.equippedFrame,
+          equippedTitle: state.equippedTitle,
+          profilePicture: state.profilePicture
+        })
+      }).catch(err => console.error('Failed to sync leaderboard:', err));
+    }
+  }, [state?.level, state?.xp, state?.equippedFrame, state?.equippedTitle, state?.profilePicture, state?.username, state?.isLoggedIn]);
+
+  useEffect(() => {
     if (state?.animatingLevelUp) {
       preAnimationTabRef.current = activeTabRef.current;
       setActiveTab('journey');
@@ -167,35 +184,35 @@ export default function App() {
               className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'home' ? 'text-primary' : 'text-secondary hover:text-primary/70'}`}
             >
               <Target className="w-6 h-6 mb-1" />
-              <span className="text-[10px] font-medium">Missions</span>
+              <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Misi' : 'Missions'}</span>
             </button>
             <button 
               onClick={() => setActiveTab('leaderboard')}
               className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'leaderboard' ? 'text-accent' : 'text-secondary hover:text-accent/70'}`}
             >
               <BarChart2 className="w-6 h-6 mb-1" />
-              <span className="text-[10px] font-medium">Global</span>
+              <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Peringkat' : 'Global'}</span>
             </button>
             <button 
               onClick={() => setActiveTab('journey')}
               className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'journey' ? 'text-orange-500' : 'text-secondary hover:text-orange-500/70'}`}
             >
               <Map className="w-6 h-6 mb-1" />
-              <span className="text-[10px] font-medium">Journey</span>
+              <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Perjalanan' : 'Journey'}</span>
             </button>
             <button 
               onClick={() => setActiveTab('rank')}
               className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'rank' ? 'text-primary' : 'text-secondary hover:text-primary/70'}`}
             >
               <Trophy className="w-6 h-6 mb-1" />
-              <span className="text-[10px] font-medium">Rank</span>
+              <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Pangkat' : 'Rank'}</span>
             </button>
             <button 
               onClick={() => setActiveTab('profile')}
               className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'profile' ? 'text-primary' : 'text-secondary hover:text-primary/70'}`}
             >
               <User className="w-6 h-6 mb-1" />
-              <span className="text-[10px] font-medium">Profile</span>
+              <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Profil' : 'Profile'}</span>
             </button>
           </div>
         </div>
