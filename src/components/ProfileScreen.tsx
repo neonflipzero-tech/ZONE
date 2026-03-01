@@ -1,12 +1,15 @@
 import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserState, getRankForLevel, PathType, calculateOVR } from '../store';
-import { Trophy, Flame, LogOut, Camera, User, Shield, ChevronDown, ChevronUp, Star, Lock, CheckCircle2, Share2 } from 'lucide-react';
+import { UserState, getRankForLevel, PathType, calculateOVR, createDefaultState } from '../store';
+import { Trophy, Flame, LogOut, Camera, User, Shield, ChevronDown, ChevronUp, Star, Lock, CheckCircle2, Share2, AlertTriangle } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import { t } from '../utils/translations';
 import ProfileFrame from './ProfileFrame';
 import { shareContent, shareElementAsImage } from '../utils/share';
 import StatDetailModal from './StatDetailModal';
+import ImageCropper from './ImageCropper';
+import ResetProgressModal from './ResetProgressModal';
+import FramesModal from './FramesModal';
 
 interface ProfileScreenProps {
   state: UserState;
@@ -20,7 +23,19 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
   const ovrStatsRef = useRef<HTMLDivElement>(null);
   const [isGoalDropdownOpen, setIsGoalDropdownOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [selectedStat, setSelectedStat] = useState<{id: string, subject: string, A: number} | null>(null);
+  const [selectedStat, setSelectedStat] = useState<{id: string, subject: string, label?: string, A: number} | null>(null);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isFramesModalOpen, setIsFramesModalOpen] = useState(false);
+
+  const handleResetProgress = () => {
+    const defaultState = createDefaultState(state.username);
+    updateState({
+      ...defaultState,
+      isLoggedIn: true,
+      onboardingCompleted: true, // Keep them onboarded
+      chosenPath: state.chosenPath, // Keep their chosen path
+    });
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -33,10 +48,11 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
     }
   };
 
-  const confirmImage = () => {
-    if (previewImage) {
-      updateState({ profilePicture: previewImage });
-      setPreviewImage(null);
+  const handleCropComplete = (croppedImage: string) => {
+    updateState({ profilePicture: croppedImage, hasPromptedPfp: true });
+    setPreviewImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -170,7 +186,9 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 <Star className="w-5 h-5 text-accent" />
               </div>
               <div>
-                <div className="text-2xl font-display font-bold text-primary">{state.xp}</div>
+                <div className="text-2xl font-display font-bold text-primary">
+                  {50 * state.level * (state.level - 1) + state.xp}
+                </div>
                 <div className="text-[10px] text-secondary font-mono uppercase tracking-wider">{t('profile.total_xp', state.language)}</div>
               </div>
             </div>
@@ -188,7 +206,9 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 <CheckCircle2 className="w-5 h-5 text-blue-500" />
               </div>
               <div>
-                <div className="text-2xl font-display font-bold text-primary">{state.missions.filter(m => m.completed).length}</div>
+                <div className="text-2xl font-display font-bold text-primary">
+                  {Object.values(state.dailyStats || {}).reduce((a, b) => a + b, 0)}
+                </div>
                 <div className="text-[10px] text-secondary font-mono uppercase tracking-wider">{state.language === 'id' ? 'Misi Selesai' : 'Missions Done'}</div>
               </div>
             </div>
@@ -222,7 +242,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
           <div id="ovr-stats-card" className="bg-surface/50 border border-white/5 rounded-3xl p-6 relative overflow-hidden flex flex-col items-center">
             <div className="absolute inset-0 bg-gradient-to-b from-accent/5 to-transparent pointer-events-none" />
             
-            <div className="relative w-full aspect-square max-w-[300px]">
+            <div className="relative w-full aspect-square max-w-[340px]">
               {/* OVR Number in Center */}
               <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
                 <div className="flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm w-16 h-16 rounded-full border border-white/10 shadow-lg shadow-accent/20">
@@ -236,7 +256,41 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                   <PolarGrid stroke="rgba(255,255,255,0.1)" />
                   <PolarAngleAxis 
                     dataKey="subject" 
-                    tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 10, fontFamily: 'monospace', fontWeight: 'bold' }} 
+                    tick={(props: any) => {
+                      const { payload, x, y, textAnchor, stroke, radius } = props;
+                      const getStatColorHex = (subject: string) => {
+                        switch(subject) {
+                          case 'Fisik':
+                          case 'Physical': return '#ef4444'; // red-500
+                          case 'Disiplin':
+                          case 'Discipline': return '#3b82f6'; // blue-500
+                          case 'Mental': return '#a855f7'; // purple-500
+                          case 'Ambisi':
+                          case 'Ambition': return '#eab308'; // yellow-500
+                          case 'Intelek':
+                          case 'Intellect': return '#06b6d4'; // cyan-500
+                          case 'Sosial':
+                          case 'Social': return '#22c55e'; // green-500
+                          default: return '#ffffff';
+                        }
+                      };
+                      return (
+                        <text 
+                          radius={radius} 
+                          stroke={stroke} 
+                          x={x} 
+                          y={y} 
+                          className="recharts-text recharts-polar-angle-axis-tick-value" 
+                          textAnchor={textAnchor} 
+                          fill={getStatColorHex(payload.value)}
+                          fontSize={8}
+                          fontFamily="monospace"
+                          fontWeight="bold"
+                        >
+                          <tspan x={x} dy="0.3em">{payload.value}</tspan>
+                        </text>
+                      );
+                    }}
                   />
                   <PolarRadiusAxis angle={30} domain={[0, 99]} tick={false} axisLine={false} />
                   <Radar
@@ -255,12 +309,17 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
               {radarData.map((stat, i) => {
                 const getStatColor = (subject: string) => {
                   switch(subject) {
-                    case 'PHY': return 'text-red-500';
-                    case 'DIS': return 'text-blue-500';
-                    case 'MEN': return 'text-purple-500';
-                    case 'AMB': return 'text-yellow-500';
-                    case 'INT': return 'text-cyan-500';
-                    case 'SOC': return 'text-green-500';
+                    case 'Fisik':
+                    case 'Physical': return 'text-red-500';
+                    case 'Disiplin':
+                    case 'Discipline': return 'text-blue-500';
+                    case 'Mental': return 'text-purple-500';
+                    case 'Ambisi':
+                    case 'Ambition': return 'text-yellow-500';
+                    case 'Intelek':
+                    case 'Intellect': return 'text-cyan-500';
+                    case 'Sosial':
+                    case 'Social': return 'text-green-500';
                     default: return 'text-primary';
                   }
                 };
@@ -312,55 +371,122 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             <div>
               <h4 className="text-xs font-bold text-primary mb-3 px-2 flex items-center"><Shield className="w-3 h-3 mr-1 text-accent"/> {state.language === 'id' ? 'Bingkai Profil' : 'Profile Frames'}</h4>
               <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-2">
-                {['frame-default', 'frame-bronze', 'frame-silver', 'frame-gold', 'frame-platinum', 'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram'].map(frame => {
-                  const isUnlocked = state.unlockedFrames?.includes(frame) || ['frame-default', 'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram'].includes(frame);
-                  const isEquipped = state.equippedFrame === frame || (frame === 'frame-default' && !state.equippedFrame);
+                {(() => {
+                  const allFrames = ['frame-default', 'frame-bronze', 'frame-silver', 'frame-gold', 'frame-platinum', 'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience'];
+                  const isZaiki = state.username?.toLowerCase() === 'zaiki';
+                  const totalMissions = Object.values(state.dailyStats || {}).reduce((a, b) => a + b, 0);
                   
-                  const getFrameDescription = (f: string) => {
-                    switch(f) {
-                      case 'frame-default': return state.language === 'id' ? 'Tersedia dari awal' : 'Available from start';
-                      case 'frame-bronze': return state.language === 'id' ? 'Capai Rank Bronze' : 'Reach Bronze Rank';
-                      case 'frame-silver': return state.language === 'id' ? 'Capai Rank Silver' : 'Reach Silver Rank';
-                      case 'frame-gold': return state.language === 'id' ? 'Capai Rank Gold' : 'Reach Gold Rank';
-                      case 'frame-platinum': return state.language === 'id' ? 'Capai Rank Platinum' : 'Reach Platinum Rank';
-                      case 'frame-diamond': return state.language === 'id' ? 'Capai Rank Diamond' : 'Reach Diamond Rank';
-                      case 'frame-master': return state.language === 'id' ? 'Capai Rank Master' : 'Reach Master Rank';
-                      case 'frame-grandmaster': return state.language === 'id' ? 'Capai Rank Grandmaster' : 'Reach Grandmaster Rank';
-                      case 'frame-challenger': return state.language === 'id' ? 'Capai Rank Challenger' : 'Reach Challenger Rank';
-                      case 'frame-rgb': return state.language === 'id' ? 'Hadiah Spesial' : 'Special Reward';
-                      case 'frame-neon': return state.language === 'id' ? 'Hadiah Spesial' : 'Special Reward';
-                      case 'frame-fire': return state.language === 'id' ? 'Hadiah Spesial' : 'Special Reward';
-                      case 'frame-cyberpunk': return state.language === 'id' ? 'Hadiah Spesial' : 'Special Reward';
-                      case 'frame-hologram': return state.language === 'id' ? 'Hadiah Spesial' : 'Special Reward';
-                      default: return '';
-                    }
+                  const checkUnlocked = (frame: string) => {
+                    const specialConditions: Record<string, boolean> = {
+                      'frame-rgb': state.streak >= 7,
+                      'frame-neon': totalMissions >= 50,
+                      'frame-fire': state.streak >= 30,
+                      'frame-cyberpunk': state.badges.length >= 5,
+                      'frame-hologram': totalMissions >= 100,
+                      'frame-celestial': ovr >= 80,
+                      'frame-void': state.level >= 20,
+                      'frame-aurora': state.streak >= 60,
+                      'frame-radiant': totalMissions >= 200,
+                      'frame-abyssal': totalMissions >= 666,
+                      'frame-inferno': state.streak >= 100,
+                      'frame-ethereal': ovr >= 95,
+                      'frame-omniscience': ovr >= 100,
+                    };
+                    return state.unlockedFrames?.includes(frame) || 
+                      frame === 'frame-default' || 
+                      isZaiki || 
+                      (specialConditions[frame] ?? false);
                   };
 
+                  const sortedFrames = [...allFrames].sort((a, b) => {
+                    const aEquipped = state.equippedFrame === a || (a === 'frame-default' && !state.equippedFrame);
+                    const bEquipped = state.equippedFrame === b || (b === 'frame-default' && !state.equippedFrame);
+                    if (aEquipped) return -1;
+                    if (bEquipped) return 1;
+                    
+                    const aUnlocked = checkUnlocked(a);
+                    const bUnlocked = checkUnlocked(b);
+                    if (aUnlocked && !bUnlocked) return -1;
+                    if (!aUnlocked && bUnlocked) return 1;
+                    
+                    return allFrames.indexOf(a) - allFrames.indexOf(b);
+                  });
+
+                  const displayFrames = sortedFrames.slice(0, 3);
+
                   return (
-                    <button
-                      key={frame}
-                      onClick={() => isUnlocked && updateState({ equippedFrame: frame === 'frame-default' ? null : frame })}
-                      disabled={!isUnlocked}
-                      className={`relative flex-shrink-0 snap-center rounded-xl p-4 transition-all flex flex-col items-center gap-3 w-32 ${
-                        isEquipped ? 'bg-accent/10 border border-accent' : 
-                        isUnlocked ? 'bg-surface border border-white/5 hover:border-white/20' : 
-                        'bg-surface/30 border border-white/5 opacity-50 cursor-not-allowed'
-                      }`}
-                    >
-                      <ProfileFrame frame={frame} src={state.profilePicture} size="md" />
-                      <div className="flex flex-col items-center text-center mt-1">
-                        <span className="text-[10px] font-mono uppercase tracking-wider text-primary font-bold mb-1">
-                          {frame.replace('frame-', '')}
+                    <>
+                      {displayFrames.map(frame => {
+                        const isUnlocked = checkUnlocked(frame);
+                        const isEquipped = state.equippedFrame === frame || (frame === 'frame-default' && !state.equippedFrame);
+                        
+                        const getFrameDescription = (f: string) => {
+                          switch(f) {
+                            case 'frame-default': return state.language === 'id' ? 'Tersedia dari awal' : 'Available from start';
+                            case 'frame-bronze': return state.language === 'id' ? 'Capai Rank Bronze' : 'Reach Bronze Rank';
+                            case 'frame-silver': return state.language === 'id' ? 'Capai Rank Silver' : 'Reach Silver Rank';
+                            case 'frame-gold': return state.language === 'id' ? 'Capai Rank Gold' : 'Reach Gold Rank';
+                            case 'frame-platinum': return state.language === 'id' ? 'Capai Rank Platinum' : 'Reach Platinum Rank';
+                            case 'frame-diamond': return state.language === 'id' ? 'Capai Rank Diamond' : 'Reach Diamond Rank';
+                            case 'frame-master': return state.language === 'id' ? 'Capai Rank Master' : 'Reach Master Rank';
+                            case 'frame-grandmaster': return state.language === 'id' ? 'Capai Rank Grandmaster' : 'Reach Grandmaster Rank';
+                            case 'frame-challenger': return state.language === 'id' ? 'Capai Rank Challenger' : 'Reach Challenger Rank';
+                            case 'frame-rgb': return state.language === 'id' ? 'Capai 7 Hari Streak' : 'Reach 7 Day Streak';
+                            case 'frame-neon': return state.language === 'id' ? 'Selesaikan 50 Misi' : 'Complete 50 Missions';
+                            case 'frame-fire': return state.language === 'id' ? 'Capai 30 Hari Streak' : 'Reach 30 Day Streak';
+                            case 'frame-cyberpunk': return state.language === 'id' ? 'Kumpulkan 5 Lencana' : 'Earn 5 Badges';
+                            case 'frame-hologram': return state.language === 'id' ? 'Selesaikan 100 Misi' : 'Complete 100 Missions';
+                            case 'frame-celestial': return state.language === 'id' ? 'Capai OVR 80' : 'Reach 80 OVR';
+                            case 'frame-void': return state.language === 'id' ? 'Capai Level 20' : 'Reach Level 20';
+                            case 'frame-aurora': return state.language === 'id' ? 'Capai 60 Hari Streak' : 'Reach 60 Day Streak';
+                            case 'frame-radiant': return state.language === 'id' ? 'Selesaikan 200 Misi' : 'Complete 200 Missions';
+                            case 'frame-abyssal': return state.language === 'id' ? 'Selesaikan 666 Misi' : 'Complete 666 Missions';
+                            case 'frame-inferno': return state.language === 'id' ? 'Capai 100 Hari Streak' : 'Reach 100 Day Streak';
+                            case 'frame-ethereal': return state.language === 'id' ? 'Capai OVR 95' : 'Reach 95 OVR';
+                            case 'frame-omniscience': return state.language === 'id' ? 'Capai OVR 100 (Maksimal)' : 'Reach 100 OVR (Max)';
+                            default: return '';
+                          }
+                        };
+
+                        return (
+                          <button
+                            key={frame}
+                            onClick={() => isUnlocked && updateState({ equippedFrame: frame === 'frame-default' ? null : frame })}
+                            disabled={!isUnlocked}
+                            className={`relative flex-shrink-0 snap-center rounded-xl p-4 transition-all flex flex-col items-center gap-3 w-36 ${
+                              isEquipped ? 'bg-accent/10 border border-accent' : 
+                              isUnlocked ? 'bg-surface border border-white/5 hover:border-white/20' : 
+                              'bg-surface/30 border border-white/5 opacity-50 cursor-not-allowed'
+                            }`}
+                          >
+                            <ProfileFrame frame={frame} src={state.profilePicture} size="md" />
+                            <div className="flex flex-col items-center text-center mt-2 w-full">
+                              <span className="text-[11px] font-mono uppercase tracking-wider text-primary font-bold mb-1.5">
+                                {frame.replace('frame-', '')}
+                              </span>
+                              <span className="text-[9px] text-secondary/90 leading-snug">
+                                {getFrameDescription(frame)}
+                              </span>
+                            </div>
+                            {!isUnlocked && <Lock className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-white drop-shadow-md" />}
+                            {isEquipped && <div className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full shadow-[0_0_10px_rgba(242,125,38,1)]" />}
+                          </button>
+                        );
+                      })}
+                      <button
+                        onClick={() => setIsFramesModalOpen(true)}
+                        className="relative flex-shrink-0 snap-center rounded-xl p-4 transition-all flex flex-col items-center justify-center gap-3 w-36 bg-surface border border-white/5 hover:border-white/20 hover:bg-white/5"
+                      >
+                        <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
+                          <span className="text-2xl text-secondary">+</span>
+                        </div>
+                        <span className="text-[11px] font-mono uppercase tracking-wider text-primary font-bold mt-2">
+                          {state.language === 'id' ? 'Lihat Semua' : 'Show All'}
                         </span>
-                        <span className="text-[8px] text-secondary leading-tight">
-                          {getFrameDescription(frame)}
-                        </span>
-                      </div>
-                      {!isUnlocked && <Lock className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-white drop-shadow-md" />}
-                      {isEquipped && <div className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full shadow-[0_0_10px_rgba(242,125,38,1)]" />}
-                    </button>
+                      </button>
+                    </>
                   );
-                })}
+                })()}
               </div>
             </div>
           </div>
@@ -492,6 +618,14 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             </div>
 
             <button 
+              onClick={() => setIsResetModalOpen(true)}
+              className="w-full p-4 flex items-center justify-between text-red-500 hover:bg-red-500/10 transition-colors border-b border-white/5"
+            >
+              <span className="font-bold">{state.language === 'id' ? 'Hapus Semua Progres' : 'Reset All Progress'}</span>
+              <AlertTriangle className="w-5 h-5" />
+            </button>
+
+            <button 
               onClick={onLogout}
               className="w-full p-4 flex items-center justify-between text-accent hover:bg-white/5 transition-colors"
             >
@@ -505,31 +639,11 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
       {/* Profile Picture Preview Modal */}
       <AnimatePresence>
         {previewImage && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm flex flex-col items-center justify-center px-6"
-          >
-            <h2 className="text-2xl font-display font-bold mb-8">{state.language === 'id' ? 'Sesuaikan Foto Profil' : 'Adjust Profile Picture'}</h2>
-            <div className="w-64 h-64 rounded-full overflow-hidden border-4 border-surface bg-surface flex items-center justify-center shadow-2xl shadow-accent/20 mb-8">
-              <img src={previewImage} alt="Preview" className="w-full h-full object-cover" />
-            </div>
-            <div className="flex space-x-4 w-full max-w-xs">
-              <button 
-                onClick={cancelImage}
-                className="flex-1 py-3 rounded-xl font-bold bg-surface text-primary border border-white/10 hover:bg-surface-hover transition-colors"
-              >
-                {state.language === 'id' ? 'Batal' : 'Cancel'}
-              </button>
-              <button 
-                onClick={confirmImage}
-                className="flex-1 py-3 rounded-xl font-bold bg-primary text-background hover:bg-gray-200 transition-colors"
-              >
-                {state.language === 'id' ? 'Simpan' : 'Save'}
-              </button>
-            </div>
-          </motion.div>
+          <ImageCropper 
+            imageSrc={previewImage} 
+            onCropComplete={handleCropComplete} 
+            onCancel={cancelImage} 
+          />
         )}
       </AnimatePresence>
 
@@ -538,6 +652,21 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
         onClose={() => setSelectedStat(null)} 
         stat={selectedStat} 
         language={state.language} 
+      />
+
+      <ResetProgressModal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        onConfirm={handleResetProgress}
+        language={state.language}
+      />
+
+      <FramesModal
+        isOpen={isFramesModalOpen}
+        onClose={() => setIsFramesModalOpen(false)}
+        state={state}
+        updateState={updateState}
+        ovr={ovr}
       />
     </motion.div>
   );

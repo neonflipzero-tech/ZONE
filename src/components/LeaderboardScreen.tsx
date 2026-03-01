@@ -22,21 +22,28 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/leaderboard')
-      .then(res => res.json())
-      .then(data => {
-        setUsers(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
+    // Netlify friendly: use localStorage for leaderboard
+    const savedLeaderboard = localStorage.getItem('lockin_global_leaderboard');
+    if (savedLeaderboard) {
+      try {
+        setUsers(JSON.parse(savedLeaderboard));
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      // Mock data if empty
+      setUsers([
+        { username: 'Zaiki', level: 100, xp: 99999, equippedFrame: 'frame-omniscience', equippedTitle: 'The Creator', profilePicture: null },
+        { username: 'ProGamer', level: 42, xp: 15000, equippedFrame: 'frame-abyssal', equippedTitle: 'Grind Master', profilePicture: null },
+        { username: 'Newbie', level: 5, xp: 1200, equippedFrame: 'frame-bronze', equippedTitle: 'Newbie', profilePicture: null },
+      ]);
+    }
+    setLoading(false);
   }, []);
 
   // Override current user's data with local state to ensure it's always up-to-date
   const allUsers = users.map(u => {
-    if (u.username === state.username) {
+    if (state.username && u.username === state.username) {
       return {
         ...u,
         level: state.level,
@@ -50,7 +57,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
   });
 
   // If the current user is not in the list (e.g., just started and hasn't synced yet), add them locally
-  if (!allUsers.find(u => u.username === state.username)) {
+  if (state.username && !allUsers.find(u => u.username === state.username)) {
     allUsers.push({
       username: state.username,
       level: state.level,

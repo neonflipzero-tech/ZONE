@@ -21,7 +21,7 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
   const isRankUp = prevRank.name !== currentRank.name && state.animatingLevelUp;
 
   // Generate levels to show (current level + 10 future levels, and all past levels)
-  const maxLevelToShow = Math.max(state.level + 10, 20);
+  const maxLevelToShow = Math.max(state.level + 10, 36);
   const levels = Array.from({ length: maxLevelToShow }, (_, i) => i + 1).reverse();
 
   useEffect(() => {

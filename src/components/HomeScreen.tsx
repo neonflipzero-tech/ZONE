@@ -1,15 +1,18 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, useEffect } from 'react';
 import { UserState, MissionType, getRankForLevel, Mission } from '../store';
-import { CheckCircle2, Circle, Flame, Trophy, User, Shield, Timer } from 'lucide-react';
+import { CheckCircle2, Circle, Flame, Trophy, User, Shield, Timer, Wand2 } from 'lucide-react';
 import { t } from '../utils/translations';
 import { sounds } from '../utils/sounds';
 import ProfileFrame from './ProfileFrame';
+import CustomMissionsModal from './CustomMissionsModal';
 
 interface HomeScreenProps {
   state: UserState;
   onCompleteMission: (id: string) => void;
   onReplaceMission: (id: string) => void;
+  addCustomMission: (type: MissionType, text: string) => void;
+  removeCustomMission: (type: MissionType, text: string) => void;
 }
 
 function extractDuration(text: string): number | null {
@@ -22,11 +25,12 @@ function extractDuration(text: string): number | null {
   return null;
 }
 
-export default function HomeScreen({ state, onCompleteMission, onReplaceMission }: HomeScreenProps) {
+export default function HomeScreen({ state, onCompleteMission, onReplaceMission, addCustomMission, removeCustomMission }: HomeScreenProps) {
   const [activeTab, setActiveTab] = useState<MissionType>('REGULAR');
   const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [isCustomMissionsModalOpen, setIsCustomMissionsModalOpen] = useState(false);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -122,22 +126,36 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
         <section>
           <div className="flex justify-between items-end mb-4">
             <h3 className="text-xl font-display font-bold">{t('home.title', state.language)}</h3>
-            <span className="text-sm text-secondary font-mono">{completedMissionsCount}/{totalMissions}</span>
+            <div className="flex items-center gap-3">
+              {state.chosenPath === 'OTHER' && (
+                <button 
+                  onClick={() => setIsCustomMissionsModalOpen(true)}
+                  className="p-1.5 rounded-lg bg-surface border border-white/10 hover:bg-white/10 transition-colors text-accent"
+                  title={state.language === 'id' ? 'Atur Misi Kustom' : 'Manage Custom Missions'}
+                >
+                  <Wand2 className="w-4 h-4" />
+                </button>
+              )}
+              <span className="text-sm text-secondary font-mono">{completedMissionsCount}/{totalMissions}</span>
+            </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex bg-surface rounded-xl p-1 mb-6 border border-white/5">
-            {(['REGULAR', 'DAILY', 'WEEKLY'] as MissionType[]).map((tab) => (
+          <div className="flex bg-surface rounded-xl p-1 mb-6 border border-white/5 overflow-x-auto no-scrollbar">
+            {(state.chosenPath === 'OTHER' 
+              ? ['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] as MissionType[]
+              : ['REGULAR', 'DAILY', 'WEEKLY'] as MissionType[]
+            ).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-colors ${
+                className={`flex-1 min-w-[70px] py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-colors ${
                   activeTab === tab 
                     ? 'bg-gradient-to-r from-accent to-rose-600 text-white shadow-md' 
                     : 'text-secondary hover:text-primary'
                 }`}
               >
-                {t(`home.tab.${tab.toLowerCase()}`, state.language)}
+                {tab === 'ROUTINE' ? (state.language === 'id' ? 'Rutinitas' : 'Routine') : t(`home.tab.${tab.toLowerCase()}`, state.language)}
               </button>
             ))}
           </div>
@@ -153,35 +171,70 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
           </div>
 
           <div className="space-y-3">
-            {displayedMissions.map((mission, index) => {
-              const xpReward = mission.type === 'WEEKLY' ? 200 : mission.type === 'DAILY' ? 100 : 50;
-              return (
-                <motion.div
-                  key={mission.id}
-                  initial={{ y: 10, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: index * 0.1 }}
-                  onClick={() => handleMissionClick(mission)}
-                  className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all ${
-                    mission.completed 
-                      ? 'bg-surface/30 border-white/5 opacity-50' 
-                      : 'bg-gradient-to-br from-surface to-surface-hover border-white/10 cursor-pointer hover:border-white/30 hover:shadow-lg hover:shadow-accent/5'
-                  }`}
+            {displayedMissions.length === 0 ? (
+              <div className="text-center py-12 px-4 bg-surface/50 rounded-2xl border border-white/5">
+                <Wand2 className="w-12 h-12 text-secondary/30 mx-auto mb-4" />
+                <h4 className="text-lg font-bold mb-2">
+                  {state.language === 'id' ? 'Belum ada misi' : 'No missions yet'}
+                </h4>
+                <p className="text-sm text-secondary mb-6 max-w-[250px] mx-auto">
+                  {state.language === 'id' 
+                    ? `Tambahkan misi kustom ${activeTab.toLowerCase()} untuk mulai mendapatkan XP.` 
+                    : `Add custom ${activeTab.toLowerCase()} missions to start earning XP.`}
+                </p>
+                <button
+                  onClick={() => setIsCustomMissionsModalOpen(true)}
+                  className="px-6 py-3 bg-accent text-background rounded-xl font-bold text-sm hover:bg-accent/90 transition-colors"
                 >
-                  {mission.completed ? (
-                    <CheckCircle2 className="w-6 h-6 text-accent shrink-0" />
-                  ) : (
-                    <Circle className="w-6 h-6 text-secondary shrink-0" />
-                  )}
-                  <span className={`font-medium ${mission.completed ? 'line-through text-secondary' : 'text-primary'}`}>
-                    {mission.text}
-                  </span>
-                  {!mission.completed && (
-                    <span className="ml-auto text-xs font-mono text-accent">+{xpReward} XP</span>
-                  )}
-                </motion.div>
-              );
-            })}
+                  {state.language === 'id' ? 'Tambah Misi' : 'Add Missions'}
+                </button>
+              </div>
+            ) : (
+              displayedMissions.map((mission, index) => {
+                const xpReward = mission.type === 'WEEKLY' ? 200 : mission.type === 'DAILY' ? 100 : 50;
+                
+                // For ROUTINE missions, lock them if the previous one isn't completed
+                const isRoutine = activeTab === 'ROUTINE';
+                const firstUncompletedIndex = displayedMissions.findIndex(m => !m.completed);
+                const isLocked = isRoutine && !mission.completed && firstUncompletedIndex !== -1 && index > firstUncompletedIndex;
+
+                return (
+                  <motion.div
+                    key={mission.id}
+                    initial={{ y: 10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                    onClick={() => !isLocked && handleMissionClick(mission)}
+                    className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all ${
+                      mission.completed 
+                        ? 'bg-surface/30 border-white/5 opacity-50' 
+                        : isLocked
+                          ? 'bg-surface/10 border-white/5 opacity-40 cursor-not-allowed grayscale'
+                          : 'bg-gradient-to-br from-surface to-surface-hover border-white/10 cursor-pointer hover:border-white/30 hover:shadow-lg hover:shadow-accent/5'
+                    }`}
+                  >
+                    {mission.completed ? (
+                      <CheckCircle2 className="w-6 h-6 text-accent shrink-0" />
+                    ) : (
+                      <Circle className={`w-6 h-6 shrink-0 ${isLocked ? 'text-secondary/30' : 'text-secondary'}`} />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <span className={`font-medium block truncate ${mission.completed ? 'line-through text-secondary' : 'text-primary'}`}>
+                        {mission.text}
+                      </span>
+                      {isLocked && (
+                        <span className="text-[10px] font-mono text-rose-500">
+                          {state.language === 'id' ? 'Terkunci (Selesaikan misi sebelumnya)' : 'Locked (Complete previous)'}
+                        </span>
+                      )}
+                    </div>
+                    {!mission.completed && !isLocked && (
+                      <span className="ml-auto text-xs font-mono text-accent">+{xpReward} XP</span>
+                    )}
+                  </motion.div>
+                );
+              })
+            )}
           </div>
         </section>
       </div>
@@ -270,6 +323,14 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission 
           </motion.div>
         )}
       </AnimatePresence>
+
+      <CustomMissionsModal
+        isOpen={isCustomMissionsModalOpen}
+        onClose={() => setIsCustomMissionsModalOpen(false)}
+        state={state}
+        addCustomMission={addCustomMission}
+        removeCustomMission={removeCustomMission}
+      />
     </motion.div>
   );
 }

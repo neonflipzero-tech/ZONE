@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { sounds } from './utils/sounds';
 
-export type PathType = 'PRODUCTIVE' | 'STRONGER' | 'EXTROVERT' | 'DISCIPLINE' | 'MENTAL_HEALTH';
-export type MissionType = 'REGULAR' | 'DAILY' | 'WEEKLY';
+export type PathType = 'PRODUCTIVE' | 'STRONGER' | 'EXTROVERT' | 'DISCIPLINE' | 'MENTAL_HEALTH' | 'OTHER';
+export type MissionType = 'REGULAR' | 'DAILY' | 'WEEKLY' | 'ROUTINE';
 
 export interface Mission {
   id: string;
@@ -46,6 +46,8 @@ export interface UserState {
   equippedFrame: string | null;
   titles: string[];
   equippedTitle: string | null;
+  hasPromptedPfp: boolean;
+  customMissions: Record<MissionType, string[]>;
 }
 
 export const RANKS = [
@@ -80,6 +82,7 @@ export function calculateOVR(state: UserState) {
   const mental = getPathScore('MENTAL_HEALTH');
   const intellect = getPathScore('PRODUCTIVE');
   const social = getPathScore('EXTROVERT');
+  const other = getPathScore('OTHER');
   
   // Discipline: streak
   const discipline = Math.floor(Math.min(99, 40 + (state.streak * 1.5)));
@@ -93,7 +96,7 @@ export function calculateOVR(state: UserState) {
   });
   const ambition = Math.floor(Math.min(99, 40 + (totalLevels * 1.5) + (state.badges.length * 1.5)));
 
-  // Weighted average
+  // Weighted average (excluding 'other' from main OVR calculation as requested)
   const ovr = Math.floor((physical + discipline + mental + ambition + intellect + social) / 6);
 
   return {
@@ -104,7 +107,8 @@ export function calculateOVR(state: UserState) {
       mental,
       ambition,
       intellect,
-      social
+      social,
+      other
     }
   };
 }
@@ -134,10 +138,15 @@ export const PATH_QUOTES: Record<PathType, string[]> = {
     "Peace is the result of retraining your mind to process life as it is, rather than as you think it should be.",
     "You don't have to control your thoughts. You just have to stop letting them control you.",
     "Self-care is how you take your power back."
+  ],
+  OTHER: [
+    "Design your own destiny.",
+    "Your path, your rules.",
+    "Every step counts, no matter the direction."
   ]
 };
 
-const createDefaultState = (username: string): UserState => ({
+export const createDefaultState = (username: string): UserState => ({
   username,
   profilePicture: null,
   isLoggedIn: true,
@@ -158,10 +167,17 @@ const createDefaultState = (username: string): UserState => ({
   animatingLevelUp: false,
   previousLevel: 1,
   dailyStats: {},
-  unlockedFrames: ['frame-default', 'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram'],
+  unlockedFrames: ['frame-default'],
   equippedFrame: null,
   titles: ['Newbie'],
   equippedTitle: 'Newbie',
+  hasPromptedPfp: false,
+  customMissions: {
+    REGULAR: [],
+    DAILY: [],
+    WEEKLY: [],
+    ROUTINE: []
+  }
 });
 
 const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
@@ -219,7 +235,8 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Organize your closet", "Donate old clothes", "Plan a trip", 
       "Review your monthly goals", "Set goals for next month", "Create a vision board", 
       "Read a biography", "Watch a documentary"
-    ]
+    ],
+    ROUTINE: []
   },
   STRONGER: {
     REGULAR: [
@@ -275,7 +292,8 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Do a martial arts class", "Do a dance class", "Do a CrossFit workout", 
       "Meal prep for 7 days", "Track macros for 7 days", "Do 200 push-ups in one day", 
       "Do 200 squats in one day", "Run a 5k under 30 mins"
-    ]
+    ],
+    ROUTINE: []
   },
   EXTROVERT: {
     REGULAR: [
@@ -331,7 +349,8 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Go on a road trip with friends", "Visit a new city with friends", "Attend a conference", 
       "Go to a trade show", "Volunteer at an animal shelter", "Volunteer at a food bank", 
       "Join a book club", "Start a conversation with a stranger at a cafe"
-    ]
+    ],
+    ROUTINE: []
   },
   DISCIPLINE: {
     REGULAR: [
@@ -387,7 +406,8 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Save 10% of income", "Invest 10% of income", "Deep clean the entire house", 
       "Wash all windows", "Clean the oven", "Clean the fridge", 
       "Organize the garage", "Donate 5 items"
-    ]
+    ],
+    ROUTINE: []
   },
   MENTAL_HEALTH: {
     REGULAR: [
@@ -443,7 +463,8 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Cook a complex meal", "Read a whole fiction book", "Watch 2 movies", 
       "Have a pajama day", "Sleep in without an alarm", "Do a 1-hour meditation", 
       "Do a 1-hour yoga class", "Write a short story"
-    ]
+    ],
+    ROUTINE: []
   },
 };
 
@@ -592,10 +613,79 @@ export function useAppState() {
     let currentMissions = [...state.missions];
     let missionsChanged = false;
 
-    const pathMissions = PATH_MISSIONS[path];
+    const pathMissions = path === 'OTHER' 
+      ? (state.customMissions || { REGULAR: [], DAILY: [], WEEKLY: [], ROUTINE: [] })
+      : PATH_MISSIONS[path];
+
+    const getMissionsForType = (type: MissionType) => {
+      const missions = pathMissions[type];
+      if (!missions || missions.length === 0) {
+        return [];
+      }
+      return missions;
+    };
+
+    if (state.lastMissionDate !== today) {
+      currentMissions = currentMissions.filter(m => m.type !== 'DAILY' && m.type !== 'ROUTINE');
+      updates.lastMissionDate = today;
+      missionsChanged = true;
+    }
+
+    if (state.lastWeeklyDate !== currentWeek) {
+      currentMissions = currentMissions.filter(m => m.type !== 'WEEKLY');
+      updates.lastWeeklyDate = currentWeek;
+      missionsChanged = true;
+    }
 
     // Ensure all mission types have the correct number of missions
-    (['REGULAR', 'DAILY', 'WEEKLY'] as MissionType[]).forEach((type) => {
+    const missionTypesToGenerate: MissionType[] = path === 'OTHER' 
+      ? ['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] 
+      : ['REGULAR', 'DAILY', 'WEEKLY'];
+
+    missionTypesToGenerate.forEach((type) => {
+      if (type === 'ROUTINE') {
+        const availableMissions = getMissionsForType(type);
+        const existingMissions = currentMissions.filter(m => m.type === 'ROUTINE');
+        
+        // Remove ones that are no longer in availableMissions
+        const toRemove = existingMissions.filter(m => !availableMissions.includes(m.text));
+        if (toRemove.length > 0) {
+          currentMissions = currentMissions.filter(m => !toRemove.includes(m));
+          missionsChanged = true;
+        }
+
+        // Add missing ones
+        const missing = availableMissions.filter(text => !existingMissions.some(m => m.text === text));
+        if (missing.length > 0) {
+          missing.forEach(text => {
+            currentMissions.push({
+              id: `${Date.now()}-ROUTINE-${Math.random()}`,
+              text,
+              completed: false,
+              type: 'ROUTINE'
+            });
+          });
+          missionsChanged = true;
+        }
+
+        // Sort them to match the order in customMissions.ROUTINE
+        const routineMissions = currentMissions.filter(m => m.type === 'ROUTINE');
+        const otherMissions = currentMissions.filter(m => m.type !== 'ROUTINE');
+        
+        let orderChanged = false;
+        routineMissions.sort((a, b) => {
+          const diff = availableMissions.indexOf(a.text) - availableMissions.indexOf(b.text);
+          if (diff !== 0) orderChanged = true;
+          return diff;
+        });
+
+        if (orderChanged) {
+          currentMissions = [...otherMissions, ...routineMissions];
+          missionsChanged = true;
+        }
+        return;
+      }
+
       if (type === 'REGULAR') {
         // Remove completed regular missions so they get replaced
         const beforeCount = currentMissions.length;
@@ -615,58 +705,30 @@ export function useAppState() {
         missionsChanged = true;
       } else if (existingMissions.length < expectedCount) {
         // Add missing missions
-        const missingCount = expectedCount - existingMissions.length;
-        for (let i = 0; i < missingCount; i++) {
-          let randomText = pathMissions[type][Math.floor(Math.random() * pathMissions[type].length)];
-          // Ensure we don't pick a duplicate mission if possible
-          let attempts = 0;
-          while (currentMissions.some(m => m.text === randomText) && attempts < 10) {
-            randomText = pathMissions[type][Math.floor(Math.random() * pathMissions[type].length)];
-            attempts++;
-          }
+        const availableMissions = getMissionsForType(type);
+        
+        if (availableMissions.length > 0) {
+          // Filter out missions we already have to avoid duplicates
+          const unassigned = availableMissions.filter(text => !existingMissions.some(m => m.text === text));
           
-          currentMissions.push({
-            id: `${Date.now()}-${type}-${Math.random()}`,
-            text: randomText,
-            completed: false,
-            type,
-          });
+          const missingCount = expectedCount - existingMissions.length;
+          const toAddCount = Math.min(missingCount, unassigned.length);
+          
+          if (toAddCount > 0) {
+            const shuffled = [...unassigned].sort(() => 0.5 - Math.random());
+            for (let i = 0; i < toAddCount; i++) {
+              currentMissions.push({
+                id: `${Date.now()}-${type}-${Math.random()}`,
+                text: shuffled[i],
+                completed: false,
+                type,
+              });
+            }
+            missionsChanged = true;
+          }
         }
-        missionsChanged = true;
       }
     });
-
-    if (state.lastMissionDate !== today) {
-      currentMissions = currentMissions.filter(m => m.type !== 'DAILY');
-      // Pick 3 random daily missions
-      const dailyMissions = [...PATH_MISSIONS[path].DAILY].sort(() => 0.5 - Math.random()).slice(0, 3);
-      dailyMissions.forEach((text, index) => {
-        currentMissions.push({
-          id: `${today}-DAILY-${index}`,
-          text,
-          completed: false,
-          type: 'DAILY',
-        });
-      });
-      updates.lastMissionDate = today;
-      missionsChanged = true;
-    }
-
-    if (state.lastWeeklyDate !== currentWeek) {
-      currentMissions = currentMissions.filter(m => m.type !== 'WEEKLY');
-      // Pick 3 random weekly missions
-      const weeklyMissions = [...PATH_MISSIONS[path].WEEKLY].sort(() => 0.5 - Math.random()).slice(0, 3);
-      weeklyMissions.forEach((text, index) => {
-        currentMissions.push({
-          id: `${currentWeek}-WEEKLY-${index}`,
-          text,
-          completed: false,
-          type: 'WEEKLY',
-        });
-      });
-      updates.lastWeeklyDate = currentWeek;
-      missionsChanged = true;
-    }
 
     if (missionsChanged) {
       updates.missions = currentMissions;
@@ -681,6 +743,15 @@ export function useAppState() {
 
     const isRegular = mission.type === 'REGULAR';
     let leveledUp = false;
+
+    const analyzeMissionPath = (text: string): PathType => {
+      const lower = text.toLowerCase();
+      if (/(push|pull|run|walk|jog|gym|workout|exercise|squat|lari|jalan|otot|fisik|olahraga|renang|sepeda|angkat|sweat)/.test(lower)) return 'STRONGER';
+      if (/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article)/.test(lower)) return 'PRODUCTIVE';
+      if (/(talk|call|meet|friend|family|greet|help|bicara|telepon|teman|keluarga|sapa|bantu|nongkrong|sosial|chat)/.test(lower)) return 'EXTROVERT';
+      if (/(meditate|breathe|journal|calm|relax|sleep|nap|yoga|meditasi|nafas|tenang|tidur|jurnal|doa|pray)/.test(lower)) return 'MENTAL_HEALTH';
+      return 'DISCIPLINE';
+    };
 
     setState((prev) => {
       if (!prev) return prev;
@@ -700,6 +771,27 @@ export function useAppState() {
       let newBadges = [...prev.badges];
       let newUnlockedFrames = prev.unlockedFrames ? [...prev.unlockedFrames] : ['frame-default', 'frame-rgb'];
       let newTitles = prev.titles ? [...prev.titles] : ['Newbie'];
+      let newPathProgress = { ...prev.pathProgress };
+
+      if (prev.chosenPath === 'OTHER') {
+        const relatedPath = analyzeMissionPath(m.text);
+        if (relatedPath !== 'OTHER') {
+          const currentProgress = newPathProgress[relatedPath] || { 
+            level: 1, xp: 0, missions: [], lastMissionDate: '', lastWeeklyDate: '', badges: [], highestRankAchieved: 'Bronze' 
+          };
+          let pXp = currentProgress.xp + xpReward;
+          let pLevel = currentProgress.level;
+          if (pXp >= pLevel * 100) {
+            pXp = pXp - pLevel * 100;
+            pLevel += 1;
+          }
+          newPathProgress[relatedPath] = {
+            ...currentProgress,
+            xp: pXp,
+            level: pLevel
+          };
+        }
+      }
 
       if (newXp >= newLevel * 100) {
         newXp = newXp - newLevel * 100;
@@ -774,6 +866,7 @@ export function useAppState() {
         missions: newMissions,
         xp: newXp,
         level: newLevel,
+        pathProgress: newPathProgress,
         badges: newBadges,
         streak: newStreak,
         lastActiveDate: today,
@@ -799,17 +892,33 @@ export function useAppState() {
           const hasCompletedMission = s.missions.some(m => m.id === id && m.completed);
           if (!hasCompletedMission) return s;
 
-          const pathMissions = PATH_MISSIONS[s.chosenPath!].REGULAR;
-          const randomText = pathMissions[Math.floor(Math.random() * pathMissions.length)];
+          const pathMissions = s.chosenPath === 'OTHER'
+            ? (s.customMissions?.REGULAR || [])
+            : PATH_MISSIONS[s.chosenPath!].REGULAR;
+            
           const filtered = s.missions.filter(m => m.id !== id);
+          
+          if (pathMissions.length > 0) {
+            const existingTexts = filtered.filter(m => m.type === 'REGULAR').map(m => m.text);
+            const unassigned = pathMissions.filter(text => !existingTexts.includes(text));
+            
+            if (unassigned.length > 0) {
+              let randomText = unassigned[Math.floor(Math.random() * unassigned.length)];
+              return {
+                ...s,
+                missions: [...filtered, {
+                  id: `${Date.now()}-${Math.random()}`,
+                  text: randomText,
+                  completed: false,
+                  type: 'REGULAR'
+                }]
+              };
+            }
+          }
+          
           return {
             ...s,
-            missions: [...filtered, {
-              id: `${Date.now()}-${Math.random()}`,
-              text: randomText,
-              completed: false,
-              type: 'REGULAR'
-            }]
+            missions: filtered
           };
         });
       }, 1000);
@@ -823,26 +932,50 @@ export function useAppState() {
       if (missionIndex === -1) return prev;
       
       const mission = prev.missions[missionIndex];
-      const pathMissions = PATH_MISSIONS[prev.chosenPath][mission.type];
+      const pathMissions = prev.chosenPath === 'OTHER'
+        ? (prev.customMissions?.[mission.type] || [])
+        : PATH_MISSIONS[prev.chosenPath][mission.type];
       
-      let randomText = mission.text;
-      if (pathMissions.length > 1) {
-        while (randomText === mission.text) {
-          randomText = pathMissions[Math.floor(Math.random() * pathMissions.length)];
-        }
+      const existingTexts = prev.missions.filter(m => m.type === mission.type && m.id !== id).map(m => m.text);
+      const unassigned = pathMissions.filter(text => !existingTexts.includes(text) && text !== mission.text);
+      
+      if (unassigned.length > 0) {
+        let randomText = unassigned[Math.floor(Math.random() * unassigned.length)];
+        const newMissions = [...prev.missions];
+        newMissions[missionIndex] = {
+          ...mission,
+          id: `${Date.now()}-${Math.random()}`,
+          text: randomText,
+        };
+        return {
+          ...prev,
+          missions: newMissions,
+        };
       }
+      
+      return prev;
+    });
+  };
 
-      const newMissions = [...prev.missions];
-      newMissions[missionIndex] = {
-        ...mission,
-        id: `${Date.now()}-${Math.random()}`,
-        text: randomText,
+  const addCustomMission = (type: MissionType, text: string) => {
+    setState(prev => {
+      if (!prev) return prev;
+      const newCustomMissions = {
+        ...(prev.customMissions || { REGULAR: [], DAILY: [], WEEKLY: [] })
       };
+      newCustomMissions[type] = [...(newCustomMissions[type] || []), text];
+      return { ...prev, customMissions: newCustomMissions };
+    });
+  };
 
-      return {
-        ...prev,
-        missions: newMissions,
+  const removeCustomMission = (type: MissionType, text: string) => {
+    setState(prev => {
+      if (!prev) return prev;
+      const newCustomMissions = {
+        ...(prev.customMissions || { REGULAR: [], DAILY: [], WEEKLY: [] })
       };
+      newCustomMissions[type] = newCustomMissions[type].filter(m => m !== text);
+      return { ...prev, customMissions: newCustomMissions };
     });
   };
 
@@ -893,17 +1026,21 @@ export function useAppState() {
         const currentWeek = `${d.getFullYear()}-W${weekNo}`;
 
         const newMissions: Mission[] = [];
-        const pathMissions = PATH_MISSIONS[newPath];
+        const pathMissions = newPath === 'OTHER'
+          ? (prev.customMissions || { REGULAR: [], DAILY: [], WEEKLY: [] })
+          : PATH_MISSIONS[newPath];
         
         (['REGULAR', 'DAILY', 'WEEKLY'] as MissionType[]).forEach((type) => {
           const availableTexts = pathMissions[type];
-          const randomText = availableTexts[Math.floor(Math.random() * availableTexts.length)];
-          newMissions.push({
-            id: `${Date.now()}-${type}`,
-            text: randomText,
-            completed: false,
-            type,
-          });
+          if (availableTexts && availableTexts.length > 0) {
+            const randomText = availableTexts[Math.floor(Math.random() * availableTexts.length)];
+            newMissions.push({
+              id: `${Date.now()}-${type}`,
+              text: randomText,
+              completed: false,
+              type,
+            });
+          }
         });
 
         return {
@@ -931,5 +1068,7 @@ export function useAppState() {
     completeMission,
     replaceMission,
     changePath,
+    addCustomMission,
+    removeCustomMission,
   };
 }

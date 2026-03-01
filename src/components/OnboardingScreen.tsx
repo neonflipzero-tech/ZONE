@@ -13,6 +13,7 @@ const PATHS: { id: PathType; label: string; desc: string }[] = [
   { id: 'EXTROVERT', label: 'Introvert → Extrovert', desc: 'Social skills and confidence.' },
   { id: 'DISCIPLINE', label: 'Better discipline', desc: 'Build unbreakable habits.' },
   { id: 'MENTAL_HEALTH', label: 'Better mental health', desc: 'Peace, mindfulness, and clarity.' },
+  { id: 'OTHER', label: 'Other (Custom)', desc: 'Create your own custom missions.' },
 ];
 
 const PRODUCTIVITY_TIMES = [

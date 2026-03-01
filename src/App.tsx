@@ -9,6 +9,7 @@ import RankScreen from './components/RankScreen';
 import LeaderboardScreen from './components/LeaderboardScreen';
 import StreakScreen from './components/StreakScreen';
 import JourneyScreen from './components/JourneyScreen';
+import PfpPromptModal from './components/PfpPromptModal';
 import { Target, Trophy, User, BarChart2, Map } from 'lucide-react';
 
 type Tab = 'home' | 'leaderboard' | 'journey' | 'rank' | 'profile';
@@ -22,7 +23,9 @@ export default function App() {
     generateMissions, 
     completeMission,
     replaceMission,
-    changePath
+    changePath,
+    addCustomMission,
+    removeCustomMission
   } = useAppState();
 
   const [activeTab, setActiveTab] = useState<Tab>('home');
@@ -46,22 +49,45 @@ export default function App() {
     if (state?.isLoggedIn && state?.onboardingCompleted && state?.chosenPath) {
       generateMissions(state.chosenPath);
     }
-  }, [state?.isLoggedIn, state?.onboardingCompleted, state?.chosenPath]);
+  }, [state?.isLoggedIn, state?.onboardingCompleted, state?.chosenPath, state?.customMissions]);
 
   useEffect(() => {
     if (state?.isLoggedIn && state?.username) {
-      fetch('/api/leaderboard', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      try {
+        const savedLeaderboard = localStorage.getItem('lockin_global_leaderboard');
+        let users = savedLeaderboard ? JSON.parse(savedLeaderboard) : [
+          { username: 'Zaiki', level: 100, xp: 99999, equippedFrame: 'frame-omniscience', equippedTitle: 'The Creator', profilePicture: null },
+          { username: 'ProGamer', level: 42, xp: 15000, equippedFrame: 'frame-abyssal', equippedTitle: 'Grind Master', profilePicture: null },
+          { username: 'Newbie', level: 5, xp: 1200, equippedFrame: 'frame-bronze', equippedTitle: 'Newbie', profilePicture: null },
+        ];
+        
+        const userIndex = users.findIndex((u: any) => u.username === state.username);
+        const userData = {
           username: state.username,
           level: state.level,
           xp: state.xp,
           equippedFrame: state.equippedFrame,
           equippedTitle: state.equippedTitle,
-          profilePicture: state.profilePicture
-        })
-      }).catch(err => console.error('Failed to sync leaderboard:', err));
+          profilePicture: state.profilePicture,
+          lastActive: Date.now()
+        };
+
+        if (userIndex >= 0) {
+          users[userIndex] = { ...users[userIndex], ...userData };
+        } else {
+          users.push(userData);
+        }
+
+        // Sort by level and xp
+        users.sort((a: any, b: any) => {
+          if (b.level !== a.level) return b.level - a.level;
+          return b.xp - a.xp;
+        });
+
+        localStorage.setItem('lockin_global_leaderboard', JSON.stringify(users.slice(0, 50)));
+      } catch (err) {
+        console.error('Failed to sync leaderboard to localStorage:', err);
+      }
     }
   }, [state?.level, state?.xp, state?.equippedFrame, state?.equippedTitle, state?.profilePicture, state?.username, state?.isLoggedIn]);
 
@@ -92,33 +118,38 @@ export default function App() {
 
   if (isAppLoading) {
     content = (
-      <div className="flex flex-col items-center justify-center h-full bg-background space-y-10 p-6 text-center">
-        <div className="relative w-24 h-24 flex items-center justify-center">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-            className="absolute inset-0 border-2 border-white/20 rounded-lg"
-          />
-          <motion.div
-            animate={{ rotate: -360 }}
-            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-            className="absolute inset-3 border-2 border-white/40 rounded-lg"
-          />
-          <motion.div
-            animate={{ scale: [0.8, 1.2, 0.8], rotate: [0, 90, 180, 270, 360] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="w-8 h-8 bg-white rounded-sm shadow-[0_0_30px_rgba(255,255,255,0.8)]"
-          />
+      <div className="flex flex-col items-center justify-center h-full bg-black space-y-12 p-6 text-center">
+        {/* Core Logo - Solid, no bounce, no spin */}
+        <div className="relative flex flex-col items-center">
+          <div className="flex items-center text-5xl md:text-6xl font-display font-black text-white tracking-[0.2em] ml-[0.2em]">
+            <span>Z</span>
+            <Target className="w-10 h-10 md:w-12 md:h-12 text-white mx-1" strokeWidth={3} />
+            <span>NE</span>
+          </div>
+          
+          {/* Elegant sleek loading line */}
+          <div className="w-full max-w-[160px] h-[2px] bg-white/10 mt-8 relative overflow-hidden rounded-full">
+            <motion.div 
+              className="absolute top-0 left-0 h-full bg-white rounded-full"
+              initial={{ width: "0%", x: "-100%" }}
+              animate={{ width: "100%", x: "100%" }}
+              transition={{ duration: 1.5, ease: "easeInOut", repeat: Infinity }}
+            />
+          </div>
         </div>
-        <div>
+
+        {/* Subtitle */}
+        <div className="flex flex-col items-center space-y-3">
           <motion.h2 
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-            className="text-3xl font-display font-bold text-white mb-3 tracking-tight"
+            animate={{ opacity: [0.3, 1, 0.3] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="text-sm font-display font-bold text-white tracking-[0.4em] ml-[0.4em]"
           >
-            ZONE
+            SYNCING
           </motion.h2>
-          <p className="text-white/50 font-mono text-sm uppercase tracking-widest">Loading Your Journey...</p>
+          <p className="text-white/40 font-mono text-[10px] uppercase tracking-[0.2em] ml-[0.2em]">
+            Establishing Connection...
+          </p>
         </div>
       </div>
     );
@@ -145,6 +176,8 @@ export default function App() {
                   state={state} 
                   onCompleteMission={completeMission} 
                   onReplaceMission={replaceMission}
+                  addCustomMission={addCustomMission}
+                  removeCustomMission={removeCustomMission}
                 />
               </motion.div>
             )}
@@ -175,6 +208,21 @@ export default function App() {
             )}
           </AnimatePresence>
         </div>
+
+        <AnimatePresence>
+          {!state.hasPromptedPfp && !state.profilePicture && (
+            <PfpPromptModal 
+              language={state.language} 
+              onComplete={(croppedImage) => {
+                if (croppedImage) {
+                  updateState({ profilePicture: croppedImage, hasPromptedPfp: true });
+                } else {
+                  updateState({ hasPromptedPfp: true });
+                }
+              }} 
+            />
+          )}
+        </AnimatePresence>
 
         {/* Bottom Navigation */}
         <div className="fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-xl border-t border-white/5 pb-safe z-50">

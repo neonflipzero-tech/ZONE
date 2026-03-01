@@ -6,7 +6,7 @@ import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 interface StatDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  stat: { id: string; subject: string; A: number } | null;
+  stat: { id: string; subject: string; label?: string; A: number } | null;
   language: 'en' | 'id';
 }
 
@@ -96,7 +96,7 @@ export default function StatDetailModal({ isOpen, onClose, stat, language }: Sta
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 pb-0 sm:pb-4"
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 pb-24 sm:pb-4"
           onClick={onClose}
         >
           <motion.div
@@ -105,7 +105,7 @@ export default function StatDetailModal({ isOpen, onClose, stat, language }: Sta
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-surface border border-white/10 rounded-t-3xl sm:rounded-3xl overflow-hidden flex flex-col max-h-[90vh]"
+            className="w-full max-w-md bg-surface border border-white/10 rounded-3xl overflow-hidden flex flex-col max-h-[85vh]"
           >
             {/* Header */}
             <div className="p-6 pb-4 border-b border-white/5 flex justify-between items-center bg-white/5">
@@ -115,7 +115,7 @@ export default function StatDetailModal({ isOpen, onClose, stat, language }: Sta
                 </h3>
                 <div className="flex items-center space-x-3">
                   <h2 className="text-3xl font-display font-black tracking-tight text-primary">
-                    {stat.subject}
+                    {stat.label || stat.subject}
                   </h2>
                   <div className="bg-accent/20 text-accent px-3 py-1 rounded-lg font-mono font-bold text-xl border border-accent/30">
                     {stat.A}
@@ -185,9 +185,6 @@ export default function StatDetailModal({ isOpen, onClose, stat, language }: Sta
                 </div>
               </div>
             </div>
-            
-            {/* Safe area padding for mobile */}
-            <div className="h-6 sm:hidden" />
           </motion.div>
         </motion.div>
       )}
