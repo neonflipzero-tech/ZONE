@@ -9,7 +9,24 @@ export const shareContent = async (title: string, text: string) => {
         url: window.location.origin,
       });
       return true;
-    } catch (error) {
+    } catch (error: any) {
+      // Ignore user cancellation
+      if (error.name === 'AbortError' || error.message?.includes('canceled')) {
+        return false;
+      }
+      
+      // If gesture expired or not allowed, fallback to clipboard
+      if (error.name === 'NotAllowedError' || error.message?.includes('user gesture')) {
+        try {
+          await navigator.clipboard.writeText(`${title}\n${text}\n${window.location.origin}`);
+          alert('Copied to clipboard!');
+          return true;
+        } catch (clipboardError) {
+          console.error('Error copying to clipboard:', clipboardError);
+          return false;
+        }
+      }
+
       console.error('Error sharing:', error);
       return false;
     }
@@ -31,14 +48,13 @@ export const shareElementAsImage = async (elementId: string, title: string, text
     return shareContent(title, text);
   }
 
+  let blob: Blob | null = null;
   try {
-    // Add a slight delay to ensure animations/fonts are loaded
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    const blob = await toBlob(element, { 
+    // Generate image quickly to preserve user gesture token
+    blob = await toBlob(element, { 
       cacheBust: true,
       backgroundColor: '#0a0a0a', // Match background color
-      pixelRatio: 3, // Make image HD
+      pixelRatio: 2, // Reduced from 3 to speed up generation and preserve gesture
       style: {
         transform: 'scale(1)', // Ensure no weird scaling issues
         margin: '0',
@@ -57,24 +73,40 @@ export const shareElementAsImage = async (elementId: string, title: string, text
       });
       return true;
     } else {
-      // Fallback: Download the image
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'zone-share.png';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      // Also copy text
-      await navigator.clipboard.writeText(`${title}\n${text}\n${window.location.origin}`);
-      alert('Gambar berhasil diunduh dan teks disalin!');
-      return true;
+      throw new Error('Cannot share files');
     }
-  } catch (error) {
-    console.error('Error sharing image:', error);
-    // Fallback to text only
+  } catch (error: any) {
+    // Ignore user cancellation
+    if (error.name === 'AbortError' || error.message?.includes('canceled')) {
+      return false;
+    }
+
+    // If it's a gesture error or cannot share files, try to download instead
+    if (error.name === 'NotAllowedError' || error.message?.includes('user gesture') || error.message === 'Cannot share files') {
+      if (blob) {
+        try {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'zone-share.png';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          // Also copy text
+          await navigator.clipboard.writeText(`${title}\n${text}\n${window.location.origin}`);
+          alert('Gambar berhasil diunduh dan teks disalin!');
+          return true;
+        } catch (downloadError) {
+          console.error('Error downloading image:', downloadError);
+        }
+      }
+    } else {
+      console.error('Error sharing image:', error);
+    }
+    
+    // Ultimate fallback to text only
     return shareContent(title, text);
   }
 };

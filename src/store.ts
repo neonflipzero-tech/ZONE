@@ -51,14 +51,16 @@ export interface UserState {
 }
 
 export const RANKS = [
-  { name: 'Bronze', minLevel: 1, color: 'text-amber-700', bg: 'bg-amber-700' },
-  { name: 'Silver', minLevel: 3, color: 'text-gray-300', bg: 'bg-gray-300' },
-  { name: 'Gold', minLevel: 6, color: 'text-yellow-400', bg: 'bg-yellow-400' },
-  { name: 'Platinum', minLevel: 10, color: 'text-cyan-400', bg: 'bg-cyan-400' },
-  { name: 'Diamond', minLevel: 15, color: 'text-blue-500', bg: 'bg-blue-500' },
-  { name: 'Master', minLevel: 21, color: 'text-purple-500', bg: 'bg-purple-500' },
-  { name: 'Grandmaster', minLevel: 28, color: 'text-red-500', bg: 'bg-red-500' },
-  { name: 'Challenger', minLevel: 36, color: 'text-yellow-200', bg: 'bg-yellow-200' },
+  { name: 'Bronze', minLevel: 1, color: 'text-amber-700', bg: 'bg-amber-700', hex: '#b45309' },
+  { name: 'Silver', minLevel: 3, color: 'text-gray-300', bg: 'bg-gray-300', hex: '#d1d5db' },
+  { name: 'Gold', minLevel: 6, color: 'text-yellow-400', bg: 'bg-yellow-400', hex: '#facc15' },
+  { name: 'Platinum', minLevel: 10, color: 'text-cyan-400', bg: 'bg-cyan-400', hex: '#22d3ee' },
+  { name: 'Diamond', minLevel: 15, color: 'text-blue-500', bg: 'bg-blue-500', hex: '#3b82f6' },
+  { name: 'Master', minLevel: 21, color: 'text-purple-500', bg: 'bg-purple-500', hex: '#a855f7' },
+  { name: 'Grandmaster', minLevel: 28, color: 'text-red-500', bg: 'bg-red-500', hex: '#ef4444' },
+  { name: 'Challenger', minLevel: 36, color: 'text-yellow-200', bg: 'bg-yellow-200', hex: '#fef08a' },
+  { name: 'Legend', minLevel: 43, color: 'text-emerald-400', bg: 'bg-emerald-400', hex: '#34d399' },
+  { name: 'Mythic', minLevel: 50, color: 'text-fuchsia-500', bg: 'bg-fuchsia-500', hex: '#d946ef' },
 ];
 
 export function getRankForLevel(level: number) {

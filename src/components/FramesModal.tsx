@@ -14,10 +14,10 @@ interface FramesModalProps {
 
 const ALL_FRAMES = [
   'frame-default', 'frame-bronze', 'frame-silver', 'frame-gold', 'frame-platinum', 
-  'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 
+  'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-legend', 'frame-mythic',
   'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 
   'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 
-  'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience'
+  'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix'
 ];
 
 export default function FramesModal({ isOpen, onClose, state, updateState, ovr }: FramesModalProps) {
@@ -47,6 +47,7 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr }
       'frame-inferno': state.streak >= 100,
       'frame-ethereal': ovr >= 95,
       'frame-omniscience': ovr >= 100,
+      'frame-matrix': totalMissions >= 100,
     };
     return state.unlockedFrames?.includes(frame) || 
       frame === 'frame-default' || 
@@ -65,6 +66,8 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr }
       case 'frame-master': return state.language === 'id' ? 'Capai Rank Master' : 'Reach Master Rank';
       case 'frame-grandmaster': return state.language === 'id' ? 'Capai Rank Grandmaster' : 'Reach Grandmaster Rank';
       case 'frame-challenger': return state.language === 'id' ? 'Capai Rank Challenger' : 'Reach Challenger Rank';
+      case 'frame-legend': return state.language === 'id' ? 'Capai Rank Legend' : 'Reach Legend Rank';
+      case 'frame-mythic': return state.language === 'id' ? 'Capai Rank Mythic' : 'Reach Mythic Rank';
       case 'frame-rgb': return state.language === 'id' ? 'Capai 7 Hari Streak' : 'Reach 7 Day Streak';
       case 'frame-neon': return state.language === 'id' ? 'Selesaikan 50 Misi' : 'Complete 50 Missions';
       case 'frame-fire': return state.language === 'id' ? 'Capai 30 Hari Streak' : 'Reach 30 Day Streak';
@@ -78,6 +81,7 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr }
       case 'frame-inferno': return state.language === 'id' ? 'Capai 100 Hari Streak' : 'Reach 100 Day Streak';
       case 'frame-ethereal': return state.language === 'id' ? 'Capai OVR 95' : 'Reach 95 OVR';
       case 'frame-omniscience': return state.language === 'id' ? 'Capai OVR 100 (Maksimal)' : 'Reach 100 OVR (Max)';
+      case 'frame-matrix': return state.language === 'id' ? 'Selesaikan 100 Misi' : 'Complete 100 Missions';
       default: return '';
     }
   };

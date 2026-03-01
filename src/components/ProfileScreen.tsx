@@ -372,7 +372,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
               <h4 className="text-xs font-bold text-primary mb-3 px-2 flex items-center"><Shield className="w-3 h-3 mr-1 text-accent"/> {state.language === 'id' ? 'Bingkai Profil' : 'Profile Frames'}</h4>
               <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-2">
                 {(() => {
-                  const allFrames = ['frame-default', 'frame-bronze', 'frame-silver', 'frame-gold', 'frame-platinum', 'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience'];
+                  const allFrames = ['frame-default', 'frame-bronze', 'frame-silver', 'frame-gold', 'frame-platinum', 'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-legend', 'frame-mythic', 'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix'];
                   const isZaiki = state.username?.toLowerCase() === 'zaiki';
                   const totalMissions = Object.values(state.dailyStats || {}).reduce((a, b) => a + b, 0);
                   
@@ -391,6 +391,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                       'frame-inferno': state.streak >= 100,
                       'frame-ethereal': ovr >= 95,
                       'frame-omniscience': ovr >= 100,
+                      'frame-matrix': totalMissions >= 100,
                     };
                     return state.unlockedFrames?.includes(frame) || 
                       frame === 'frame-default' || 
@@ -431,6 +432,8 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                             case 'frame-master': return state.language === 'id' ? 'Capai Rank Master' : 'Reach Master Rank';
                             case 'frame-grandmaster': return state.language === 'id' ? 'Capai Rank Grandmaster' : 'Reach Grandmaster Rank';
                             case 'frame-challenger': return state.language === 'id' ? 'Capai Rank Challenger' : 'Reach Challenger Rank';
+                            case 'frame-legend': return state.language === 'id' ? 'Capai Rank Legend' : 'Reach Legend Rank';
+                            case 'frame-mythic': return state.language === 'id' ? 'Capai Rank Mythic' : 'Reach Mythic Rank';
                             case 'frame-rgb': return state.language === 'id' ? 'Capai 7 Hari Streak' : 'Reach 7 Day Streak';
                             case 'frame-neon': return state.language === 'id' ? 'Selesaikan 50 Misi' : 'Complete 50 Missions';
                             case 'frame-fire': return state.language === 'id' ? 'Capai 30 Hari Streak' : 'Reach 30 Day Streak';
@@ -444,6 +447,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                             case 'frame-inferno': return state.language === 'id' ? 'Capai 100 Hari Streak' : 'Reach 100 Day Streak';
                             case 'frame-ethereal': return state.language === 'id' ? 'Capai OVR 95' : 'Reach 95 OVR';
                             case 'frame-omniscience': return state.language === 'id' ? 'Capai OVR 100 (Maksimal)' : 'Reach 100 OVR (Max)';
+                            case 'frame-matrix': return state.language === 'id' ? 'Selesaikan 100 Misi' : 'Complete 100 Missions';
                             default: return '';
                           }
                         };
@@ -576,7 +580,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                     className="overflow-hidden"
                   >
                     <div className="pt-4 space-y-2">
-                      {(['PRODUCTIVE', 'STRONGER', 'EXTROVERT', 'DISCIPLINE', 'MENTAL_HEALTH'] as PathType[]).map(path => (
+                      {(['PRODUCTIVE', 'STRONGER', 'EXTROVERT', 'DISCIPLINE', 'MENTAL_HEALTH', 'OTHER'] as PathType[]).map(path => (
                         <button
                           key={path}
                           onClick={() => {

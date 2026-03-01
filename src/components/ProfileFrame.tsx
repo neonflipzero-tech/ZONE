@@ -88,6 +88,37 @@ export default function ProfileFrame({ frame, src, size = 'md' }: ProfileFramePr
         </>
       );
       break;
+    case 'frame-legend':
+      bgClass = 'bg-emerald-400';
+      borderClass = 'p-1.5';
+      decorations = (
+        <div className="absolute inset-0 rounded-full border-4 border-emerald-400/50 animate-pulse scale-110 z-0 shadow-[0_0_15px_#34d399]" />
+      );
+      break;
+    case 'frame-mythic':
+      bgClass = 'bg-background';
+      borderClass = 'p-[8px]';
+      shapeClass = 'rounded-full';
+      decorations = (
+        <div className="absolute inset-0 z-0 flex items-center justify-center">
+          {/* Outer glowing aura */}
+          <div className="absolute inset-[-30%] rounded-full bg-fuchsia-600/40 blur-xl animate-pulse" />
+          
+          {/* Rotating crystalline squares (Spikes) */}
+          <div className="absolute inset-[-10%] border-[3px] border-fuchsia-500/70 rounded-xl animate-[spin_10s_linear_infinite] shadow-[0_0_15px_#d946ef]" />
+          <div className="absolute inset-[-10%] border-[3px] border-fuchsia-400/70 rounded-xl animate-[spin_10s_linear_infinite_reverse] shadow-[0_0_15px_#d946ef]" />
+          
+          {/* Main circular border with energy sweep */}
+          <div className="absolute inset-0 rounded-full border-[3px] border-fuchsia-600 shadow-[0_0_20px_#d946ef,inset_0_0_15px_#d946ef] overflow-hidden bg-fuchsia-950/80">
+            <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,transparent_60%,#f0abfc_100%)] animate-[spin_2s_linear_infinite]" />
+            <div className="absolute inset-0 rounded-full border-2 border-fuchsia-300/50" />
+          </div>
+          
+          {/* Inner dashed ring */}
+          <div className="absolute inset-[3px] rounded-full border-[2.5px] border-white/90 border-dashed animate-[spin_8s_linear_infinite_reverse]" />
+        </div>
+      );
+      break;
     case 'frame-rgb':
       bgClass = 'bg-transparent';
       borderClass = 'p-[2px]';
@@ -243,6 +274,28 @@ export default function ProfileFrame({ frame, src, size = 'md' }: ProfileFramePr
             <div className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-white shadow-[0_0_8px_#fff]" />
             <div className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-white shadow-[0_0_8px_#fff]" />
           </div>
+        </div>
+      );
+      break;
+    case 'frame-matrix':
+      bgClass = 'bg-black';
+      borderClass = 'p-[6px]';
+      shapeClass = 'rounded-full';
+      decorations = (
+        <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_20px_#22c55e,inset_0_0_15px_#16a34a] bg-black border border-green-500/50">
+          {/* Matrix rain effect with numbers */}
+          <div className="absolute inset-[-50%] opacity-80 animate-[spin_15s_linear_infinite]">
+            <div className="absolute inset-0 flex flex-wrap content-start overflow-hidden text-[10px] font-mono font-bold text-green-500 leading-none break-all select-none" style={{ textShadow: '0 0 8px #22c55e' }}>
+              {Array.from({ length: 400 }).map((_, i) => (
+                <span key={i} className="animate-[pulse_1s_ease-in-out_infinite]" style={{ animationDelay: `${Math.random() * 2}s`, opacity: Math.random() > 0.3 ? 1 : 0.2 }}>
+                  {Math.random() > 0.5 ? '1' : '0'}
+                </span>
+              ))}
+            </div>
+          </div>
+          {/* Glitchy border */}
+          <div className="absolute inset-0 rounded-full border-[3px] border-green-400 mix-blend-screen animate-[pulse_0.5s_ease-in-out_infinite]" />
+          <div className="absolute inset-0 rounded-full border-2 border-green-300/50 shadow-[0_0_15px_#4ade80]" />
         </div>
       );
       break;

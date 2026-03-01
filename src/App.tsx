@@ -32,6 +32,7 @@ export default function App() {
   const activeTabRef = useRef<Tab>(activeTab);
   const preAnimationTabRef = useRef<Tab | null>(null);
   const [isAppLoading, setIsAppLoading] = useState(true);
+  const [isChangingGoal, setIsChangingGoal] = useState(false);
 
   useEffect(() => {
     // Simulate initial app load
@@ -46,19 +47,19 @@ export default function App() {
   }, [activeTab]);
 
   useEffect(() => {
-    if (state?.isLoggedIn && state?.onboardingCompleted && state?.chosenPath) {
+    if (state?.isLoggedIn && state?.onboardingCompleted && state?.chosenPath && !isChangingGoal) {
       generateMissions(state.chosenPath);
     }
-  }, [state?.isLoggedIn, state?.onboardingCompleted, state?.chosenPath, state?.customMissions]);
+  }, [state?.isLoggedIn, state?.onboardingCompleted, state?.chosenPath, state?.customMissions, isChangingGoal]);
 
   useEffect(() => {
     if (state?.isLoggedIn && state?.username) {
       try {
         const savedLeaderboard = localStorage.getItem('lockin_global_leaderboard');
         let users = savedLeaderboard ? JSON.parse(savedLeaderboard) : [
-          { username: 'Zaiki', level: 100, xp: 99999, equippedFrame: 'frame-omniscience', equippedTitle: 'The Creator', profilePicture: null },
-          { username: 'ProGamer', level: 42, xp: 15000, equippedFrame: 'frame-abyssal', equippedTitle: 'Grind Master', profilePicture: null },
-          { username: 'Newbie', level: 5, xp: 1200, equippedFrame: 'frame-bronze', equippedTitle: 'Newbie', profilePicture: null },
+          { username: 'Zaiki', level: 100, xp: 99999, equippedFrame: 'frame-omniscience', equippedTitle: 'The Creator', profilePicture: 'https://picsum.photos/seed/zaiki/200/200' },
+          { username: 'ProGamer', level: 42, xp: 15000, equippedFrame: 'frame-abyssal', equippedTitle: 'Grind Master', profilePicture: 'https://picsum.photos/seed/progamer/200/200' },
+          { username: 'Newbie', level: 5, xp: 1200, equippedFrame: 'frame-bronze', equippedTitle: 'Newbie', profilePicture: 'https://picsum.photos/seed/newbie/200/200' },
         ];
         
         const userIndex = users.findIndex((u: any) => u.username === state.username);
@@ -109,6 +110,14 @@ export default function App() {
     updateState({ chosenPath: path, onboardingCompleted: true });
   };
 
+  const handleChangeGoal = (path: PathType) => {
+    setIsChangingGoal(true);
+    setTimeout(() => {
+      changePath(path);
+      setIsChangingGoal(false);
+    }, 2000);
+  };
+
   const handleDismissStreak = () => {
     updateState({ showStreakAnimation: false });
   };
@@ -116,39 +125,48 @@ export default function App() {
   // Render logic
   let content;
 
-  if (isAppLoading) {
+  if (isAppLoading || isChangingGoal) {
     content = (
-      <div className="flex flex-col items-center justify-center h-full bg-black space-y-12 p-6 text-center">
-        {/* Core Logo - Solid, no bounce, no spin */}
-        <div className="relative flex flex-col items-center">
-          <div className="flex items-center text-5xl md:text-6xl font-display font-black text-white tracking-[0.2em] ml-[0.2em]">
-            <span>Z</span>
-            <Target className="w-10 h-10 md:w-12 md:h-12 text-white mx-1" strokeWidth={3} />
-            <span>NE</span>
-          </div>
-          
-          {/* Elegant sleek loading line */}
-          <div className="w-full max-w-[160px] h-[2px] bg-white/10 mt-8 relative overflow-hidden rounded-full">
-            <motion.div 
-              className="absolute top-0 left-0 h-full bg-white rounded-full"
-              initial={{ width: "0%", x: "-100%" }}
-              animate={{ width: "100%", x: "100%" }}
-              transition={{ duration: 1.5, ease: "easeInOut", repeat: Infinity }}
-            />
-          </div>
+      <div className="flex flex-col items-center justify-center h-full bg-black space-y-10 p-6 text-center">
+        {/* Bullseye Segmented Animation */}
+        <div className="relative w-24 h-24 flex items-center justify-center">
+          {/* Outer dashed ring */}
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-0 rounded-full border-2 border-dashed border-white/20"
+          />
+          {/* Middle dashed ring (spins opposite) */}
+          <motion.div
+            animate={{ rotate: -360 }}
+            transition={{ duration: 7, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-3 rounded-full border-[3px] border-dashed border-white/40"
+          />
+          {/* Inner dashed ring */}
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-6 rounded-full border-2 border-dashed border-white/60"
+          />
+          {/* Center pulsing core */}
+          <motion.div
+            animate={{ scale: [0.7, 1.2, 0.7] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="w-3 h-3 bg-white rounded-full shadow-[0_0_20px_rgba(255,255,255,1)]"
+          />
         </div>
 
-        {/* Subtitle */}
+        {/* Text */}
         <div className="flex flex-col items-center space-y-3">
           <motion.h2 
-            animate={{ opacity: [0.3, 1, 0.3] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="text-sm font-display font-bold text-white tracking-[0.4em] ml-[0.4em]"
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+            className="text-2xl font-display font-black text-white tracking-[0.3em] ml-[0.3em]"
           >
-            SYNCING
+            ZONE
           </motion.h2>
           <p className="text-white/40 font-mono text-[10px] uppercase tracking-[0.2em] ml-[0.2em]">
-            Establishing Connection...
+            {isChangingGoal ? 'RECALIBRATING GOAL...' : 'ESTABLISHING CONNECTION...'}
           </p>
         </div>
       </div>
@@ -202,7 +220,7 @@ export default function App() {
                   state={state}
                   onLogout={logout}
                   updateState={updateState}
-                  changePath={changePath}
+                  changePath={handleChangeGoal}
                 />
               </motion.div>
             )}

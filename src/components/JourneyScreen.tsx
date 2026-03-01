@@ -21,7 +21,7 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
   const isRankUp = prevRank.name !== currentRank.name && state.animatingLevelUp;
 
   // Generate levels to show (current level + 10 future levels, and all past levels)
-  const maxLevelToShow = Math.max(state.level + 10, 36);
+  const maxLevelToShow = Math.max(state.level + 10, 50);
   const levels = Array.from({ length: maxLevelToShow }, (_, i) => i + 1).reverse();
 
   useEffect(() => {
@@ -257,8 +257,15 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                       ? 'scale-110' 
                       : isCompleted 
                         ? 'bg-accent border-accent/50 rounded-full border-4 shadow-xl' 
-                        : 'bg-surface border-white/10 rounded-full border-4 shadow-xl'
-                  } ${isMilestone && !isCompleted && !isPfpHere ? 'border-yellow-500/50' : ''}`}
+                        : 'bg-surface rounded-full border-4 shadow-xl'
+                  }`}
+                  style={
+                    isMilestone && !isCompleted && !isPfpHere 
+                      ? { borderColor: `${rankForLevel.hex}80` } 
+                      : !isCompleted && !isPfpHere 
+                        ? { borderColor: 'rgba(255,255,255,0.1)' } 
+                        : {}
+                  }
                 >
                   {isPfpHere ? (
                     <motion.div 
@@ -271,7 +278,7 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                   ) : isCompleted ? (
                     <Check className="w-6 h-6 text-background" />
                   ) : isMilestone ? (
-                    <Shield className="w-6 h-6 text-yellow-500/50" />
+                    <Shield className="w-6 h-6" style={{ color: `${rankForLevel.hex}80` }} />
                   ) : (
                     <Lock className="w-5 h-5 text-secondary/50" />
                   )}
@@ -288,7 +295,14 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                     </div>
                   )}
                   {isMilestone && (
-                    <div className="mt-1 flex items-center space-x-1 text-[10px] text-yellow-500/80 bg-yellow-500/10 px-2 py-0.5 rounded-full border border-yellow-500/20 w-max">
+                    <div 
+                      className="mt-1 flex items-center space-x-1 text-[10px] px-2 py-0.5 rounded-full border w-max"
+                      style={{ 
+                        color: rankForLevel.hex, 
+                        backgroundColor: `${rankForLevel.hex}1A`, 
+                        borderColor: `${rankForLevel.hex}33` 
+                      }}
+                    >
                       <Star className="w-3 h-3" />
                       <span>{state.language === 'id' ? 'Bingkai Baru!' : 'New Frame!'}</span>
                     </div>
