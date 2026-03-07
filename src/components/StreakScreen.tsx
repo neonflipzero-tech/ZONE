@@ -4,6 +4,7 @@ import { Flame, Share2 } from 'lucide-react';
 import { sounds } from '../utils/sounds';
 import { shareContent, shareElementAsImage } from '../utils/share';
 import { useAppState } from '../store';
+import { t } from '../utils/translations';
 
 interface StreakScreenProps {
   key?: string;
@@ -12,7 +13,7 @@ interface StreakScreenProps {
 }
 
 export default function StreakScreen({ streak, onContinue }: StreakScreenProps) {
-  const { incrementShareCount } = useAppState();
+  const { incrementShareCount, state } = useAppState();
 
   useEffect(() => {
     sounds.playLevelUp(); // Reuse level up sound for streak
@@ -56,16 +57,16 @@ export default function StreakScreen({ streak, onContinue }: StreakScreenProps) 
           <Flame className="w-16 h-16 text-orange-500 relative z-10" />
         </div>
         
-        <h2 className="text-sm font-mono text-secondary uppercase tracking-[0.3em] mb-2">Streak Increased</h2>
+        <h2 className="text-sm font-mono text-secondary uppercase tracking-[0.3em] mb-2">{t('streak.increased', state.language)}</h2>
         <div className="flex items-center space-x-4 mb-8">
           <h1 className="text-7xl font-display font-black tracking-tighter text-orange-500 drop-shadow-lg">
             {streak}
           </h1>
-          <span className="text-3xl font-bold text-orange-500/50">Days</span>
+          <span className="text-3xl font-bold text-orange-500/50">{t('streak.days', state.language)}</span>
         </div>
 
         <div className="bg-surface/50 backdrop-blur-md border border-white/10 p-6 rounded-2xl max-w-sm mb-12">
-          <p className="text-lg font-medium italic text-primary/90">"Consistency is the key to mastery. Keep the fire burning!"</p>
+          <p className="text-lg font-medium italic text-primary/90">{t('streak.quote', state.language)}</p>
         </div>
 
         <div className="flex flex-col space-y-4 w-full max-w-xs" data-html2canvas-ignore>
@@ -74,13 +75,13 @@ export default function StreakScreen({ streak, onContinue }: StreakScreenProps) 
             className="w-full flex items-center justify-center space-x-2 bg-surface border border-white/10 text-primary font-bold py-4 rounded-xl hover:bg-white/5 transition-colors"
           >
             <Share2 className="w-5 h-5" />
-            <span>Share Streak</span>
+            <span>{t('streak.share', state.language)}</span>
           </button>
           <button
             onClick={onContinue}
             className="w-full bg-orange-500 text-background font-bold py-4 rounded-xl hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20"
           >
-            Keep Going
+            {t('streak.keep_going', state.language)}
           </button>
         </div>
       </motion.div>

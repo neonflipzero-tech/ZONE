@@ -3,6 +3,8 @@ import { ChevronLeft, LogOut, AlertTriangle, ChevronDown, ChevronUp, ChevronRigh
 import { UserState, PathType } from '../store';
 import { useState, useRef } from 'react';
 
+import { t } from '../utils/translations';
+
 interface SettingsScreenProps {
   state: UserState;
   updateState: (updates: Partial<UserState>) => void;
@@ -31,8 +33,8 @@ export default function SettingsScreen({
     updateState({ isProfilePublic: newIsPublic });
     
     const message = newIsPublic 
-      ? (state.language === 'id' ? 'Profil kamu sekarang publik.' : 'Your profile is now public.')
-      : (state.language === 'id' ? 'Profil kamu sekarang privat.' : 'Your profile is now private.');
+      ? t('settings.toast.public', state.language)
+      : t('settings.toast.private', state.language);
       
     setToastMessage(message);
     
@@ -59,7 +61,7 @@ export default function SettingsScreen({
           <ChevronLeft className="w-6 h-6 text-primary" />
         </button>
         <h2 className="text-xl font-bold text-primary">
-          {state.language === 'id' ? 'Pengaturan' : 'Settings'}
+          {t('settings.title', state.language)}
         </h2>
       </div>
 
@@ -71,7 +73,7 @@ export default function SettingsScreen({
               className="flex justify-between items-center cursor-pointer"
               onClick={() => setIsGoalDropdownOpen(!isGoalDropdownOpen)}
             >
-              <span className="font-bold">{state.language === 'id' ? 'Tujuan' : 'Goal'}</span>
+              <span className="font-bold">{t('settings.goal', state.language)}</span>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-secondary">{state.chosenPath?.replace('_', ' ')}</span>
                 {isGoalDropdownOpen ? <ChevronUp className="w-5 h-5 text-secondary" /> : <ChevronDown className="w-5 h-5 text-secondary" />}
@@ -111,7 +113,7 @@ export default function SettingsScreen({
 
           {/* Language Setting */}
           <div className="p-4 flex items-center justify-between border-b border-white/5">
-            <span className="font-bold">{state.language === 'id' ? 'Bahasa' : 'Language'}</span>
+            <span className="font-bold">{t('settings.language', state.language)}</span>
             <div className="flex bg-background rounded-lg p-1 border border-white/10">
               <button 
                 onClick={() => updateState({ language: 'en' })}
@@ -131,8 +133,8 @@ export default function SettingsScreen({
           {/* Public Profile Setting */}
           <div className="p-4 flex items-center justify-between border-b border-white/5">
             <div>
-              <span className="font-bold block">{state.language === 'id' ? 'Profil Publik' : 'Public Profile'}</span>
-              <span className="text-xs text-secondary">{state.language === 'id' ? 'Tampilkan statistik profil di leaderboard' : 'Show profile stats on leaderboard'}</span>
+              <span className="font-bold block">{t('settings.public_profile', state.language)}</span>
+              <span className="text-xs text-secondary">{t('settings.public_profile.desc', state.language)}</span>
             </div>
             <button 
               onClick={handleTogglePublicProfile}
@@ -147,7 +149,7 @@ export default function SettingsScreen({
             onClick={() => setIsPrivacyModalOpen(true)}
             className="w-full p-4 flex items-center justify-between text-secondary hover:text-primary hover:bg-white/5 transition-colors border-b border-white/5"
           >
-            <span className="font-bold">{state.language === 'id' ? 'Kebijakan Privasi' : 'Privacy Policy'}</span>
+            <span className="font-bold">{t('settings.privacy_policy', state.language)}</span>
             <ChevronRight className="w-5 h-5" />
           </button>
 
@@ -156,7 +158,7 @@ export default function SettingsScreen({
             onClick={() => setIsTermsModalOpen(true)}
             className="w-full p-4 flex items-center justify-between text-secondary hover:text-primary hover:bg-white/5 transition-colors border-b border-white/5"
           >
-            <span className="font-bold">{state.language === 'id' ? 'Syarat & Ketentuan' : 'Terms of Service'}</span>
+            <span className="font-bold">{t('settings.terms_of_service', state.language)}</span>
             <ChevronRight className="w-5 h-5" />
           </button>
 
@@ -164,7 +166,7 @@ export default function SettingsScreen({
             onClick={() => setIsResetModalOpen(true)}
             className="w-full p-4 flex items-center justify-between text-red-500 hover:bg-red-500/10 transition-colors border-b border-white/5"
           >
-            <span className="font-bold">{state.language === 'id' ? 'Hapus Semua Progres' : 'Reset All Progress'}</span>
+            <span className="font-bold">{t('settings.reset_progress', state.language)}</span>
             <AlertTriangle className="w-5 h-5" />
           </button>
 
@@ -172,7 +174,7 @@ export default function SettingsScreen({
             onClick={onLogout}
             className="w-full p-4 flex items-center justify-between text-accent hover:bg-white/5 transition-colors"
           >
-            <span className="font-bold">{state.language === 'id' ? 'Keluar' : 'Log Out'}</span>
+            <span className="font-bold">{t('settings.logout', state.language)}</span>
             <LogOut className="w-5 h-5" />
           </button>
         </div>

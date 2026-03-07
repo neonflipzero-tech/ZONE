@@ -2,6 +2,8 @@ import { motion } from 'motion/react';
 import { UserState, getRankForLevel, RANKS } from '../store';
 import { Shield, Trophy, Flame } from 'lucide-react';
 
+import { t } from '../utils/translations';
+
 interface RankScreenProps {
   state: UserState;
 }
@@ -17,7 +19,7 @@ export default function RankScreen({ state }: RankScreenProps) {
       className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24"
     >
       <div className="px-6 pt-12 pb-6">
-        <h1 className="text-2xl font-display font-bold tracking-tight mb-8">Rank & Progress</h1>
+        <h1 className="text-2xl font-display font-bold tracking-tight mb-8">{t('rank.title', state.language)}</h1>
 
         {/* Current Rank Card */}
         <div className="bg-surface border border-white/5 rounded-3xl p-8 mb-8 relative overflow-hidden flex flex-col items-center text-center">
@@ -31,7 +33,7 @@ export default function RankScreen({ state }: RankScreenProps) {
             {currentRank.name}
           </h2>
           <p className="text-secondary font-mono uppercase tracking-widest text-sm mb-6">
-            Level {state.level}
+            {t('rank.level', state.language).replace('{level}', state.level.toString())}
           </p>
 
           <div className="w-full">
@@ -57,20 +59,20 @@ export default function RankScreen({ state }: RankScreenProps) {
               <Flame className="w-5 h-5 text-accent" />
             </div>
             <span className="text-2xl font-bold">{state.missions.filter(m => m.completed).length}</span>
-            <span className="text-xs text-secondary uppercase tracking-wider">Missions Done</span>
+            <span className="text-xs text-secondary uppercase tracking-wider">{t('rank.missions_done', state.language)}</span>
           </div>
           <div className="bg-surface border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-2">
               <Shield className="w-5 h-5 text-primary" />
             </div>
             <span className="text-2xl font-bold">{state.highestRankAchieved}</span>
-            <span className="text-xs text-secondary uppercase tracking-wider">Highest Rank</span>
+            <span className="text-xs text-secondary uppercase tracking-wider">{t('rank.highest_rank', state.language)}</span>
           </div>
         </div>
 
         {/* Rank List */}
         <div>
-          <h3 className="text-xl font-display font-bold mb-4">All Ranks</h3>
+          <h3 className="text-xl font-display font-bold mb-4">{t('rank.all_ranks', state.language)}</h3>
           <div className="space-y-3">
             {RANKS.map((rank, index) => {
               const isCurrent = currentRank.name === rank.name;
@@ -92,10 +94,10 @@ export default function RankScreen({ state }: RankScreenProps) {
                   </div>
                   <div className="flex-1">
                     <h4 className={`font-bold ${isUnlocked ? 'text-primary' : 'text-secondary'}`}>{rank.name}</h4>
-                    <p className="text-xs text-secondary font-mono">Unlocks at Lvl {rank.minLevel}</p>
+                    <p className="text-xs text-secondary font-mono">{t('rank.unlocks_at', state.language).replace('{level}', rank.minLevel.toString())}</p>
                   </div>
                   {isCurrent && (
-                    <span className="text-xs font-bold text-accent uppercase tracking-wider">Current</span>
+                    <span className="text-xs font-bold text-accent uppercase tracking-wider">{t('rank.current', state.language)}</span>
                   )}
                 </div>
               );

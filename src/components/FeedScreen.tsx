@@ -2,13 +2,15 @@ import { motion } from 'motion/react';
 import { Post } from '../store';
 import { Heart, MessageCircle, Share2, User } from 'lucide-react';
 import { useState } from 'react';
+import { t } from '../utils/translations';
 
 interface FeedScreenProps {
   posts: Post[];
   onLike: (id: string) => void;
+  language: 'en' | 'id';
 }
 
-export default function FeedScreen({ posts, onLike }: FeedScreenProps) {
+export default function FeedScreen({ posts, onLike, language }: FeedScreenProps) {
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
 
   const handleLike = (id: string) => {
@@ -22,7 +24,7 @@ export default function FeedScreen({ posts, onLike }: FeedScreenProps) {
     <div className="flex flex-col h-full bg-black overflow-y-auto snap-y snap-mandatory no-scrollbar pb-16">
       {posts.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-secondary">
-          No posts yet. Be the first to post!
+          {t('feed.no_posts', language)}
         </div>
       ) : (
         posts.map((post) => (
@@ -81,7 +83,7 @@ export default function FeedScreen({ posts, onLike }: FeedScreenProps) {
                   <div className="p-3 rounded-full bg-black/20 backdrop-blur-md border border-white/10 group-hover:bg-white/10 transition-colors">
                     <Share2 className="w-7 h-7 text-white" />
                   </div>
-                  <span className="text-white text-xs font-bold mt-1 drop-shadow-md">Share</span>
+                  <span className="text-white text-xs font-bold mt-1 drop-shadow-md">{t('feed.share', language)}</span>
                 </button>
               </div>
             </div>

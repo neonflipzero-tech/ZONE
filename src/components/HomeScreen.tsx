@@ -145,7 +145,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
             <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
               <Shield className="w-4 h-4 text-blue-400" />
             </div>
-            <p className="text-sm font-medium text-blue-100">Streak Freeze digunakan! Streak kamu aman.</p>
+            <p className="text-sm font-medium text-blue-100">{t('home.streak_freeze.used', state.language)}</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -206,7 +206,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                 <button 
                   onClick={() => setIsCustomMissionsModalOpen(true)}
                   className="p-1.5 rounded-lg bg-surface border border-white/10 hover:bg-white/10 transition-colors text-accent"
-                  title={state.language === 'id' ? 'Atur Misi Kustom' : 'Manage Custom Missions'}
+                  title={t('home.manage_custom_missions', state.language)}
                 >
                   <Wand2 className="w-4 h-4" />
                 </button>
@@ -230,7 +230,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                     : 'text-secondary hover:text-primary'
                 }`}
               >
-                {tab === 'ROUTINE' ? (state.language === 'id' ? 'Rutinitas' : 'Routine') : t(`home.tab.${tab.toLowerCase()}`, state.language)}
+                {t(`home.tab.${tab.toLowerCase()}`, state.language)}
               </button>
             ))}
           </div>
@@ -250,18 +250,16 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
               <div className="text-center py-12 px-4 bg-surface/50 rounded-2xl border border-white/5">
                 <Wand2 className="w-12 h-12 text-secondary/30 mx-auto mb-4" />
                 <h4 className="text-lg font-bold mb-2">
-                  {state.language === 'id' ? 'Belum ada misi' : 'No missions yet'}
+                  {t('home.no_missions_yet', state.language)}
                 </h4>
                 <p className="text-sm text-secondary mb-6 max-w-[250px] mx-auto">
-                  {state.language === 'id' 
-                    ? `Tambahkan misi kustom ${activeTab.toLowerCase()} untuk mulai mendapatkan XP.` 
-                    : `Add custom ${activeTab.toLowerCase()} missions to start earning XP.`}
+                  {t('home.add_custom_missions', state.language).replace('{tab}', activeTab.toLowerCase())}
                 </p>
                 <button
                   onClick={() => setIsCustomMissionsModalOpen(true)}
                   className="px-6 py-3 bg-accent text-background rounded-xl font-bold text-sm hover:bg-accent/90 transition-colors"
                 >
-                  {state.language === 'id' ? 'Tambah Misi' : 'Add Missions'}
+                  {t('home.add_missions', state.language)}
                 </button>
               </div>
             ) : (
@@ -299,7 +297,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                       </span>
                       {isLocked && (
                         <span className="text-[10px] font-mono text-rose-500">
-                          {state.language === 'id' ? 'Terkunci (Selesaikan misi sebelumnya)' : 'Locked (Complete previous)'}
+                          {t('home.locked_mission', state.language)}
                         </span>
                       )}
                     </div>
@@ -378,13 +376,13 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                       }}
                       className="w-full py-5 rounded-2xl font-bold text-lg bg-surface text-secondary border border-white/10 hover:bg-surface-hover hover:text-primary transition-colors"
                     >
-                      {state.language === 'id' ? 'Saya tidak bisa melakukannya' : "I can't do it"}
+                      {t('home.cant_do_it', state.language)}
                     </button>
                     <button
                       onClick={handleCloseModal}
                       className="w-full py-5 rounded-2xl font-bold text-lg text-secondary hover:text-primary transition-colors"
                     >
-                      {state.language === 'id' ? 'Batal' : 'Cancel'}
+                      {t('home.cancel', state.language)}
                     </button>
                   </div>
                 </>
@@ -426,22 +424,22 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                   <Flame className="w-8 h-8 text-blue-400" />
                 </div>
               </div>
-              <h3 className="text-xl font-bold text-center mb-2">Use Streak Freeze?</h3>
+              <h3 className="text-xl font-bold text-center mb-2">{t('home.streak_freeze.title', state.language)}</h3>
               <p className="text-primary/70 text-center mb-6">
-                Are you sure you want to use a streak freeze? This will protect your current streak from being lost.
+                {t('home.streak_freeze.desc', state.language)}
               </p>
               <div className="flex flex-col space-y-3">
                 <button
                   onClick={() => confirmStreakFreeze(true)}
                   className="w-full py-3 rounded-xl font-bold bg-blue-500 text-white hover:bg-blue-600 transition-colors"
                 >
-                  Yes, Use Freeze
+                  {t('home.streak_freeze.use', state.language)}
                 </button>
                 <button
                   onClick={() => confirmStreakFreeze(false)}
                   className="w-full py-3 rounded-xl font-bold bg-white/5 text-primary hover:bg-white/10 transition-colors"
                 >
-                  No, Reset Streak
+                  {t('home.streak_freeze.cancel', state.language)}
                 </button>
               </div>
             </motion.div>

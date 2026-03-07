@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Camera, Image as ImageIcon, Upload, X, CheckCircle2 } from 'lucide-react';
 import { Post, UserState } from '../store';
+import { t } from '../utils/translations';
 
 interface CreatePostScreenProps {
   state: UserState;
@@ -118,12 +119,12 @@ export default function CreatePostScreen({ state, onPost, onCancel }: CreatePost
             className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-surface border border-white/10 px-6 py-3 rounded-full shadow-2xl flex items-center space-x-3"
           >
             <CheckCircle2 className="w-5 h-5 text-accent" />
-            <span className="font-bold text-sm">Post created successfully!</span>
+            <span className="font-bold text-sm">{t('create_post.success', state.language)}</span>
           </motion.div>
         )}
       </AnimatePresence>
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-display font-bold tracking-tight">Create Post</h1>
+        <h1 className="text-2xl font-display font-bold tracking-tight">{t('create_post.title', state.language)}</h1>
         <button onClick={onCancel} className="p-2 rounded-full bg-surface border border-white/10 hover:bg-white/10 transition-colors">
           <X className="w-5 h-5 text-secondary" />
         </button>
@@ -138,9 +139,9 @@ export default function CreatePostScreen({ state, onPost, onCancel }: CreatePost
             <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center mb-4">
               <Upload className="w-8 h-8 text-accent" />
             </div>
-            <p className="text-lg font-bold text-primary mb-2">Upload Media</p>
+            <p className="text-lg font-bold text-primary mb-2">{t('create_post.upload_media', state.language)}</p>
             <p className="text-sm text-secondary text-center max-w-[200px]">
-              Select a photo or video to share with the community
+              {t('create_post.select_media', state.language)}
             </p>
           </div>
         ) : (
@@ -171,11 +172,11 @@ export default function CreatePostScreen({ state, onPost, onCancel }: CreatePost
         />
 
         <div className="mb-6">
-          <label className="block text-sm font-bold text-secondary mb-2 uppercase tracking-wider">Caption</label>
+          <label className="block text-sm font-bold text-secondary mb-2 uppercase tracking-wider">{t('create_post.caption', state.language)}</label>
           <textarea
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
-            placeholder="Write something inspiring..."
+            placeholder={t('create_post.write_caption', state.language)}
             className="w-full bg-surface border border-white/10 rounded-2xl p-4 text-primary focus:outline-none focus:border-accent resize-none h-32"
           />
         </div>
@@ -189,7 +190,7 @@ export default function CreatePostScreen({ state, onPost, onCancel }: CreatePost
               : 'bg-surface text-secondary cursor-not-allowed border border-white/5'
           }`}
         >
-          Share Post
+          {t('create_post.share', state.language)}
         </button>
       </div>
     </motion.div>

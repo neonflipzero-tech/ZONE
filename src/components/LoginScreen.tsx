@@ -2,11 +2,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
+import { t } from '../utils/translations';
+
 interface LoginScreenProps {
   onLogin: (email: string, username: string) => void;
+  language: 'en' | 'id';
 }
 
-export default function LoginScreen({ onLogin }: LoginScreenProps) {
+export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -125,7 +128,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           className="mb-12 text-center"
         >
           <h1 className="text-7xl font-display font-black tracking-tighter mb-2 bg-gradient-to-r from-white via-primary to-secondary bg-clip-text text-transparent">ZONE</h1>
-          <p className="text-secondary text-sm tracking-widest uppercase font-medium">Enter The Zone. Just Progress.</p>
+          <p className="text-secondary text-sm tracking-widest uppercase font-medium">{t('login.subtitle', language)}</p>
         </motion.div>
 
         <motion.div 
@@ -137,7 +140,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           <div className="space-y-3">
             <input
               type="email"
-              placeholder="Email address"
+              placeholder={t('login.email', language)}
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
@@ -153,7 +156,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                   animate={{ height: 'auto', opacity: 1, marginTop: 12 }}
                   exit={{ height: 0, opacity: 0, marginTop: 0 }}
                   type="text"
-                  placeholder="Username"
+                  placeholder={t('login.username', language)}
                   value={username}
                   onChange={(e) => {
                     setUsername(e.target.value);
@@ -167,7 +170,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder="Password"
+                placeholder={t('login.password', language)}
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
@@ -195,7 +198,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             {isLoading ? (
               <div className="w-5 h-5 border-2 border-background border-t-transparent rounded-full animate-spin" />
             ) : (
-              <span>{isLoginMode ? 'Enter Zone' : 'Join Zone'}</span>
+              <span>{isLoginMode ? t('login.enter', language) : t('login.join', language)}</span>
             )}
           </button>
           
@@ -207,7 +210,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               }}
               className="text-sm text-secondary hover:text-primary transition-colors"
             >
-              {isLoginMode ? "Don't have an account? Sign Up" : "Already have an account? Log In"}
+              {isLoginMode ? t('login.no_account', language) : t('login.has_account', language)}
             </button>
           </div>
         </motion.div>

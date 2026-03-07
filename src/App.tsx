@@ -291,9 +291,9 @@ export default function App() {
       </div>
     );
   } else if (!state || !state.isLoggedIn) {
-    content = <LoginScreen onLogin={handleLogin} />;
+    content = <LoginScreen onLogin={handleLogin} language={state?.language || 'en'} />;
   } else if (!state.onboardingCompleted) {
-    content = <OnboardingScreen onSelectPath={handleSelectPath} />;
+    content = <OnboardingScreen onSelectPath={handleSelectPath} language={state.language} />;
   } else if (state.showStreakAnimation) {
     content = (
       <StreakScreen 

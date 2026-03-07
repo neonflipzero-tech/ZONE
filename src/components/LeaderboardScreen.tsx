@@ -7,6 +7,8 @@ import { db } from '../firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { sounds } from '../utils/sounds';
 
+import { t } from '../utils/translations';
+
 interface LeaderboardScreenProps {
   state: UserState;
 }
@@ -161,11 +163,11 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
     >
       <div className="px-6 pt-12 pb-6">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-display font-bold tracking-tight">Global Leaderboard</h1>
+          <h1 className="text-2xl font-display font-bold tracking-tight">{t('leaderboard.title', state.language)}</h1>
           {!isUsingFirebase && (
             <div className="flex items-center space-x-1 text-xs text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded-full border border-yellow-500/20">
               <AlertCircle className="w-3 h-3" />
-              <span>Local Mode</span>
+              <span>{t('leaderboard.local_mode', state.language)}</span>
             </div>
           )}
         </div>
@@ -188,7 +190,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
               </span>
             )}
             <div className="h-24 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-gray-300/50 flex flex-col items-center justify-end pb-2">
-              <span className="text-xs font-mono text-secondary">Lvl {allUsers[1]?.level || 0}</span>
+              <span className="text-xs font-mono text-secondary">{t('leaderboard.lvl', state.language).replace('{level}', (allUsers[1]?.level || 0).toString())}</span>
             </div>
           </div>
 
@@ -209,7 +211,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
               </span>
             )}
             <div className="h-32 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-4 border-yellow-400/50 flex flex-col items-center justify-end pb-2">
-              <span className="text-sm font-mono font-bold text-yellow-400">Lvl {allUsers[0]?.level || 0}</span>
+              <span className="text-sm font-mono font-bold text-yellow-400">{t('leaderboard.lvl', state.language).replace('{level}', (allUsers[0]?.level || 0).toString())}</span>
             </div>
           </div>
 
@@ -229,7 +231,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
               </span>
             )}
             <div className="h-20 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-amber-700/50 flex flex-col items-center justify-end pb-2">
-              <span className="text-xs font-mono text-secondary">Lvl {allUsers[2]?.level || 0}</span>
+              <span className="text-xs font-mono text-secondary">{t('leaderboard.lvl', state.language).replace('{level}', (allUsers[2]?.level || 0).toString())}</span>
             </div>
           </div>
         </div>
@@ -268,8 +270,8 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                     </div>
                   )}
                   <div className="flex items-center space-x-3 mt-1">
-                    <span className="text-xs font-mono text-accent">Lvl {user.level}</span>
-                    <span className="text-xs font-mono text-secondary">{user.xp} XP</span>
+                    <span className="text-xs font-mono text-accent">{t('leaderboard.lvl', state.language).replace('{level}', user.level.toString())}</span>
+                    <span className="text-xs font-mono text-secondary">{user.xp} {t('leaderboard.pts', state.language)}</span>
                   </div>
                 </div>
                 

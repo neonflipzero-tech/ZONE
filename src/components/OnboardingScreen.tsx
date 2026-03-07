@@ -3,8 +3,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { PathType } from '../store';
 import { ArrowRight, ChevronLeft } from 'lucide-react';
 
+import { t } from '../utils/translations';
+
 interface OnboardingScreenProps {
   onSelectPath: (path: PathType) => void;
+  language: 'en' | 'id';
 }
 
 const PATHS: { id: PathType; label: string; desc: string }[] = [
@@ -30,7 +33,7 @@ const BAD_HABITS = [
   { id: 'lack_of_sleep', label: 'Lack of Sleep', desc: 'Staying up late for no reason.' },
 ];
 
-export default function OnboardingScreen({ onSelectPath }: OnboardingScreenProps) {
+export default function OnboardingScreen({ onSelectPath, language }: OnboardingScreenProps) {
   const [step, setStep] = useState(0);
   const [selectedPath, setSelectedPath] = useState<PathType | null>(null);
 
@@ -84,8 +87,8 @@ export default function OnboardingScreen({ onSelectPath }: OnboardingScreenProps
               transition={{ delay: 0.2 }}
               className="mb-12"
             >
-              <h2 className="text-4xl font-display font-bold leading-tight mb-4">Why are you<br/>doing this?</h2>
-              <p className="text-secondary">Choose your path. We will tailor your daily missions to help you reach your goal.</p>
+              <h2 className="text-4xl font-display font-bold leading-tight mb-4">{t('onboarding.title', language)}</h2>
+              <p className="text-secondary">{t('onboarding.subtitle', language)}</p>
             </motion.div>
 
             <div className="space-y-3 flex-1">
@@ -99,8 +102,8 @@ export default function OnboardingScreen({ onSelectPath }: OnboardingScreenProps
                   className="w-full text-left bg-surface hover:bg-surface-hover p-5 rounded-2xl flex items-center justify-between group transition-all border border-white/5"
                 >
                   <div>
-                    <h3 className="font-bold text-lg mb-1">{path.label}</h3>
-                    <p className="text-sm text-secondary">{path.desc}</p>
+                    <h3 className="font-bold text-lg mb-1">{t(`onboarding.path.${path.id.toLowerCase()}`, language)}</h3>
+                    <p className="text-sm text-secondary">{t(`onboarding.path.${path.id.toLowerCase()}.desc`, language)}</p>
                   </div>
                   <ArrowRight className="w-5 h-5 text-secondary group-hover:text-primary transition-colors" />
                 </motion.button>
@@ -123,8 +126,8 @@ export default function OnboardingScreen({ onSelectPath }: OnboardingScreenProps
               transition={{ delay: 0.2 }}
               className="mb-12"
             >
-              <h2 className="text-4xl font-display font-bold leading-tight mb-4">When are you<br/>most productive?</h2>
-              <p className="text-secondary">We'll use this to schedule your daily missions.</p>
+              <h2 className="text-4xl font-display font-bold leading-tight mb-4">{t('onboarding.time.title', language)}</h2>
+              <p className="text-secondary">{t('onboarding.time.subtitle', language)}</p>
             </motion.div>
 
             <div className="space-y-3 flex-1">
@@ -138,8 +141,8 @@ export default function OnboardingScreen({ onSelectPath }: OnboardingScreenProps
                   className="w-full text-left bg-surface hover:bg-surface-hover p-5 rounded-2xl flex items-center justify-between group transition-all border border-white/5"
                 >
                   <div>
-                    <h3 className="font-bold text-lg mb-1">{time.label}</h3>
-                    <p className="text-sm text-secondary">{time.desc}</p>
+                    <h3 className="font-bold text-lg mb-1">{t(`onboarding.time.${time.id}`, language)}</h3>
+                    <p className="text-sm text-secondary">{t(`onboarding.time.${time.id}.desc`, language)}</p>
                   </div>
                   <ArrowRight className="w-5 h-5 text-secondary group-hover:text-primary transition-colors" />
                 </motion.button>
@@ -162,8 +165,8 @@ export default function OnboardingScreen({ onSelectPath }: OnboardingScreenProps
               transition={{ delay: 0.2 }}
               className="mb-12"
             >
-              <h2 className="text-4xl font-display font-bold leading-tight mb-4">What bad habit<br/>do you want<br/>to break?</h2>
-              <p className="text-secondary">We'll help you slowly leave this behind.</p>
+              <h2 className="text-4xl font-display font-bold leading-tight mb-4">{t('onboarding.habit.title', language)}</h2>
+              <p className="text-secondary">{t('onboarding.habit.subtitle', language)}</p>
             </motion.div>
 
             <div className="space-y-3 flex-1">
@@ -177,8 +180,8 @@ export default function OnboardingScreen({ onSelectPath }: OnboardingScreenProps
                   className="w-full text-left bg-surface hover:bg-surface-hover p-5 rounded-2xl flex items-center justify-between group transition-all border border-white/5"
                 >
                   <div>
-                    <h3 className="font-bold text-lg mb-1">{habit.label}</h3>
-                    <p className="text-sm text-secondary">{habit.desc}</p>
+                    <h3 className="font-bold text-lg mb-1">{t(`onboarding.habit.${habit.id}`, language)}</h3>
+                    <p className="text-sm text-secondary">{t(`onboarding.habit.${habit.id}.desc`, language)}</p>
                   </div>
                   <ArrowRight className="w-5 h-5 text-secondary group-hover:text-primary transition-colors" />
                 </motion.button>
@@ -202,10 +205,10 @@ export default function OnboardingScreen({ onSelectPath }: OnboardingScreenProps
               className="mb-12"
             >
               <h2 className="text-4xl font-display font-black leading-tight mb-4 tracking-tight">
-                Are you ready to<br/>enter the ZONE?
+                {t('onboarding.ready.title', language)}
               </h2>
               <p className="text-secondary text-lg max-w-xs mx-auto">
-                Your path is set. There is no turning back. It's time to lock in.
+                {t('onboarding.ready.subtitle', language)}
               </p>
             </motion.div>
 
@@ -216,7 +219,7 @@ export default function OnboardingScreen({ onSelectPath }: OnboardingScreenProps
               onClick={handleEnterZone}
               className="w-full max-w-xs py-5 rounded-2xl font-bold text-lg bg-primary text-background hover:bg-gray-200 transition-all shadow-xl shadow-primary/20 flex items-center justify-center space-x-2 group"
             >
-              <span>ENTER THE ZONE</span>
+              <span>{t('onboarding.enter_zone', language)}</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </motion.button>
           </motion.div>

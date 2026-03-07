@@ -153,12 +153,12 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
   const { ovr, stats } = calculateOVR(state);
 
   const radarData = [
-    { id: 'physical', subject: state.language === 'id' ? 'Fisik' : 'Physical', A: stats.physical, fullMark: 99 },
-    { id: 'discipline', subject: state.language === 'id' ? 'Disiplin' : 'Discipline', A: stats.discipline, fullMark: 99 },
-    { id: 'mental', subject: state.language === 'id' ? 'Mental' : 'Mental', A: stats.mental, fullMark: 99 },
-    { id: 'ambition', subject: state.language === 'id' ? 'Ambisi' : 'Ambition', A: stats.ambition, fullMark: 99 },
-    { id: 'intellect', subject: state.language === 'id' ? 'Intelek' : 'Intellect', A: stats.intellect, fullMark: 99 },
-    { id: 'social', subject: state.language === 'id' ? 'Sosial' : 'Social', A: stats.social, fullMark: 99 },
+    { id: 'physical', subject: t('profile.stat.physical', state.language), A: stats.physical, fullMark: 99 },
+    { id: 'discipline', subject: t('profile.stat.discipline', state.language), A: stats.discipline, fullMark: 99 },
+    { id: 'mental', subject: t('profile.stat.mental', state.language), A: stats.mental, fullMark: 99 },
+    { id: 'ambition', subject: t('profile.stat.ambition', state.language), A: stats.ambition, fullMark: 99 },
+    { id: 'intellect', subject: t('profile.stat.intellect', state.language), A: stats.intellect, fullMark: 99 },
+    { id: 'social', subject: t('profile.stat.social', state.language), A: stats.social, fullMark: 99 },
   ];
 
   const scrollToOvrStats = () => {
@@ -246,7 +246,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
 
       <div className="px-4 pt-12 pb-6">
         <div className="flex justify-between items-center mb-6 px-2">
-          <h1 className="text-2xl font-display font-black tracking-tight">{state.language === 'id' ? 'Identitas' : 'Identity'}</h1>
+          <h1 className="text-2xl font-display font-black tracking-tight">{t('profile.identity', state.language)}</h1>
           <div className="flex items-center space-x-2">
             <button 
               onClick={handleShare}
@@ -332,7 +332,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
 
         {/* Combat Stats / Attributes */}
         <div className="mb-8">
-          <h3 className="text-sm font-mono uppercase tracking-widest text-secondary mb-4 px-2">{state.language === 'id' ? 'Metrik Disiplin' : 'Discipline Metrics'}</h3>
+          <h3 className="text-sm font-mono uppercase tracking-widest text-secondary mb-4 px-2">{t('profile.discipline_metrics', state.language)}</h3>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-surface/50 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
               <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
@@ -359,7 +359,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                     </div>
                   )}
                 </div>
-                <div className="text-[10px] text-secondary font-mono uppercase tracking-wider">{state.language === 'id' ? 'Hari Beruntun' : 'Day Streak'}</div>
+                <div className="text-[10px] text-secondary font-mono uppercase tracking-wider">{t('profile.day_streak', state.language)}</div>
               </div>
             </div>
             <div className="bg-surface/50 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
@@ -370,7 +370,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 <div className="text-2xl font-display font-bold text-primary">
                   {Object.values(state.dailyStats || {}).reduce((a, b) => a + b, 0)}
                 </div>
-                <div className="text-[10px] text-secondary font-mono uppercase tracking-wider">{state.language === 'id' ? 'Misi Selesai' : 'Missions Done'}</div>
+                <div className="text-[10px] text-secondary font-mono uppercase tracking-wider">{t('profile.missions_done', state.language)}</div>
               </div>
             </div>
             <div className="bg-surface/50 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
@@ -388,7 +388,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
         {/* OVR Stats Radar Chart */}
         <div className="mb-8" ref={ovrStatsRef}>
           <div className="flex justify-between items-center mb-4 px-2">
-            <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{state.language === 'id' ? 'Statistik OVR' : 'OVR Stats'}</h3>
+            <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{t('profile.ovr_stats', state.language)}</h3>
             <button 
               onClick={handleShareOvr}
               className="p-1.5 rounded-full bg-surface border border-white/10 hover:bg-white/10 transition-colors"
@@ -498,12 +498,12 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
 
         {/* Equipment / Inventory */}
         <div className="mb-8">
-          <h3 className="text-sm font-mono uppercase tracking-widest text-secondary mb-4 px-2">{state.language === 'id' ? 'Kustomisasi' : 'Customization'}</h3>
+          <h3 className="text-sm font-mono uppercase tracking-widest text-secondary mb-4 px-2">{t('profile.customization', state.language)}</h3>
           
           <div className="space-y-6">
             {/* Titles */}
             <div>
-              <h4 className="text-xs font-bold text-primary mb-3 px-2 flex items-center"><Star className="w-3 h-3 mr-1 text-accent"/> {state.language === 'id' ? 'Gelar (Titles)' : 'Titles'}</h4>
+              <h4 className="text-xs font-bold text-primary mb-3 px-2 flex items-center"><Star className="w-3 h-3 mr-1 text-accent"/> {t('profile.titles', state.language)}</h4>
               <div className="flex flex-wrap gap-2 px-2">
                 {state.titles?.map(title => {
                   const isEquipped = state.equippedTitle === title;
@@ -526,7 +526,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
 
             {/* Frames */}
             <div>
-              <h4 className="text-xs font-bold text-primary mb-3 px-2 flex items-center"><Shield className="w-3 h-3 mr-1 text-accent"/> {state.language === 'id' ? 'Bingkai Profil' : 'Profile Frames'}</h4>
+              <h4 className="text-xs font-bold text-primary mb-3 px-2 flex items-center"><Shield className="w-3 h-3 mr-1 text-accent"/> {t('profile.profile_frames', state.language)}</h4>
               <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-2">
                 {(() => {
                   const allFrames = ['frame-default', 'frame-bronze', 'frame-silver', 'frame-gold', 'frame-platinum', 'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-legend', 'frame-mythic', 'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral'];
@@ -581,32 +581,32 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                         
                         const getFrameDescription = (f: string) => {
                           switch(f) {
-                            case 'frame-default': return state.language === 'id' ? 'Tersedia dari awal' : 'Available from start';
-                            case 'frame-bronze': return state.language === 'id' ? 'Capai Rank Bronze' : 'Reach Bronze Rank';
-                            case 'frame-silver': return state.language === 'id' ? 'Capai Rank Silver' : 'Reach Silver Rank';
-                            case 'frame-gold': return state.language === 'id' ? 'Capai Rank Gold' : 'Reach Gold Rank';
-                            case 'frame-platinum': return state.language === 'id' ? 'Capai Rank Platinum' : 'Reach Platinum Rank';
-                            case 'frame-diamond': return state.language === 'id' ? 'Capai Rank Diamond' : 'Reach Diamond Rank';
-                            case 'frame-master': return state.language === 'id' ? 'Capai Rank Master' : 'Reach Master Rank';
-                            case 'frame-grandmaster': return state.language === 'id' ? 'Capai Rank Grandmaster' : 'Reach Grandmaster Rank';
-                            case 'frame-challenger': return state.language === 'id' ? 'Capai Rank Challenger' : 'Reach Challenger Rank';
-                            case 'frame-legend': return state.language === 'id' ? 'Capai Rank Legend' : 'Reach Legend Rank';
-                            case 'frame-mythic': return state.language === 'id' ? 'Capai Rank Mythic' : 'Reach Mythic Rank';
-                            case 'frame-rgb': return state.language === 'id' ? 'Capai 7 Hari Streak' : 'Reach 7 Day Streak';
-                            case 'frame-neon': return state.language === 'id' ? 'Selesaikan 50 Misi' : 'Complete 50 Missions';
-                            case 'frame-fire': return state.language === 'id' ? 'Capai 30 Hari Streak' : 'Reach 30 Day Streak';
-                            case 'frame-cyberpunk': return state.language === 'id' ? 'Kumpulkan 5 Lencana' : 'Earn 5 Badges';
-                            case 'frame-hologram': return state.language === 'id' ? 'Selesaikan 100 Misi' : 'Complete 100 Missions';
-                            case 'frame-celestial': return state.language === 'id' ? 'Capai OVR 80' : 'Reach 80 OVR';
-                            case 'frame-void': return state.language === 'id' ? 'Capai Level 20' : 'Reach Level 20';
-                            case 'frame-aurora': return state.language === 'id' ? 'Capai 60 Hari Streak' : 'Reach 60 Day Streak';
-                            case 'frame-radiant': return state.language === 'id' ? 'Selesaikan 200 Misi' : 'Complete 200 Missions';
-                            case 'frame-abyssal': return state.language === 'id' ? 'Selesaikan 666 Misi' : 'Complete 666 Missions';
-                            case 'frame-inferno': return state.language === 'id' ? 'Capai 100 Hari Streak' : 'Reach 100 Day Streak';
-                            case 'frame-ethereal': return state.language === 'id' ? 'Capai OVR 95' : 'Reach 95 OVR';
-                            case 'frame-omniscience': return state.language === 'id' ? 'Capai OVR 100 (Maksimal)' : 'Reach 100 OVR (Max)';
-                            case 'frame-matrix': return state.language === 'id' ? 'Selesaikan 100 Misi' : 'Complete 100 Missions';
-                            case 'frame-viral': return state.language === 'id' ? 'Bagikan 5 kali' : 'Share 5 times';
+                            case 'frame-default': return t('profile.frame.default', state.language);
+                            case 'frame-bronze': return t('profile.frame.bronze', state.language);
+                            case 'frame-silver': return t('profile.frame.silver', state.language);
+                            case 'frame-gold': return t('profile.frame.gold', state.language);
+                            case 'frame-platinum': return t('profile.frame.platinum', state.language);
+                            case 'frame-diamond': return t('profile.frame.diamond', state.language);
+                            case 'frame-master': return t('profile.frame.master', state.language);
+                            case 'frame-grandmaster': return t('profile.frame.grandmaster', state.language);
+                            case 'frame-challenger': return t('profile.frame.challenger', state.language);
+                            case 'frame-legend': return t('profile.frame.legend', state.language);
+                            case 'frame-mythic': return t('profile.frame.mythic', state.language);
+                            case 'frame-rgb': return t('profile.frame.rgb', state.language);
+                            case 'frame-neon': return t('profile.frame.neon', state.language);
+                            case 'frame-fire': return t('profile.frame.fire', state.language);
+                            case 'frame-cyberpunk': return t('profile.frame.cyberpunk', state.language);
+                            case 'frame-hologram': return t('profile.frame.hologram', state.language);
+                            case 'frame-celestial': return t('profile.frame.celestial', state.language);
+                            case 'frame-void': return t('profile.frame.void', state.language);
+                            case 'frame-aurora': return t('profile.frame.aurora', state.language);
+                            case 'frame-radiant': return t('profile.frame.radiant', state.language);
+                            case 'frame-abyssal': return t('profile.frame.abyssal', state.language);
+                            case 'frame-inferno': return t('profile.frame.inferno', state.language);
+                            case 'frame-ethereal': return t('profile.frame.ethereal', state.language);
+                            case 'frame-omniscience': return t('profile.frame.omniscience', state.language);
+                            case 'frame-matrix': return t('profile.frame.matrix', state.language);
+                            case 'frame-viral': return t('profile.frame.viral', state.language);
                             default: return '';
                           }
                         };
@@ -644,7 +644,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                           <span className="text-2xl text-secondary">+</span>
                         </div>
                         <span className="text-[11px] font-mono uppercase tracking-wider text-primary font-bold mt-2">
-                          {state.language === 'id' ? 'Lihat Semua' : 'Show All'}
+                          {t('profile.show_all', state.language)}
                         </span>
                       </button>
                     </>
@@ -657,7 +657,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
 
         {/* Activity Chart */}
         <div className="mb-8">
-          <h3 className="text-sm font-mono uppercase tracking-widest text-secondary mb-4 px-2">{state.language === 'id' ? 'Rekor Konsistensi (7 Hari)' : 'Consistency Record (7 Days)'}</h3>
+          <h3 className="text-sm font-mono uppercase tracking-widest text-secondary mb-4 px-2">{t('profile.consistency_record', state.language)}</h3>
           <div className="bg-surface border border-white/5 rounded-2xl p-5 h-64 flex flex-col justify-end relative">
             <div className="absolute inset-0 p-5 flex flex-col justify-between pointer-events-none">
               {[1, 0.75, 0.5, 0.25, 0].map((tick, i) => (
@@ -681,7 +681,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                         className="w-2 bg-gradient-to-t from-orange-500/20 to-accent rounded-t-full relative group-hover:from-orange-500/40 group-hover:to-accent/80 transition-all"
                       >
                         <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface border border-white/10 px-2 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                          {data.missions} {state.language === 'id' ? 'Misi' : 'Missions'}
+                          {data.missions} {t('profile.missions', state.language)}
                         </div>
                       </motion.div>
                     </div>
@@ -696,12 +696,12 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
         {/* Titles */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4 px-2">
-            <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{state.language === 'id' ? 'Gelar' : 'Titles'}</h3>
+            <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{t('profile.titles', state.language)}</h3>
             <button 
               onClick={() => setIsTitlesModalOpen(true)}
               className="text-xs font-bold text-accent hover:text-accent-hover transition-colors"
             >
-              {state.language === 'id' ? 'Lihat Semua' : 'See All'}
+              {t('profile.view_all', state.language)}
             </button>
           </div>
           <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-2">
@@ -739,7 +739,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                     </span>
                     {isEquipped && (
                       <span className="text-[10px] text-accent font-mono uppercase tracking-widest mt-2">
-                        {state.language === 'id' ? 'Dipakai' : 'Equipped'}
+                        {t('profile.equipped', state.language)}
                       </span>
                     )}
                   </div>
@@ -752,12 +752,12 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
         {/* Badges */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4 px-2">
-            <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{state.language === 'id' ? 'Lencana' : 'Badges'}</h3>
+            <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{t('profile.badges', state.language)}</h3>
             <button 
               onClick={() => setIsBadgesModalOpen(true)}
               className="text-xs font-bold text-accent hover:text-accent-hover transition-colors"
             >
-              {state.language === 'id' ? 'Lihat Semua' : 'See All'}
+              {t('profile.view_all', state.language)}
             </button>
           </div>
           <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-2">
@@ -806,13 +806,13 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             <div className="flex justify-between items-center mb-4 px-2">
               <h3 className="text-sm font-mono uppercase tracking-widest text-red-500 flex items-center">
                 <Swords className="w-4 h-4 mr-2" />
-                {state.language === 'id' ? 'Rival Kamu' : 'Your Rival'}
+                {t('profile.active_rival', state.language)}
               </h3>
               <button 
                 onClick={() => updateState({ rivalId: null })}
                 className="text-xs text-secondary hover:text-red-500 transition-colors"
               >
-                {state.language === 'id' ? 'Hapus Rival' : 'Remove Rival'}
+                {t('profile.remove_rival', state.language)}
               </button>
             </div>
             
@@ -983,7 +983,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                     <User className="w-10 h-10 text-secondary" />
                   </div>
                   <h3 className="text-xl font-bold mb-2">{selectedUser.username}</h3>
-                  <p className="text-secondary text-sm">This user's profile is private.</p>
+                  <p className="text-secondary text-sm">{t('profile.private_profile', state.language)}</p>
                 </div>
               ) : (
                 <div className="flex flex-col items-center">
@@ -1043,7 +1043,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                     </div>
                     <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
                       <div className="w-5 h-5 border-2 border-accent rounded-md mb-1" />
-                      <span className="text-xs text-secondary mb-1">Frames</span>
+                      <span className="text-xs text-secondary mb-1">{t('profile.frames', state.language)}</span>
                       <span className="font-mono font-bold text-lg">{selectedUser.framesCount ?? selectedUser.unlockedFrames?.length ?? 1}</span>
                     </div>
                   </div>

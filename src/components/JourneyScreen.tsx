@@ -4,6 +4,7 @@ import { Shield, Lock, Star, Check, User, Share2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import ProfileFrame from './ProfileFrame';
 import { shareContent, shareElementAsImage } from '../utils/share';
+import { t } from '../utils/translations';
 
 interface JourneyScreenProps {
   state: UserState;
@@ -107,8 +108,12 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
     >
       <div className="px-6 pt-12 pb-6 sticky top-0 bg-background/80 backdrop-blur-md z-20 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-display font-bold tracking-tight">Journey Map</h1>
-          <p className="text-secondary text-sm">Your path to greatness.</p>
+          <h1 className="text-2xl font-display font-bold tracking-tight">
+            {t('journey.title', state.language)}
+          </h1>
+          <p className="text-secondary text-sm">
+            {t('journey.subtitle', state.language)}
+          </p>
         </div>
         {state.animatingLevelUp && (
           <button 
@@ -120,7 +125,7 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
             }}
             className="bg-surface border border-white/10 px-4 py-2 rounded-full text-xs font-bold text-primary hover:bg-surface-hover transition-colors"
           >
-            Skip Animation
+            {t('journey.skip', state.language)}
           </button>
         )}
       </div>
@@ -145,7 +150,7 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                 transition={{ delay: 0.3 }}
                 className="text-5xl font-display font-black mb-4 tracking-tight"
               >
-                RANK UP!
+                {t('journey.rank_up', state.language)}
               </motion.h2>
               <motion.p 
                 initial={{ y: 20, opacity: 0 }}
@@ -172,7 +177,7 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                 className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/20 px-6 py-3 rounded-full font-bold transition-colors backdrop-blur-md"
               >
                 <Share2 className="w-5 h-5" />
-                <span>Share Milestone</span>
+                <span>{t('journey.share_milestone', state.language)}</span>
               </motion.button>
             </div>
           </motion.div>
@@ -308,7 +313,7 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                       }}
                     >
                       <Star className="w-3 h-3" />
-                      <span>{state.language === 'id' ? 'Bingkai Baru!' : 'New Frame!'}</span>
+                      <span>{t('journey.new_frame', state.language)}</span>
                     </div>
                   )}
                 </div>
