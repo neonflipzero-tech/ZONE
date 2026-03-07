@@ -51,7 +51,10 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           setError('Account with this email already exists');
           setIsLoading(false);
         } else {
-          users[normalizedEmail] = { username: username.trim(), password };
+          const userCount = Object.keys(users).length;
+          const isOG = userCount < 100;
+          
+          users[normalizedEmail] = { username: username.trim(), password, isOG };
           localStorage.setItem('lockin_auth_users', JSON.stringify(users));
           onLogin(normalizedEmail, username.trim());
         }
@@ -61,46 +64,47 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-background space-y-10 p-6 text-center">
-        <div className="relative w-32 h-32 flex items-center justify-center">
+      <div className="flex flex-col items-center justify-center h-full bg-black space-y-10 p-6 text-center">
+        {/* Bullseye Segmented Animation */}
+        <div className="relative w-24 h-24 flex items-center justify-center">
+          {/* Outer dashed ring */}
           <motion.div
-            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.8, 0.3] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute inset-0 bg-white/5 rounded-xl blur-xl"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-0 rounded-full border-2 border-dashed border-white/20"
           />
+          {/* Middle dashed ring (spins opposite) */}
+          <motion.div
+            animate={{ rotate: -360 }}
+            transition={{ duration: 7, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-3 rounded-full border-[3px] border-dashed border-white/40"
+          />
+          {/* Inner dashed ring */}
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-            className="absolute inset-2 border-[1px] border-dashed border-white/30 rounded-lg"
+            className="absolute inset-6 rounded-full border-2 border-dashed border-white/60"
           />
+          {/* Center pulsing core */}
           <motion.div
-            animate={{ rotate: -360 }}
-            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-            className="absolute inset-6 border-[2px] border-dotted border-white/50 rounded-lg"
-          />
-          <motion.div
-            animate={{ scale: [0.8, 1, 0.8], rotate: [0, 90, 180, 270, 360] }}
+            animate={{ scale: [0.7, 1.2, 0.7] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="w-10 h-10 bg-white rounded-sm shadow-[0_0_40px_rgba(255,255,255,1)] flex items-center justify-center"
-          >
-            <div className="w-3 h-3 bg-black/80 rounded-sm" />
-          </motion.div>
+            className="w-3 h-3 bg-white rounded-full shadow-[0_0_20px_rgba(255,255,255,1)]"
+          />
         </div>
-        <div>
+
+        {/* Text */}
+        <div className="flex flex-col items-center space-y-3">
           <motion.h2 
-            animate={{ opacity: [0.5, 1, 0.5], y: [0, -5, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="text-3xl font-display font-bold text-white mb-3 tracking-widest uppercase"
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+            className="text-2xl font-display font-black text-white tracking-[0.3em] ml-[0.3em]"
           >
-            Syncing
+            ZONE
           </motion.h2>
-          <motion.p 
-            animate={{ opacity: [0.3, 0.7, 0.3] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-            className="text-white/50 font-mono text-xs uppercase tracking-[0.3em]"
-          >
-            Establishing Connection...
-          </motion.p>
+          <p className="text-white/40 font-mono text-[10px] uppercase tracking-[0.2em] ml-[0.2em]">
+            ESTABLISHING CONNECTION...
+          </p>
         </div>
       </div>
     );

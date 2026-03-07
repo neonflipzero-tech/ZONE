@@ -52,9 +52,8 @@ export const shareElementAsImage = async (elementId: string, title: string, text
   try {
     // Generate image quickly to preserve user gesture token
     blob = await toBlob(element, { 
-      cacheBust: true,
       backgroundColor: '#0a0a0a', // Match background color
-      pixelRatio: 2, // Reduced from 3 to speed up generation and preserve gesture
+      pixelRatio: 1, // Reduced to 1 to speed up generation and preserve gesture
       style: {
         transform: 'scale(1)', // Ensure no weird scaling issues
         margin: '0',

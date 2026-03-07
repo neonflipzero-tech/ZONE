@@ -1,7 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserState, getRankForLevel, PathType, calculateOVR, createDefaultState } from '../store';
-import { Trophy, Flame, LogOut, Camera, User, Shield, ChevronDown, ChevronUp, Star, Lock, CheckCircle2, Share2, AlertTriangle } from 'lucide-react';
+import { UserState, getRankForLevel, PathType, calculateOVR, createDefaultState, BADGES, TITLES, useAppState } from '../store';
+import { Trophy, Flame, LogOut, Camera, User, Shield, ChevronDown, ChevronUp, Star, Lock, CheckCircle2, Share2, AlertTriangle, Footprints, Zap, Crown, Moon, Sun, Swords, Settings, X } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import { t } from '../utils/translations';
 import ProfileFrame from './ProfileFrame';
@@ -10,6 +10,15 @@ import StatDetailModal from './StatDetailModal';
 import ImageCropper from './ImageCropper';
 import ResetProgressModal from './ResetProgressModal';
 import FramesModal from './FramesModal';
+import BadgesModal from './BadgesModal';
+import TitlesModal from './TitlesModal';
+import SettingsScreen from './SettingsScreen';
+import { db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
+
+const BADGE_ICONS: Record<string, any> = {
+  Footprints, CheckCircle2, Flame, Zap, Crown, Moon, Sun, Swords, Shield, Star, Trophy
+};
 
 interface ProfileScreenProps {
   state: UserState;
@@ -26,6 +35,69 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
   const [selectedStat, setSelectedStat] = useState<{id: string, subject: string, label?: string, A: number} | null>(null);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isFramesModalOpen, setIsFramesModalOpen] = useState(false);
+  const [isBadgesModalOpen, setIsBadgesModalOpen] = useState(false);
+  const [isTitlesModalOpen, setIsTitlesModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [rivalData, setRivalData] = useState<any | null>(null);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [showCrushedAnimation, setShowCrushedAnimation] = useState(false);
+  const { crushRival } = useAppState();
+
+  useEffect(() => {
+    const fetchRival = async () => {
+      if (state.rivalId) {
+        let rData = null;
+        if (db) {
+          try {
+            const docRef = doc(db, 'users', state.rivalId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+              rData = docSnap.data();
+            }
+          } catch (e: any) {
+            if (e?.code === 'unavailable' || e?.message?.includes('offline')) {
+              console.warn("Client is offline, skipping rival fetch from Firestore.");
+            } else {
+              console.error("Error fetching rival", e);
+            }
+          }
+        }
+
+        // Fallback to localStorage if not found in Firestore or offline
+        if (!rData) {
+          const savedLeaderboard = localStorage.getItem('lockin_global_leaderboard');
+          if (savedLeaderboard) {
+            try {
+              const users = JSON.parse(savedLeaderboard);
+              const localRival = users.find((u: any) => u.userId === state.rivalId);
+              if (localRival) {
+                rData = localRival;
+              }
+            } catch (e) {
+              console.error("Error parsing local leaderboard", e);
+            }
+          }
+        }
+
+        if (rData) {
+          setRivalData(rData);
+
+          // Check if crushed
+          const myTotalXp = state.xp + 50 * state.level * (state.level - 1);
+          const rivalTotalXp = rData.totalXp || 0;
+          
+          if (myTotalXp > rivalTotalXp && rivalTotalXp > 0) {
+            setShowCrushedAnimation(true);
+            setTimeout(() => {
+              crushRival();
+              setShowCrushedAnimation(false);
+            }, 3000);
+          }
+        }
+      }
+    };
+    fetchRival();
+  }, [state.rivalId, state.xp, state.level]);
 
   const handleResetProgress = () => {
     const defaultState = createDefaultState(state.username);
@@ -93,6 +165,45 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
     ovrStatsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
+  const incrementShareCount = () => {
+    const newShareCount = (state.shareCount || 0) + 1;
+    const updates: Partial<UserState> = { shareCount: newShareCount };
+    
+    if (newShareCount >= 5 && !state.titles.includes('Supporter')) {
+      updates.titles = [...state.titles, 'Supporter'];
+      updates.unlockedItemsQueue = [
+        ...(state.unlockedItemsQueue || []),
+        { type: 'title', id: 'Supporter' }
+      ];
+    }
+    
+    updateState(updates);
+  };
+
+  const handleShare = async () => {
+    const success = await shareElementAsImage(
+      'profile-card',
+      'My ZONE Profile',
+      `I'm currently Level ${state.level} (${currentRank.name}) with an OVR of ${ovr} on ZONE! Can you beat my stats?`
+    );
+
+    if (success) {
+      incrementShareCount();
+    }
+  };
+
+  const handleShareOvr = async () => {
+    const success = await shareElementAsImage(
+      'ovr-stats-card',
+      'My ZONE OVR Stats',
+      `Check out my OVR Stats on ZONE! My overall rating is ${ovr}. Can you beat my consistency?`
+    );
+
+    if (success) {
+      incrementShareCount();
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -100,22 +211,51 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
       exit={{ opacity: 0 }}
       className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24"
     >
+      <AnimatePresence>
+        {showCrushedAnimation && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.5 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          >
+            <div className="text-center">
+              <motion.div
+                animate={{ rotate: [0, -10, 10, -10, 10, 0], scale: [1, 1.2, 1] }}
+                transition={{ duration: 0.5, repeat: Infinity }}
+              >
+                <Swords className="w-32 h-32 text-red-500 mx-auto mb-6" />
+              </motion.div>
+              <h1 className="text-6xl font-black font-display text-red-500 tracking-tighter mb-2" style={{ textShadow: '0 0 20px rgba(239, 68, 68, 0.5)' }}>
+                RIVAL CRUSHED
+              </h1>
+              <p className="text-xl text-white font-mono">+500 XP BONUS</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="px-4 pt-12 pb-6">
         <div className="flex justify-between items-center mb-6 px-2">
           <h1 className="text-2xl font-display font-black tracking-tight">{state.language === 'id' ? 'Identitas' : 'Identity'}</h1>
-          <button 
-            onClick={() => shareElementAsImage(
-              'profile-card',
-              'My ZONE Profile',
-              `I'm currently Level ${state.level} (${currentRank.name}) with an OVR of ${ovr} on ZONE! Can you beat my stats?`
-            )}
-            className="p-2 rounded-full bg-surface border border-white/10 hover:bg-white/10 transition-colors"
-          >
-            <Share2 className="w-5 h-5 text-secondary" />
-          </button>
+          <div className="flex items-center space-x-2">
+            <button 
+              onClick={handleShare}
+              className="p-2 rounded-full bg-surface border border-white/10 hover:bg-white/10 transition-colors"
+            >
+              <Share2 className="w-5 h-5 text-secondary" />
+            </button>
+            <button 
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2 rounded-full bg-surface border border-white/10 hover:bg-white/10 transition-colors"
+            >
+              <Settings className="w-5 h-5 text-secondary" />
+            </button>
+          </div>
         </div>
         
         {/* Player Card Header */}
+
         <div id="profile-card" className="relative mb-8 rounded-3xl overflow-hidden border border-white/10 bg-surface shadow-2xl">
           {/* Background Glow based on rank */}
           <div className="absolute inset-0 opacity-10 bg-gradient-to-br from-accent to-transparent" />
@@ -138,8 +278,12 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             <h2 className="text-3xl font-black font-display tracking-tight mb-1">{state.username}</h2>
             
             {state.equippedTitle ? (
-              <div className="px-3 py-1 bg-white/10 border border-white/20 rounded-full text-[10px] font-mono uppercase tracking-widest text-accent/90 mb-6 backdrop-blur-sm">
-                {state.equippedTitle}
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="h-[1px] w-8 bg-gradient-to-r from-transparent to-white/20"></div>
+                <span className={`text-[10px] font-display font-bold uppercase tracking-[0.2em] ${TITLES.find(t => t.id === state.equippedTitle)?.specialColor || 'text-accent'}`}>
+                  {state.equippedTitle}
+                </span>
+                <div className="h-[1px] w-8 bg-gradient-to-l from-transparent to-white/20"></div>
               </div>
             ) : (
               <div className="h-6 mb-6" />
@@ -167,7 +311,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
               <motion.div 
                 className="absolute top-0 left-0 h-full bg-gradient-to-r from-accent to-orange-500"
                 initial={{ width: 0 }}
-                animate={{ width: `${(state.xp % 100)}%` }}
+                animate={{ width: `${(state.xp / (state.level * 100)) * 100}%` }}
                 transition={{ duration: 1, ease: "easeOut" }}
               />
             </div>
@@ -229,11 +373,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
           <div className="flex justify-between items-center mb-4 px-2">
             <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{state.language === 'id' ? 'Statistik OVR' : 'OVR Stats'}</h3>
             <button 
-              onClick={() => shareElementAsImage(
-                'ovr-stats-card',
-                'My ZONE OVR Stats',
-                `Check out my OVR Stats on ZONE! My overall rating is ${ovr}. Can you beat my consistency?`
-              )}
+              onClick={handleShareOvr}
               className="p-1.5 rounded-full bg-surface border border-white/10 hover:bg-white/10 transition-colors"
             >
               <Share2 className="w-4 h-4 text-secondary" />
@@ -245,7 +385,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             <div className="relative w-full aspect-square max-w-[340px]">
               {/* OVR Number in Center */}
               <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                <div className="flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm w-16 h-16 rounded-full border border-white/10 shadow-lg shadow-accent/20">
+                <div className="flex flex-col items-center justify-center bg-[#0a0a0a] w-16 h-16 rounded-full border border-white/10 shadow-lg shadow-accent/20">
                   <span className="text-[10px] font-mono text-secondary leading-none">OVR</span>
                   <span className="text-2xl font-display font-black text-accent leading-none mt-1">{ovr}</span>
                 </div>
@@ -534,111 +674,366 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
           </div>
         </div>
 
-        {/* Badges */}
+        {/* Titles */}
         <div className="mb-8">
-          <h3 className="text-sm font-mono uppercase tracking-widest text-secondary mb-4 px-2">{state.language === 'id' ? 'Lencana' : 'Badges'}</h3>
-          {state.badges.length === 0 ? (
-            <div className="bg-surface border border-white/5 rounded-2xl p-8 text-center text-secondary">
-              <Trophy className="w-8 h-8 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">{state.language === 'id' ? 'Selesaikan misi untuk mendapatkan lencana.' : 'Complete missions to earn badges.'}</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-3">
-              {state.badges.map((badge, i) => (
-                <div key={i} className="bg-surface border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center text-center aspect-square bg-gradient-to-b from-surface to-surface-hover">
-                  <Trophy className="w-8 h-8 text-accent mb-2" />
-                  <span className="text-xs font-bold leading-tight">{badge}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Settings */}
-        <div>
-          <h3 className="text-sm font-mono uppercase tracking-widest text-secondary mb-4 px-2">{state.language === 'id' ? 'Pengaturan' : 'Settings'}</h3>
-          <div className="bg-surface border border-white/5 rounded-2xl overflow-hidden">
-            {/* Goal Setting */}
-            <div className="p-4 border-b border-white/5">
-              <div 
-                className="flex justify-between items-center cursor-pointer"
-                onClick={() => setIsGoalDropdownOpen(!isGoalDropdownOpen)}
-              >
-                <span className="font-bold">{state.language === 'id' ? 'Tujuan' : 'Goal'}</span>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-secondary">{state.chosenPath?.replace('_', ' ')}</span>
-                  {isGoalDropdownOpen ? <ChevronUp className="w-5 h-5 text-secondary" /> : <ChevronDown className="w-5 h-5 text-secondary" />}
-                </div>
-              </div>
-              
-              <AnimatePresence>
-                {isGoalDropdownOpen && (
-                  <motion.div 
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="pt-4 space-y-2">
-                      {(['PRODUCTIVE', 'STRONGER', 'EXTROVERT', 'DISCIPLINE', 'MENTAL_HEALTH', 'OTHER'] as PathType[]).map(path => (
-                        <button
-                          key={path}
-                          onClick={() => {
-                            changePath(path);
-                            setIsGoalDropdownOpen(false);
-                          }}
-                          className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${
-                            state.chosenPath === path 
-                              ? 'bg-primary/10 border-primary text-primary font-bold' 
-                              : 'bg-background border-white/5 text-secondary hover:border-white/20 hover:text-primary'
-                          }`}
-                        >
-                          {path.replace('_', ' ')}
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Language Setting */}
-            <div className="p-4 flex items-center justify-between border-b border-white/5">
-              <span className="font-bold">{state.language === 'id' ? 'Bahasa' : 'Language'}</span>
-              <div className="flex bg-background rounded-lg p-1 border border-white/10">
-                <button 
-                  onClick={() => updateState({ language: 'en' })}
-                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${state.language === 'en' ? 'bg-primary text-background' : 'text-secondary hover:text-primary'}`}
-                >
-                  EN
-                </button>
-                <button 
-                  onClick={() => updateState({ language: 'id' })}
-                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${state.language === 'id' ? 'bg-primary text-background' : 'text-secondary hover:text-primary'}`}
-                >
-                  ID
-                </button>
-              </div>
-            </div>
-
+          <div className="flex justify-between items-center mb-4 px-2">
+            <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{state.language === 'id' ? 'Gelar' : 'Titles'}</h3>
             <button 
-              onClick={() => setIsResetModalOpen(true)}
-              className="w-full p-4 flex items-center justify-between text-red-500 hover:bg-red-500/10 transition-colors border-b border-white/5"
+              onClick={() => setIsTitlesModalOpen(true)}
+              className="text-xs font-bold text-accent hover:text-accent-hover transition-colors"
             >
-              <span className="font-bold">{state.language === 'id' ? 'Hapus Semua Progres' : 'Reset All Progress'}</span>
-              <AlertTriangle className="w-5 h-5" />
-            </button>
-
-            <button 
-              onClick={onLogout}
-              className="w-full p-4 flex items-center justify-between text-accent hover:bg-white/5 transition-colors"
-            >
-              <span className="font-bold">{state.language === 'id' ? 'Keluar' : 'Log Out'}</span>
-              <LogOut className="w-5 h-5" />
+              {state.language === 'id' ? 'Lihat Semua' : 'See All'}
             </button>
           </div>
+          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-2">
+            {(() => {
+              const isZaiki = state.username?.toLowerCase() === 'zaiki';
+              // Sort titles: unlocked first, then locked
+              const sortedTitles = [...TITLES].sort((a, b) => {
+                const aUnlocked = isZaiki || state.titles.includes(a.id);
+                const bUnlocked = isZaiki || state.titles.includes(b.id);
+                if (aUnlocked && !bUnlocked) return -1;
+                if (!aUnlocked && bUnlocked) return 1;
+                return 0;
+              });
+
+              // Show only top 4
+              const displayTitles = sortedTitles.slice(0, 4);
+
+              return displayTitles.map((titleDef) => {
+                const isUnlocked = isZaiki || state.titles.includes(titleDef.id);
+                const isEquipped = state.equippedTitle === titleDef.id;
+                
+                return (
+                  <div 
+                    key={titleDef.id} 
+                    className={`shrink-0 w-32 snap-center border rounded-xl p-4 flex flex-col items-center justify-center text-center transition-all ${
+                      isUnlocked 
+                        ? isEquipped
+                          ? 'bg-accent/20 border-accent shadow-lg shadow-accent/20'
+                          : 'bg-gradient-to-b from-surface to-surface-hover border-white/10' 
+                        : 'bg-surface/30 border-white/5 opacity-50 grayscale'
+                    }`}
+                  >
+                    <span className={`text-xs font-bold leading-tight mb-1 ${isUnlocked ? (titleDef.specialColor || 'text-primary') : 'text-secondary'}`}>
+                      {titleDef.name[state.language]}
+                    </span>
+                    {isEquipped && (
+                      <span className="text-[10px] text-accent font-mono uppercase tracking-widest mt-2">
+                        {state.language === 'id' ? 'Dipakai' : 'Equipped'}
+                      </span>
+                    )}
+                  </div>
+                );
+              });
+            })()}
+          </div>
         </div>
+
+        {/* Badges */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-4 px-2">
+            <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{state.language === 'id' ? 'Lencana' : 'Badges'}</h3>
+            <button 
+              onClick={() => setIsBadgesModalOpen(true)}
+              className="text-xs font-bold text-accent hover:text-accent-hover transition-colors"
+            >
+              {state.language === 'id' ? 'Lihat Semua' : 'See All'}
+            </button>
+          </div>
+          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-2">
+            {(() => {
+              // Sort badges: unlocked first, then locked
+              const sortedBadges = [...BADGES].sort((a, b) => {
+                const aUnlocked = state.badges.includes(a.id);
+                const bUnlocked = state.badges.includes(b.id);
+                if (aUnlocked && !bUnlocked) return -1;
+                if (!aUnlocked && bUnlocked) return 1;
+                return 0;
+              });
+
+              // Show only top 4
+              const displayBadges = sortedBadges.slice(0, 4);
+
+              return displayBadges.map((badgeDef) => {
+                const isUnlocked = state.badges.includes(badgeDef.id);
+                const Icon = BADGE_ICONS[badgeDef.icon] || Trophy;
+                
+                return (
+                  <div 
+                    key={badgeDef.id} 
+                    className={`shrink-0 w-32 snap-center border rounded-xl p-4 flex flex-col items-center justify-center text-center transition-all ${
+                      isUnlocked 
+                        ? 'bg-gradient-to-b from-surface to-surface-hover border-accent/30 shadow-lg shadow-accent/5' 
+                        : 'bg-surface/30 border-white/5 opacity-50 grayscale'
+                    }`}
+                  >
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${isUnlocked ? 'bg-accent/20' : 'bg-white/5'}`}>
+                      <Icon className={`w-6 h-6 ${isUnlocked ? 'text-accent' : 'text-secondary'}`} />
+                    </div>
+                    <span className={`text-xs font-bold leading-tight mb-1 ${isUnlocked ? 'text-primary' : 'text-secondary'}`}>
+                      {badgeDef.name[state.language]}
+                    </span>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+
+        {/* Your Rival Section */}
+        {state.rivalId && rivalData && (
+          <div className="mt-8 mb-8">
+            <div className="flex justify-between items-center mb-4 px-2">
+              <h3 className="text-sm font-mono uppercase tracking-widest text-red-500 flex items-center">
+                <Swords className="w-4 h-4 mr-2" />
+                {state.language === 'id' ? 'Rival Kamu' : 'Your Rival'}
+              </h3>
+              <button 
+                onClick={() => updateState({ rivalId: null })}
+                className="text-xs text-secondary hover:text-red-500 transition-colors"
+              >
+                {state.language === 'id' ? 'Hapus Rival' : 'Remove Rival'}
+              </button>
+            </div>
+            
+            <div className="bg-surface/50 border border-red-500/20 rounded-3xl p-6 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent pointer-events-none" />
+              
+              {/* Status Banner */}
+              {(() => {
+                const rivalOvr = rivalData.ovr || 0;
+                let bannerColor = '';
+                let bannerText = '';
+                if (rivalOvr > ovr) {
+                  bannerColor = 'bg-red-500/20 text-red-500 border-red-500/30';
+                  bannerText = '⚠️ RIVAL IS AHEAD — CATCH UP!';
+                } else if (ovr > rivalOvr) {
+                  bannerColor = 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30';
+                  bannerText = '🔥 YOU\'RE WINNING — STAY ON TOP!';
+                } else {
+                  bannerColor = 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30';
+                  bannerText = '⚡ DEAD EVEN — MAKE YOUR MOVE!';
+                }
+                return (
+                  <div className={`w-full py-2 px-4 rounded-xl border mb-6 flex items-center justify-center text-xs font-bold tracking-wider ${bannerColor}`}>
+                    {bannerText}
+                  </div>
+                );
+              })()}
+
+              <div className="flex items-center justify-between mb-6">
+                {/* You */}
+                <div className="flex flex-col items-center flex-1">
+                  <ProfileFrame frame={state.equippedFrame} src={state.profilePicture} size="sm" />
+                  <span className="text-xs font-bold mt-2 truncate max-w-[80px] text-accent">{state.username}</span>
+                  <span className="text-[10px] text-accent font-mono mt-1">OVR {ovr}</span>
+                </div>
+                
+                {/* VS */}
+                <div className="flex flex-col items-center justify-center px-4">
+                  <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center border border-red-500/30">
+                    <span className="text-xs font-black text-red-500 italic">VS</span>
+                  </div>
+                </div>
+
+                {/* Rival */}
+                <div className="flex flex-col items-center flex-1">
+                  <ProfileFrame frame={rivalData.equippedFrame} src={rivalData.profilePicture} size="sm" />
+                  <span className="text-xs font-bold mt-2 truncate max-w-[80px] text-fuchsia-500">{rivalData.username}</span>
+                  <span className="text-[10px] text-fuchsia-500 font-mono mt-1">
+                    OVR {rivalData.ovr || 0}
+                  </span>
+                </div>
+              </div>
+
+              {/* Stats Comparison */}
+              <div className="space-y-4 mb-6">
+                {/* Level */}
+                <div className="flex flex-col">
+                  <div className="flex justify-between text-[10px] font-mono mb-1">
+                    <span className="text-accent">Lvl {state.level}</span>
+                    <span className="text-secondary uppercase tracking-widest">Level</span>
+                    <span className="text-fuchsia-500">Lvl {rivalData.level}</span>
+                  </div>
+                  <div className="flex w-full h-2 bg-background rounded-full overflow-hidden">
+                    <div className="flex-1 flex justify-end border-r border-background/50">
+                      <div className="h-full bg-accent" style={{ width: `${(state.level / Math.max(1, Math.max(state.level, rivalData.level))) * 100}%` }} />
+                    </div>
+                    <div className="flex-1 flex justify-start border-l border-background/50">
+                      <div className="h-full bg-fuchsia-500" style={{ width: `${(rivalData.level / Math.max(1, Math.max(state.level, rivalData.level))) * 100}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Streak */}
+                <div className="flex flex-col">
+                  <div className="flex justify-between text-[10px] font-mono mb-1">
+                    <span className="text-accent">{state.streak} <Flame className="w-3 h-3 inline" /></span>
+                    <span className="text-secondary uppercase tracking-widest">Streak</span>
+                    <span className="text-fuchsia-500">{rivalData.streak || 0} <Flame className="w-3 h-3 inline" /></span>
+                  </div>
+                  <div className="flex w-full h-2 bg-background rounded-full overflow-hidden">
+                    <div className="flex-1 flex justify-end border-r border-background/50">
+                      <div className="h-full bg-accent" style={{ width: `${(state.streak / Math.max(1, Math.max(state.streak, rivalData.streak || 0))) * 100}%` }} />
+                    </div>
+                    <div className="flex-1 flex justify-start border-l border-background/50">
+                      <div className="h-full bg-fuchsia-500" style={{ width: `${((rivalData.streak || 0) / Math.max(1, Math.max(state.streak, rivalData.streak || 0))) * 100}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Total XP */}
+                <div className="flex flex-col">
+                  <div className="flex justify-between text-[10px] font-mono mb-1">
+                    <span className="text-accent">{(state.xp + 50 * state.level * (state.level - 1)).toLocaleString()} XP</span>
+                    <span className="text-secondary uppercase tracking-widest">Total XP</span>
+                    <span className="text-fuchsia-500">{(rivalData.totalXp || 0).toLocaleString()} XP</span>
+                  </div>
+                  <div className="flex w-full h-2 bg-background rounded-full overflow-hidden">
+                    <div className="flex-1 flex justify-end border-r border-background/50">
+                      <div className="h-full bg-accent" style={{ width: `${((state.xp + 50 * state.level * (state.level - 1)) / Math.max(1, Math.max((state.xp + 50 * state.level * (state.level - 1)), (rivalData.totalXp || 0)))) * 100}%` }} />
+                    </div>
+                    <div className="flex-1 flex justify-start border-l border-background/50">
+                      <div className="h-full bg-fuchsia-500" style={{ width: `${((rivalData.totalXp || 0) / Math.max(1, Math.max((state.xp + 50 * state.level * (state.level - 1)), (rivalData.totalXp || 0)))) * 100}%` }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Radar Chart Comparison */}
+              <div className="flex mt-6 h-40 w-full relative space-x-2">
+                <div className="flex-1 h-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                      <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                      <PolarAngleAxis dataKey="subject" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 8 }} />
+                      <Radar name="You" dataKey="A" stroke="#F27D26" fill="#F27D26" fillOpacity={0.4} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex-1 h-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData.map(d => {
+                      const rivalOvrData = rivalData.stats || { physical: 0, discipline: 0, mental: 0, ambition: 0, intellect: 0, social: 0 };
+                      return {
+                        ...d,
+                        B: rivalOvrData[d.id as keyof typeof rivalOvrData] || 0
+                      };
+                    })}>
+                      <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                      <PolarAngleAxis dataKey="subject" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 8 }} />
+                      <Radar name="Rival" dataKey="B" stroke="#D946EF" fill="#D946EF" fillOpacity={0.4} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedUser(rivalData)}
+                className="mt-6 w-full py-3 rounded-xl font-bold text-sm bg-surface-hover text-primary border border-white/10 hover:bg-white/5 transition-colors flex items-center justify-center space-x-2"
+              >
+                <User className="w-4 h-4" />
+                <span>VIEW RIVAL PROFILE</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Public Profile Modal */}
+      <AnimatePresence>
+        {selectedUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface border border-white/10 rounded-3xl p-6 w-full max-w-sm relative shadow-2xl max-h-[85vh] overflow-y-auto no-scrollbar"
+            >
+              <button 
+                onClick={() => setSelectedUser(null)}
+                className="absolute top-4 right-4 p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors z-10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {selectedUser.isProfilePublic === false ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                    <User className="w-10 h-10 text-secondary" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">{selectedUser.username}</h3>
+                  <p className="text-secondary text-sm">This user's profile is private.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <div className="relative mb-4">
+                    <ProfileFrame frame={selectedUser.equippedFrame} src={selectedUser.profilePicture || null} size="lg" />
+                    <div className={`absolute -bottom-2 -right-2 w-10 h-10 rounded-full flex items-center justify-center border-4 border-surface ${getRankForLevel(selectedUser.level).bg} z-50`}>
+                      <Shield className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+
+                  <h3 className="text-2xl font-bold mb-1">{selectedUser.username}</h3>
+                  
+                  {selectedUser.equippedTitle && (
+                    <div className={`text-xs font-mono uppercase tracking-widest mb-4 ${TITLES.find(t => t.id === selectedUser.equippedTitle)?.specialColor || 'text-accent'}`}>
+                      {selectedUser.equippedTitle}
+                    </div>
+                  )}
+
+                  <div className="w-full bg-black/30 rounded-2xl p-4 mb-4 border border-white/5">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-secondary">Rank</span>
+                      <span className={`font-bold ${getRankForLevel(selectedUser.level).color}`}>
+                        {getRankForLevel(selectedUser.level).name}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-secondary">Level</span>
+                      <span className="font-mono font-bold text-primary">{selectedUser.level}</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-secondary">OVR</span>
+                      <span className="font-mono font-bold text-accent">{selectedUser.ovr || calculateOVR({ ...selectedUser, dailyStats: {}, badges: [], missionsCompleted: selectedUser.missionsCompleted || 0, streak: selectedUser.streak || 0, unlockedFrames: [] } as any).ovr}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-secondary">Total XP</span>
+                      <span className="font-mono font-bold text-accent">
+                        {selectedUser.totalXp?.toLocaleString() || (50 * selectedUser.level * (selectedUser.level - 1) + selectedUser.xp).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 w-full">
+                    <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
+                      <Flame className="w-5 h-5 text-orange-500 mb-1" />
+                      <span className="text-xs text-secondary mb-1">Streak</span>
+                      <span className="font-mono font-bold text-lg">{selectedUser.streak || 0}</span>
+                    </div>
+                    <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-500 mb-1" />
+                      <span className="text-xs text-secondary mb-1">Missions</span>
+                      <span className="font-mono font-bold text-lg">{selectedUser.missionsCompleted || 0}</span>
+                    </div>
+                    <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
+                      <Star className="w-5 h-5 text-yellow-400 mb-1" />
+                      <span className="text-xs text-secondary mb-1">Badges</span>
+                      <span className="font-mono font-bold text-lg">{selectedUser.badgesCount ?? selectedUser.badges?.length ?? 0}</span>
+                    </div>
+                    <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
+                      <div className="w-5 h-5 border-2 border-accent rounded-md mb-1" />
+                      <span className="text-xs text-secondary mb-1">Frames</span>
+                      <span className="font-mono font-bold text-lg">{selectedUser.framesCount ?? selectedUser.unlockedFrames?.length ?? 1}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Profile Picture Preview Modal */}
       <AnimatePresence>
@@ -672,6 +1067,40 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
         updateState={updateState}
         ovr={ovr}
       />
+
+      <AnimatePresence>
+        {isBadgesModalOpen && (
+          <BadgesModal
+            badges={state.badges}
+            language={state.language}
+            onClose={() => setIsBadgesModalOpen(false)}
+            badgeIcons={BADGE_ICONS}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isTitlesModalOpen && (
+          <TitlesModal
+            state={state}
+            onClose={() => setIsTitlesModalOpen(false)}
+            updateState={updateState}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <SettingsScreen
+            state={state}
+            updateState={updateState}
+            changePath={changePath}
+            onLogout={onLogout}
+            onBack={() => setIsSettingsOpen(false)}
+            setIsResetModalOpen={setIsResetModalOpen}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

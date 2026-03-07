@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { sounds } from './utils/sounds';
 
 export type PathType = 'PRODUCTIVE' | 'STRONGER' | 'EXTROVERT' | 'DISCIPLINE' | 'MENTAL_HEALTH' | 'OTHER';
@@ -21,7 +21,22 @@ export interface PathProgress {
   highestRankAchieved: string;
 }
 
+export interface UnlockedItem {
+  type: 'badge' | 'frame' | 'title';
+  id: string;
+}
+
+export interface Notification {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  read: boolean;
+  timestamp: number;
+}
+
 export interface UserState {
+  userId: string;
   username: string;
   profilePicture: string | null;
   isLoggedIn: boolean;
@@ -48,6 +63,15 @@ export interface UserState {
   equippedTitle: string | null;
   hasPromptedPfp: boolean;
   customMissions: Record<MissionType, string[]>;
+  unlockedItemsQueue: UnlockedItem[];
+  shareCount: number;
+  isProfilePublic: boolean;
+  missionsCompleted: number;
+  notifications: Notification[];
+  streakFreezes: number;
+  lastStreakFreezeGiven: string | null;
+  streakFreezeUsedToday: boolean;
+  rivalId: string | null;
 }
 
 export const RANKS = [
@@ -61,6 +85,33 @@ export const RANKS = [
   { name: 'Challenger', minLevel: 36, color: 'text-yellow-200', bg: 'bg-yellow-200', hex: '#fef08a' },
   { name: 'Legend', minLevel: 43, color: 'text-emerald-400', bg: 'bg-emerald-400', hex: '#34d399' },
   { name: 'Mythic', minLevel: 50, color: 'text-fuchsia-500', bg: 'bg-fuchsia-500', hex: '#d946ef' },
+];
+
+export const BADGES = [
+  { id: 'FIRST_STEP', name: { en: 'First Step', id: 'Langkah Pertama' }, desc: { en: 'Complete your first mission', id: 'Selesaikan misi pertama' }, icon: 'Footprints' },
+  { id: 'DISCIPLINED', name: { en: 'Disciplined', id: 'Disiplin' }, desc: { en: 'Complete all missions in a day', id: 'Selesaikan semua misi dalam sehari' }, icon: 'CheckCircle2' },
+  { id: 'STREAK_3', name: { en: 'On Fire', id: 'Membara' }, desc: { en: 'Reach a 3-day streak', id: 'Capai 3 hari beruntun' }, icon: 'Flame' },
+  { id: 'STREAK_7', name: { en: 'Unstoppable', id: 'Tak Terhentikan' }, desc: { en: 'Reach a 7-day streak', id: 'Capai 7 hari beruntun' }, icon: 'Zap' },
+  { id: 'STREAK_30', name: { en: 'Legendary', id: 'Legendaris' }, desc: { en: 'Reach a 30-day streak', id: 'Capai 30 hari beruntun' }, icon: 'Crown' },
+  { id: 'NIGHT_OWL', name: { en: 'Night Owl', id: 'Burung Hantu' }, desc: { en: 'Complete a mission after 10 PM', id: 'Selesaikan misi setelah jam 10 malam' }, icon: 'Moon' },
+  { id: 'EARLY_BIRD', name: { en: 'Early Bird', id: 'Burung Pagi' }, desc: { en: 'Complete a mission before 7 AM', id: 'Selesaikan misi sebelum jam 7 pagi' }, icon: 'Sun' },
+  { id: 'WEEKEND_WARRIOR', name: { en: 'Weekend Warrior', id: 'Pejuang Akhir Pekan' }, desc: { en: 'Complete a mission on the weekend', id: 'Selesaikan misi di akhir pekan' }, icon: 'Swords' },
+  { id: 'LEVEL_10', name: { en: 'Veteran', id: 'Veteran' }, desc: { en: 'Reach Level 10', id: 'Capai Level 10' }, icon: 'Shield' },
+  { id: 'LEVEL_25', name: { en: 'Master', id: 'Master' }, desc: { en: 'Reach Level 25', id: 'Capai Level 25' }, icon: 'Star' },
+  { id: 'LEVEL_50', name: { en: 'Mythic', id: 'Mitos' }, desc: { en: 'Reach Level 50', id: 'Capai Level 50' }, icon: 'Trophy' },
+];
+
+export const TITLES = [
+  { id: 'Newbie', name: { en: 'Newbie', id: 'Pemula' }, desc: { en: 'Just started the journey', id: 'Baru memulai perjalanan' } },
+  { id: 'The Early Bird', name: { en: 'The Early Bird', id: 'Burung Pagi' }, desc: { en: 'Active in the morning', id: 'Aktif di pagi hari' } },
+  { id: 'Night Owl', name: { en: 'Night Owl', id: 'Burung Hantu' }, desc: { en: 'Active at night', id: 'Aktif di malam hari' } },
+  { id: 'Unstoppable', name: { en: 'Unstoppable', id: 'Tak Terhentikan' }, desc: { en: 'Reached a 5-day streak', id: 'Mencapai 5 hari beruntun' } },
+  { id: 'Legend', name: { en: 'Legend', id: 'Legenda' }, desc: { en: 'Reached a 30-day streak', id: 'Mencapai 30 hari beruntun' } },
+  { id: 'Veteran', name: { en: 'Veteran', id: 'Veteran' }, desc: { en: 'Reached Level 10', id: 'Mencapai Level 10' }, specialColor: 'text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]' },
+  { id: 'Master', name: { en: 'Master', id: 'Master' }, desc: { en: 'Reached Level 50', id: 'Mencapai Level 50' }, specialColor: 'text-fuchsia-500 drop-shadow-[0_0_8px_rgba(217,70,239,0.5)]' },
+  { id: 'Rival Crusher', name: { en: 'Rival Crusher', id: 'Penghancur Rival' }, desc: { en: 'Surpassed your rival', id: 'Melampaui rivalmu' }, specialColor: 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]' },
+  { id: 'OG', name: { en: 'OG', id: 'OG' }, desc: { en: 'First 100 users', id: '100 pengguna pertama' }, specialColor: 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 text-transparent bg-clip-text drop-shadow-[0_0_8px_rgba(255,165,0,0.8)]' },
+  { id: 'Supporter', name: { en: 'Supporter', id: 'Pendukung' }, desc: { en: 'Shared the app 5 times', id: 'Membagikan aplikasi 5 kali' }, specialColor: 'bg-gradient-to-r from-cyan-400 to-blue-500 text-transparent bg-clip-text drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]' },
 ];
 
 export function getRankForLevel(level: number) {
@@ -149,6 +200,7 @@ export const PATH_QUOTES: Record<PathType, string[]> = {
 };
 
 export const createDefaultState = (username: string): UserState => ({
+  userId: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
   username,
   profilePicture: null,
   isLoggedIn: true,
@@ -179,7 +231,16 @@ export const createDefaultState = (username: string): UserState => ({
     DAILY: [],
     WEEKLY: [],
     ROUTINE: []
-  }
+  },
+  unlockedItemsQueue: [],
+  shareCount: 0,
+  isProfilePublic: true,
+  missionsCompleted: 0,
+  notifications: [],
+  streakFreezes: 1,
+  lastStreakFreezeGiven: new Date().toISOString().split('T')[0],
+  streakFreezeUsedToday: false,
+  rivalId: null,
 });
 
 const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
@@ -468,6 +529,12 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
     ],
     ROUTINE: []
   },
+  OTHER: {
+    REGULAR: [],
+    DAILY: [],
+    WEEKLY: [],
+    ROUTINE: []
+  }
 };
 
 export interface Post {
@@ -537,7 +604,20 @@ export function usePosts() {
   return { posts, addPost, likePost };
 }
 
+const AppStateContext = createContext<ReturnType<typeof useAppStateInternal> | null>(null);
+
+export function AppStateProvider({ children }: { children: ReactNode }) {
+  const state = useAppStateInternal();
+  return <AppStateContext.Provider value={state}>{children}</AppStateContext.Provider>;
+}
+
 export function useAppState() {
+  const context = useContext(AppStateContext);
+  if (!context) throw new Error('useAppState must be used within AppStateProvider');
+  return context;
+}
+
+function useAppStateInternal() {
   const [activeUserEmail, setActiveUserEmail] = useState<string | null>(() => {
     return localStorage.getItem('lockin_active_user');
   });
@@ -571,20 +651,49 @@ export function useAppState() {
     }
   }, [state, activeUserEmail]);
 
+  useEffect(() => {
+    if (state && (state.username.toLowerCase() === 'zaiki' || activeUserEmail === 'zaikiwildan@gmail.com')) {
+      if (state.level < 50) {
+        setState(prev => {
+          if (!prev) return prev;
+          const newFrames = [...(prev.unlockedFrames || [])];
+          if (!newFrames.includes('frame-mythic')) newFrames.push('frame-mythic');
+          
+          return {
+            ...prev,
+            level: 50,
+            xp: 0,
+            highestRankAchieved: 'Mythic',
+            unlockedFrames: newFrames,
+            equippedFrame: 'frame-mythic'
+          };
+        });
+      }
+    }
+  }, [state?.level, state?.username, activeUserEmail]);
+
   const login = (email: string, username: string) => {
     const saved = localStorage.getItem(`lockin_user_${email}`);
+    const usersStr = localStorage.getItem('lockin_auth_users');
+    const users = usersStr ? JSON.parse(usersStr) : {};
+    const isOG = users[email]?.isOG;
+
     let newState: UserState;
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (!parsed.missions) parsed.missions = [];
         if (!parsed.highestRankAchieved) parsed.highestRankAchieved = getRankForLevel(parsed.level || 1).name;
+        if (!parsed.titles) parsed.titles = ['Newbie'];
+        if (isOG && !parsed.titles.includes('OG')) parsed.titles.push('OG');
         newState = { ...createDefaultState(username), ...parsed, isLoggedIn: true, username };
       } catch (e) {
         newState = createDefaultState(username);
+        if (isOG) newState.titles.push('OG');
       }
     } else {
       newState = createDefaultState(username);
+      if (isOG) newState.titles.push('OG');
     }
     setActiveUserEmail(email);
     setState(newState);
@@ -637,6 +746,11 @@ export function useAppState() {
       currentMissions = currentMissions.filter(m => m.type !== 'WEEKLY');
       updates.lastWeeklyDate = currentWeek;
       missionsChanged = true;
+      
+      if (state.lastStreakFreezeGiven !== currentWeek) {
+        updates.streakFreezes = (state.streakFreezes || 0) + 1;
+        updates.lastStreakFreezeGiven = currentWeek;
+      }
     }
 
     // Ensure all mission types have the correct number of missions
@@ -774,6 +888,7 @@ export function useAppState() {
       let newUnlockedFrames = prev.unlockedFrames ? [...prev.unlockedFrames] : ['frame-default', 'frame-rgb'];
       let newTitles = prev.titles ? [...prev.titles] : ['Newbie'];
       let newPathProgress = { ...prev.pathProgress };
+      let newUnlockedItemsQueue = prev.unlockedItemsQueue ? [...prev.unlockedItemsQueue] : [];
 
       if (prev.chosenPath === 'OTHER') {
         const relatedPath = analyzeMissionPath(m.text);
@@ -804,12 +919,14 @@ export function useAppState() {
         const frameName = `frame-${newRank.name.toLowerCase()}`;
         if (!newUnlockedFrames.includes(frameName)) {
           newUnlockedFrames.push(frameName);
+          newUnlockedItemsQueue.push({ type: 'frame', id: frameName });
         }
       }
 
       const allMissionsCompleted = newMissions.every(m => m.completed);
       if (allMissionsCompleted && !newBadges.includes('DISCIPLINED')) {
         newBadges.push('DISCIPLINED');
+        newUnlockedItemsQueue.push({ type: 'badge', id: 'DISCIPLINED' });
       }
 
       // Streak logic
@@ -817,6 +934,8 @@ export function useAppState() {
       const todayISO = new Date().toISOString().split('T')[0];
       let newStreak = prev.streak || 0;
       let shouldShowStreakAnimation = false;
+      let newStreakFreezes = prev.streakFreezes || 0;
+      let streakFreezeUsedToday = false;
       
       let newDailyStats = prev.dailyStats ? { ...prev.dailyStats } : {};
       newDailyStats[todayISO] = (newDailyStats[todayISO] || 0) + 1;
@@ -832,8 +951,16 @@ export function useAppState() {
             newStreak += 1;
             shouldShowStreakAnimation = true;
           } else if (diffDays > 1) {
-            newStreak = 1;
-            shouldShowStreakAnimation = true;
+            const missedDays = diffDays - 1;
+            if (newStreakFreezes >= missedDays) {
+              newStreakFreezes -= missedDays;
+              newStreak += 1; // Increment from the frozen streak
+              shouldShowStreakAnimation = true;
+              streakFreezeUsedToday = true;
+            } else {
+              newStreak = 1;
+              shouldShowStreakAnimation = true;
+            }
           }
         } else {
           newStreak = 1;
@@ -841,9 +968,30 @@ export function useAppState() {
         }
       }
 
-      // Titles logic
+      // Badges logic
+      const addBadge = (badgeId: string) => {
+        if (!newBadges.includes(badgeId)) {
+          newBadges.push(badgeId);
+          newUnlockedItemsQueue.push({ type: 'badge', id: badgeId });
+        }
+      };
+
+      addBadge('FIRST_STEP');
+      if (newStreak >= 3) addBadge('STREAK_3');
+      if (newStreak >= 7) addBadge('STREAK_7');
+      if (newStreak >= 30) addBadge('STREAK_30');
+      if (newLevel >= 10) addBadge('LEVEL_10');
+      if (newLevel >= 25) addBadge('LEVEL_25');
+      if (newLevel >= 50) addBadge('LEVEL_50');
+
       const currentHour = new Date().getHours();
-      
+      const currentDay = new Date().getDay(); // 0 is Sunday, 6 is Saturday
+
+      if (currentHour >= 4 && currentHour <= 7) addBadge('EARLY_BIRD');
+      if (currentHour >= 22 || currentHour <= 2) addBadge('NIGHT_OWL');
+      if (currentDay === 0 || currentDay === 6) addBadge('WEEKEND_WARRIOR');
+
+      // Titles logic
       if (currentHour >= 4 && currentHour <= 7 && !newTitles.includes('The Early Bird')) {
         newTitles.push('The Early Bird');
       }
@@ -863,6 +1011,14 @@ export function useAppState() {
         newTitles.push('Master');
       }
 
+      // Check if rival crushed
+      let rivalCrushed = false;
+      if (prev.rivalId) {
+        // We can't directly check rival's total XP here synchronously without fetching, 
+        // but we can trigger a check in the component or assume we'll handle it via an action.
+        // For now, we'll just expose a function to trigger the crush.
+      }
+
       return {
         ...prev,
         missions: newMissions,
@@ -879,6 +1035,10 @@ export function useAppState() {
         dailyStats: newDailyStats,
         unlockedFrames: newUnlockedFrames,
         titles: newTitles,
+        unlockedItemsQueue: newUnlockedItemsQueue,
+        missionsCompleted: (prev.missionsCompleted || 0) + 1,
+        streakFreezes: newStreakFreezes,
+        streakFreezeUsedToday: streakFreezeUsedToday || prev.streakFreezeUsedToday,
       };
     });
 
@@ -925,6 +1085,76 @@ export function useAppState() {
         });
       }, 1000);
     }
+  };
+
+  const dismissUnlockedItem = () => {
+    setState((prev) => {
+      if (!prev || !prev.unlockedItemsQueue || prev.unlockedItemsQueue.length === 0) return prev;
+      return {
+        ...prev,
+        unlockedItemsQueue: prev.unlockedItemsQueue.slice(1)
+      };
+    });
+  };
+
+  const addNotification = (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
+    setState(prev => {
+      if (!prev) return prev;
+      const newNotification: Notification = {
+        ...notification,
+        id: `notif-${Date.now()}-${Math.random()}`,
+        timestamp: Date.now(),
+        read: false
+      };
+      return {
+        ...prev,
+        notifications: [newNotification, ...(prev.notifications || [])]
+      };
+    });
+  };
+
+  const markNotificationRead = (id: string) => {
+    setState(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        notifications: (prev.notifications || []).map(n => 
+          n.id === id ? { ...n, read: true } : n
+        )
+      };
+    });
+  };
+
+  const markAllNotificationsRead = () => {
+    setState(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        notifications: (prev.notifications || []).map(n => ({ ...n, read: true }))
+      };
+    });
+  };
+
+  const crushRival = () => {
+    setState((prev) => {
+      if (!prev || !prev.rivalId) return prev;
+      
+      const newTitles = [...(prev.titles || [])];
+      let newUnlockedItemsQueue = [...(prev.unlockedItemsQueue || [])];
+      
+      if (!newTitles.includes('Rival Crusher')) {
+        newTitles.push('Rival Crusher');
+        newUnlockedItemsQueue.push({ type: 'title', id: 'Rival Crusher' });
+      }
+
+      return {
+        ...prev,
+        xp: prev.xp + 500, // Bonus XP
+        titles: newTitles,
+        unlockedItemsQueue: newUnlockedItemsQueue,
+        rivalId: null, // Clear rival after crushing
+      };
+    });
   };
 
   const replaceMission = (id: string) => {
@@ -1072,5 +1302,10 @@ export function useAppState() {
     changePath,
     addCustomMission,
     removeCustomMission,
+    dismissUnlockedItem,
+    addNotification,
+    markNotificationRead,
+    markAllNotificationsRead,
+    crushRival,
   };
 }

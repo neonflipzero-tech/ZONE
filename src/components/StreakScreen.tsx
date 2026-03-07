@@ -5,6 +5,7 @@ import { sounds } from '../utils/sounds';
 import { shareContent, shareElementAsImage } from '../utils/share';
 
 interface StreakScreenProps {
+  key?: string;
   streak: number;
   onContinue: () => void;
 }

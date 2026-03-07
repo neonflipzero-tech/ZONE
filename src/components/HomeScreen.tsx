@@ -1,11 +1,12 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, useEffect } from 'react';
-import { UserState, MissionType, getRankForLevel, Mission } from '../store';
-import { CheckCircle2, Circle, Flame, Trophy, User, Shield, Timer, Wand2 } from 'lucide-react';
+import { UserState, MissionType, getRankForLevel, Mission, useAppState } from '../store';
+import { CheckCircle2, Circle, Flame, Trophy, User, Shield, Timer, Wand2, Bell } from 'lucide-react';
 import { t } from '../utils/translations';
 import { sounds } from '../utils/sounds';
 import ProfileFrame from './ProfileFrame';
 import CustomMissionsModal from './CustomMissionsModal';
+import NotificationCenter from './NotificationCenter';
 
 interface HomeScreenProps {
   state: UserState;
@@ -31,6 +32,8 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission,
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [isCustomMissionsModalOpen, setIsCustomMissionsModalOpen] = useState(false);
+  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
+  const { updateState } = useAppState();
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -84,16 +87,55 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission,
   const progressPercentage = totalMissions === 0 ? 0 : (completedMissionsCount / totalMissions) * 100;
 
   const currentRank = getRankForLevel(state.level);
+  const unreadNotificationsCount = (state.notifications || []).filter(n => !n.read).length;
+
+  // Clear streak freeze notification after 5 seconds
+  useEffect(() => {
+    if (state.streakFreezeUsedToday) {
+      const timer = setTimeout(() => {
+        updateState({ streakFreezeUsedToday: false });
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [state.streakFreezeUsedToday, updateState]);
 
   return (
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24"
+      className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24 relative"
     >
+      {/* Streak Freeze Notification Banner */}
+      <AnimatePresence>
+        {state.streakFreezeUsedToday && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="absolute top-4 left-4 right-16 z-50 bg-blue-500/20 border border-blue-500/50 rounded-xl p-3 flex items-center space-x-3 backdrop-blur-md shadow-lg shadow-blue-500/10"
+          >
+            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+              <Shield className="w-4 h-4 text-blue-400" />
+            </div>
+            <p className="text-sm font-medium text-blue-100">Streak Freeze digunakan! Streak kamu aman.</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Notification Bell */}
+      <button 
+        onClick={() => setIsNotificationCenterOpen(true)}
+        className="absolute top-6 right-6 z-50 p-2.5 bg-surface rounded-full border border-white/10 hover:bg-white/5 transition-colors shadow-lg"
+      >
+        <Bell className="w-5 h-5 text-secondary" />
+        {unreadNotificationsCount > 0 && (
+          <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-surface"></div>
+        )}
+      </button>
+
       {/* Header */}
-      <div className="px-6 pt-12 pb-6 flex justify-between items-center sticky top-0 bg-background/80 backdrop-blur-md z-10">
+      <div className="px-6 pt-16 pb-6 flex justify-between items-center sticky top-0 bg-background/80 backdrop-blur-md z-10">
         <div className="flex items-center space-x-3">
           <div className="relative">
             <ProfileFrame frame={state.equippedFrame} src={state.profilePicture} size="sm" />
@@ -114,6 +156,12 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission,
           <div className="flex items-center space-x-1.5 bg-gradient-to-r from-orange-500/10 to-rose-500/10 px-3 py-1.5 rounded-full border border-orange-500/20 shadow-sm shadow-orange-500/10">
             <Flame className="w-4 h-4 text-orange-500" />
             <span className="text-sm font-bold text-orange-500">{state.streak || 0}</span>
+            {(state.streakFreezes || 0) > 0 && (
+              <div className="flex items-center ml-1 space-x-0.5 pl-1.5 border-l border-orange-500/20" title="Streak Freeze">
+                <Shield className="w-3 h-3 text-blue-400" />
+                <span className="text-[10px] font-bold text-blue-400">{state.streakFreezes}</span>
+              </div>
+            )}
           </div>
           <div className="flex items-center space-x-1.5 bg-gradient-to-r from-surface to-surface-hover px-3 py-1.5 rounded-full border border-white/10 shadow-sm shadow-accent/5">
             <span className="text-sm font-bold text-accent">{state.xp} XP</span>
@@ -250,57 +298,55 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission,
             className="fixed inset-0 z-50 bg-background flex flex-col px-6 py-12"
           >
             <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
-              <div className="flex items-center justify-center space-x-3 mb-8">
-                <span className="px-4 py-2 bg-white/5 rounded-full text-sm font-mono text-secondary uppercase tracking-wider border border-white/10">
-                  {selectedMission.type} MISSION
-                </span>
-                <span className="px-4 py-2 bg-accent/10 text-accent rounded-full text-sm font-mono font-bold border border-accent/20">
-                  +{selectedMission.type === 'WEEKLY' ? 200 : selectedMission.type === 'DAILY' ? 100 : 50} XP
-                </span>
-              </div>
-              
-              <h2 className="text-4xl sm:text-5xl font-display font-black mb-12 text-center leading-tight tracking-tight">
-                {selectedMission.text}
-              </h2>
-              
-              <div className="space-y-4 mt-auto">
-                {timeLeft !== null ? (
-                  isTimerRunning ? (
-                    <div className="flex flex-col items-center justify-center py-8">
-                      <div className="text-6xl font-mono font-bold text-accent mb-4">
-                        {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-                      </div>
-                      <p className="text-secondary">{t('home.timer.keep_going', state.language)}</p>
-                      <button
-                        onClick={() => setIsTimerRunning(false)}
-                        className="mt-8 px-8 py-3 rounded-full border border-red-500/50 text-red-500 hover:bg-red-500/10 transition-colors font-bold"
-                      >
-                        {t('home.timer.stop', state.language)}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setIsTimerRunning(true)}
-                      className="w-full py-5 rounded-2xl font-bold text-lg bg-primary text-background hover:bg-gray-200 transition-colors shadow-xl shadow-primary/20 flex items-center justify-center space-x-2"
-                    >
-                      <Timer className="w-6 h-6" />
-                      <span>{t('home.timer.start', state.language)}</span>
-                    </button>
-                  )
-                ) : (
+              {isTimerRunning ? (
+                <div className="flex-1 flex flex-col items-center justify-center">
+                  <div className="text-8xl sm:text-9xl font-mono font-black text-accent mb-8 tracking-tighter">
+                    {Math.floor((timeLeft || 0) / 60)}:{((timeLeft || 0) % 60).toString().padStart(2, '0')}
+                  </div>
+                  <p className="text-xl text-secondary mb-12 font-medium">{t('home.timer.keep_going', state.language)}</p>
                   <button
-                    onClick={() => {
-                      onCompleteMission(selectedMission.id);
-                      handleCloseModal();
-                    }}
-                    className="w-full py-5 rounded-2xl font-bold text-lg bg-primary text-background hover:bg-gray-200 transition-colors shadow-xl shadow-primary/20"
+                    onClick={() => setIsTimerRunning(false)}
+                    className="px-12 py-4 rounded-full border-2 border-red-500/50 text-red-500 hover:bg-red-500/10 transition-colors font-bold text-lg"
                   >
-                    {t('home.mission.start_complete', state.language)}
+                    {t('home.timer.stop', state.language)}
                   </button>
-                )}
-                
-                {!isTimerRunning && (
-                  <>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-center space-x-3 mb-8">
+                    <span className="px-4 py-2 bg-white/5 rounded-full text-sm font-mono text-secondary uppercase tracking-wider border border-white/10">
+                      {selectedMission.type} MISSION
+                    </span>
+                    <span className="px-4 py-2 bg-accent/10 text-accent rounded-full text-sm font-mono font-bold border border-accent/20">
+                      +{selectedMission.type === 'WEEKLY' ? 200 : selectedMission.type === 'DAILY' ? 100 : 50} XP
+                    </span>
+                  </div>
+                  
+                  <h2 className="text-4xl sm:text-5xl font-display font-black mb-12 text-center leading-tight tracking-tight">
+                    {selectedMission.text}
+                  </h2>
+                  
+                  <div className="space-y-4 mt-auto">
+                    {timeLeft !== null ? (
+                      <button
+                        onClick={() => setIsTimerRunning(true)}
+                        className="w-full py-5 rounded-2xl font-bold text-lg bg-primary text-background hover:bg-gray-200 transition-colors shadow-xl shadow-primary/20 flex items-center justify-center space-x-2"
+                      >
+                        <Timer className="w-6 h-6" />
+                        <span>{t('home.timer.start', state.language)}</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          onCompleteMission(selectedMission.id);
+                          handleCloseModal();
+                        }}
+                        className="w-full py-5 rounded-2xl font-bold text-lg bg-primary text-background hover:bg-gray-200 transition-colors shadow-xl shadow-primary/20"
+                      >
+                        {t('home.mission.start_complete', state.language)}
+                      </button>
+                    )}
+                    
                     <button
                       onClick={() => {
                         onReplaceMission(selectedMission.id);
@@ -316,9 +362,9 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission,
                     >
                       {state.language === 'id' ? 'Batal' : 'Cancel'}
                     </button>
-                  </>
-                )}
-              </div>
+                  </div>
+                </>
+              )}
             </div>
           </motion.div>
         )}
@@ -330,6 +376,11 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission,
         state={state}
         addCustomMission={addCustomMission}
         removeCustomMission={removeCustomMission}
+      />
+
+      <NotificationCenter 
+        isOpen={isNotificationCenterOpen}
+        onClose={() => setIsNotificationCenterOpen(false)}
       />
     </motion.div>
   );

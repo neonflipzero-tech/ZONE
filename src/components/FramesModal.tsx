@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, Lock, Shield, CheckCircle2 } from 'lucide-react';
 import ProfileFrame from './ProfileFrame';
-import { AppState } from '../store';
+import { UserState } from '../store';
 
 interface FramesModalProps {
   isOpen: boolean;
   onClose: () => void;
-  state: AppState;
-  updateState: (updates: Partial<AppState>) => void;
+  state: UserState;
+  updateState: (updates: Partial<UserState>) => void;
   ovr: number;
 }
 
@@ -30,21 +30,21 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr }
   }, [isOpen, state.equippedFrame]);
 
   const isZaiki = state.username?.toLowerCase() === 'zaiki';
-  const totalMissions = Object.values(state.dailyStats || {}).reduce((a, b) => a + b, 0);
+  const totalMissions = Object.values(state.dailyStats || {}).reduce((a, b) => (a as number) + (b as number), 0) as number;
   
   const checkUnlocked = (frame: string) => {
     const specialConditions: Record<string, boolean> = {
       'frame-rgb': state.streak >= 7,
       'frame-neon': totalMissions >= 50,
-      'frame-fire': state.streak >= 30,
-      'frame-cyberpunk': state.badges.length >= 5,
+      'frame-fire': (state.streak || 0) >= 30,
+      'frame-cyberpunk': (state.badges?.length || 0) >= 5,
       'frame-hologram': totalMissions >= 100,
       'frame-celestial': ovr >= 80,
-      'frame-void': state.level >= 20,
-      'frame-aurora': state.streak >= 60,
+      'frame-void': (state.level || 0) >= 20,
+      'frame-aurora': (state.streak || 0) >= 60,
       'frame-radiant': totalMissions >= 200,
       'frame-abyssal': totalMissions >= 666,
-      'frame-inferno': state.streak >= 100,
+      'frame-inferno': (state.streak || 0) >= 100,
       'frame-ethereal': ovr >= 95,
       'frame-omniscience': ovr >= 100,
       'frame-matrix': totalMissions >= 100,
@@ -83,6 +83,36 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr }
       case 'frame-omniscience': return state.language === 'id' ? 'Capai OVR 100 (Maksimal)' : 'Reach 100 OVR (Max)';
       case 'frame-matrix': return state.language === 'id' ? 'Selesaikan 100 Misi' : 'Complete 100 Missions';
       default: return '';
+    }
+  };
+
+  const getFrameProgress = (f: string): { current: number, max: number } | null => {
+    switch(f) {
+      case 'frame-bronze': return { current: Math.min(state.level, 1), max: 1 };
+      case 'frame-silver': return { current: Math.min(state.level, 3), max: 3 };
+      case 'frame-gold': return { current: Math.min(state.level, 6), max: 6 };
+      case 'frame-platinum': return { current: Math.min(state.level, 10), max: 10 };
+      case 'frame-diamond': return { current: Math.min(state.level, 15), max: 15 };
+      case 'frame-master': return { current: Math.min(state.level, 21), max: 21 };
+      case 'frame-grandmaster': return { current: Math.min(state.level, 28), max: 28 };
+      case 'frame-challenger': return { current: Math.min(state.level, 36), max: 36 };
+      case 'frame-legend': return { current: Math.min(state.level, 43), max: 43 };
+      case 'frame-mythic': return { current: Math.min(state.level || 0, 50), max: 50 };
+      case 'frame-rgb': return { current: Math.min(state.streak || 0, 7), max: 7 };
+      case 'frame-neon': return { current: Math.min(totalMissions, 50), max: 50 };
+      case 'frame-fire': return { current: Math.min(state.streak || 0, 30), max: 30 };
+      case 'frame-cyberpunk': return { current: Math.min(state.badges?.length || 0, 5), max: 5 };
+      case 'frame-hologram': return { current: Math.min(totalMissions, 100), max: 100 };
+      case 'frame-celestial': return { current: Math.min(ovr, 80), max: 80 };
+      case 'frame-void': return { current: Math.min(state.level || 0, 20), max: 20 };
+      case 'frame-aurora': return { current: Math.min(state.streak || 0, 60), max: 60 };
+      case 'frame-radiant': return { current: Math.min(totalMissions, 200), max: 200 };
+      case 'frame-abyssal': return { current: Math.min(totalMissions, 666), max: 666 };
+      case 'frame-inferno': return { current: Math.min(state.streak || 0, 100), max: 100 };
+      case 'frame-ethereal': return { current: Math.min(ovr, 95), max: 95 };
+      case 'frame-omniscience': return { current: Math.min(ovr, 100), max: 100 };
+      case 'frame-matrix': return { current: Math.min(totalMissions, 100), max: 100 };
+      default: return null;
     }
   };
 
@@ -131,13 +161,28 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr }
               <ProfileFrame frame={previewFrame} src={state.profilePicture} size="xl" />
             </motion.div>
             
-            <div className="text-center mb-4">
+            <div className="text-center mb-4 w-full px-6">
               <h3 className="text-xl font-black text-primary font-display tracking-tight uppercase mb-1">
                 {previewFrame.replace('frame-', '')}
               </h3>
               <p className="text-xs text-secondary/80 max-w-[250px] mx-auto">
                 {getFrameDescription(previewFrame)}
               </p>
+              
+              {!isPreviewUnlocked && getFrameProgress(previewFrame) && (
+                <div className="mt-3 max-w-[250px] mx-auto">
+                  <div className="flex justify-between text-[10px] font-mono text-secondary mb-1">
+                    <span>{state.language === 'id' ? 'Progres' : 'Progress'}</span>
+                    <span>{getFrameProgress(previewFrame)!.current} / {getFrameProgress(previewFrame)!.max}</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-background rounded-full overflow-hidden border border-white/5">
+                    <div 
+                      className="h-full bg-accent transition-all"
+                      style={{ width: `${(getFrameProgress(previewFrame)!.current / getFrameProgress(previewFrame)!.max) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <button

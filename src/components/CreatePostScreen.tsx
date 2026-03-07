@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Camera, Image as ImageIcon, Upload, X, CheckCircle2 } from 'lucide-react';
 import { Post, UserState } from '../store';

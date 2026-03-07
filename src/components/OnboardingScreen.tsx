@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PathType } from '../store';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ChevronLeft } from 'lucide-react';
 
 interface OnboardingScreenProps {
   onSelectPath: (path: PathType) => void;
@@ -49,8 +49,22 @@ export default function OnboardingScreen({ onSelectPath }: OnboardingScreenProps
     }
   };
 
+  const handleBack = () => {
+    if (step > 0) {
+      setStep(step - 1);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden relative">
+      {step > 0 && (
+        <button 
+          onClick={handleBack}
+          className="absolute top-6 left-6 z-10 p-2 bg-surface border border-white/10 rounded-full text-secondary hover:text-white transition-colors"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+      )}
       <AnimatePresence mode="wait">
         {step === 0 && (
           <motion.div 

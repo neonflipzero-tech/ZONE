@@ -103,6 +103,32 @@ export class SoundManager {
     }
   }
 
+  playSetRival() {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, t); // A3
+      osc.frequency.exponentialRampToValueAtTime(110, t + 0.3); // A2
+      
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.3, t + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+      
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      
+      osc.start(t);
+      osc.stop(t + 0.4);
+    } catch (e) {
+      console.error("Audio playback failed", e);
+    }
+  }
+
   playTick() {
     try {
       this.init();
