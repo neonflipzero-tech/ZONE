@@ -125,6 +125,25 @@ export default function App() {
 
   const [isLevelUpAnimationComplete, setIsLevelUpAnimationComplete] = useState(true);
 
+  // Update Notification Check
+  useEffect(() => {
+    if (state?.isLoggedIn) {
+      const updateKey = 'lockin_update_v1_1';
+      const hasSeenUpdate = localStorage.getItem(updateKey);
+      
+      if (!hasSeenUpdate) {
+        addNotification({
+          title: state.language === 'id' ? 'Update Baru!' : 'New Update!',
+          description: state.language === 'id' 
+            ? '• Reset Progress: Sekarang kamu bisa reset progres dari Settings.\n• Journey Map: Level maksimal sekarang dibatasi sampai 50 (Mythic).\n• Onboarding: Tambahan layar konfirmasi sebelum masuk ke ZONE.\n• Focus Timer: Tampilan timer misi sekarang penuh di layar.'
+            : '• Reset Progress: You can now reset progress from Settings.\n• Journey Map: Max level correctly capped at 50 (Mythic).\n• Onboarding: Added a final confirmation step before entering the ZONE.\n• Focus Timer: Mission timer now takes over the screen.',
+          icon: 'Zap'
+        });
+        localStorage.setItem(updateKey, 'true');
+      }
+    }
+  }, [state?.isLoggedIn]);
+
   // Rival Notification Check
   useEffect(() => {
     const checkRival = async () => {

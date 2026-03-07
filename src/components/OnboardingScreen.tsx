@@ -44,6 +44,10 @@ export default function OnboardingScreen({ onSelectPath }: OnboardingScreenProps
   };
 
   const handleSelectHabit = () => {
+    setStep(3);
+  };
+
+  const handleEnterZone = () => {
     if (selectedPath) {
       onSelectPath(selectedPath);
     }
@@ -57,7 +61,7 @@ export default function OnboardingScreen({ onSelectPath }: OnboardingScreenProps
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden relative">
-      {step > 0 && (
+      {step > 0 && step < 3 && (
         <button 
           onClick={handleBack}
           className="absolute top-6 left-6 z-10 p-2 bg-surface border border-white/10 rounded-full text-secondary hover:text-white transition-colors"
@@ -180,6 +184,41 @@ export default function OnboardingScreen({ onSelectPath }: OnboardingScreenProps
                 </motion.button>
               ))}
             </div>
+          </motion.div>
+        )}
+
+        {step === 3 && (
+          <motion.div 
+            key="step3"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className="flex flex-col items-center justify-start pt-32 h-full px-6 text-center"
+          >
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="mb-12"
+            >
+              <h2 className="text-4xl font-display font-black leading-tight mb-4 tracking-tight">
+                Are you ready to<br/>enter the ZONE?
+              </h2>
+              <p className="text-secondary text-lg max-w-xs mx-auto">
+                Your path is set. There is no turning back. It's time to lock in.
+              </p>
+            </motion.div>
+
+            <motion.button
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.6 }}
+              onClick={handleEnterZone}
+              className="w-full max-w-xs py-5 rounded-2xl font-bold text-lg bg-primary text-background hover:bg-gray-200 transition-all shadow-xl shadow-primary/20 flex items-center justify-center space-x-2 group"
+            >
+              <span>ENTER THE ZONE</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </motion.button>
           </motion.div>
         )}
       </AnimatePresence>

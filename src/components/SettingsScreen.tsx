@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, LogOut, AlertTriangle, ChevronDown, ChevronUp, ChevronRight } from 'lucide-react';
 import { UserState, PathType } from '../store';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 interface SettingsScreenProps {
   state: UserState;
@@ -23,6 +23,26 @@ export default function SettingsScreen({
   const [isGoalDropdownOpen, setIsGoalDropdownOpen] = useState(false);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleTogglePublicProfile = () => {
+    const newIsPublic = state.isProfilePublic === false ? true : false;
+    updateState({ isProfilePublic: newIsPublic });
+    
+    const message = newIsPublic 
+      ? (state.language === 'id' ? 'Profil kamu sekarang publik.' : 'Your profile is now public.')
+      : (state.language === 'id' ? 'Profil kamu sekarang privat.' : 'Your profile is now private.');
+      
+    setToastMessage(message);
+    
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
 
   return (
     <motion.div
@@ -115,7 +135,7 @@ export default function SettingsScreen({
               <span className="text-xs text-secondary">{state.language === 'id' ? 'Tampilkan statistik profil di leaderboard' : 'Show profile stats on leaderboard'}</span>
             </div>
             <button 
-              onClick={() => updateState({ isProfilePublic: state.isProfilePublic === false ? true : false })}
+              onClick={handleTogglePublicProfile}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${state.isProfilePublic !== false ? 'bg-accent' : 'bg-white/20'}`}
             >
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${state.isProfilePublic !== false ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -232,6 +252,21 @@ export default function SettingsScreen({
               <h4 className="font-bold text-primary mt-4">5. Changes</h4>
               <p>We reserve the right, at our sole discretion, to modify or replace these Terms at any time. What constitutes a material change will be determined at our sole discretion.</p>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-surface border border-white/10 text-white px-6 py-3 rounded-full shadow-2xl z-[100] whitespace-nowrap text-sm font-bold flex items-center space-x-2"
+          >
+            <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+            <span>{toastMessage}</span>
           </motion.div>
         )}
       </AnimatePresence>

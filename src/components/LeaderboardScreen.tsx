@@ -308,11 +308,20 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
               {state.userId !== selectedActionUser.userId && (
                 <button
                   onClick={() => {
+                    if (state.beatenRivals?.includes(selectedActionUser.userId)) {
+                      addNotification({
+                        title: state.language === 'id' ? 'Tidak Bisa Memilih Rival' : 'Cannot Select Rival',
+                        description: state.language === 'id' ? 'Kamu sudah pernah mengalahkan orang ini. Cari lawan lain!' : 'You already beat this guy. Find another opponent!',
+                        icon: 'AlertTriangle'
+                      });
+                      setSelectedActionUser(null);
+                      return;
+                    }
                     sounds.playSetRival();
                     updateState({ rivalId: selectedActionUser.userId });
                     addNotification({
                       title: 'Rival Set!',
-                      description: `Kamu sekarang bersaing dengan ${selectedActionUser.username}. Kalahkan mereka!`,
+                      description: `You are now competing against ${selectedActionUser.username}. Crush them!`,
                       icon: 'Swords'
                     });
                     setShowToast(true);

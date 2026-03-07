@@ -72,6 +72,7 @@ export interface UserState {
   lastStreakFreezeGiven: string | null;
   streakFreezeUsedToday: boolean;
   rivalId: string | null;
+  beatenRivals: string[];
 }
 
 export const RANKS = [
@@ -241,6 +242,7 @@ export const createDefaultState = (username: string): UserState => ({
   lastStreakFreezeGiven: new Date().toISOString().split('T')[0],
   streakFreezeUsedToday: false,
   rivalId: null,
+  beatenRivals: [],
 });
 
 const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
@@ -1147,12 +1149,15 @@ function useAppStateInternal() {
         newUnlockedItemsQueue.push({ type: 'title', id: 'Rival Crusher' });
       }
 
+      const newBeatenRivals = [...(prev.beatenRivals || []), prev.rivalId];
+
       return {
         ...prev,
         xp: prev.xp + 500, // Bonus XP
         titles: newTitles,
         unlockedItemsQueue: newUnlockedItemsQueue,
         rivalId: null, // Clear rival after crushing
+        beatenRivals: newBeatenRivals,
       };
     });
   };
