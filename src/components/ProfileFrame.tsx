@@ -299,6 +299,18 @@ export default function ProfileFrame({ frame, src, size = 'md' }: ProfileFramePr
         </div>
       );
       break;
+    case 'frame-viral':
+      bgClass = 'bg-transparent';
+      borderClass = 'p-[4px]';
+      decorations = (
+        <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_20px_#ec4899,inset_0_0_15px_#8b5cf6]">
+          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#ec4899,#8b5cf6,#3b82f6,#ec4899)] animate-[spin_4s_linear_infinite] opacity-90 blur-md" />
+          <div className="absolute inset-0 rounded-full border-2 border-white/50" />
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-pink-500 rounded-full animate-ping" />
+          <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-blue-500 rounded-full animate-ping" style={{ animationDelay: '0.5s' }} />
+        </div>
+      );
+      break;
     default:
       bgClass = 'bg-surface border border-white/10';
       borderClass = 'p-0';

@@ -10,7 +10,8 @@ import NotificationCenter from './NotificationCenter';
 
 interface HomeScreenProps {
   state: UserState;
-  onCompleteMission: (id: string) => void;
+  onCompleteMission: (id: string, options?: { useFreeze?: boolean }) => void;
+  checkStreakFreezeNeeded: () => boolean;
   onReplaceMission: (id: string) => void;
   addCustomMission: (type: MissionType, text: string) => void;
   removeCustomMission: (type: MissionType, text: string) => void;
@@ -26,14 +27,22 @@ function extractDuration(text: string): number | null {
   return null;
 }
 
-export default function HomeScreen({ state, onCompleteMission, onReplaceMission, addCustomMission, removeCustomMission }: HomeScreenProps) {
+export default function HomeScreen({ state, onCompleteMission, checkStreakFreezeNeeded, onReplaceMission, addCustomMission, removeCustomMission }: HomeScreenProps) {
   const [activeTab, setActiveTab] = useState<MissionType>('REGULAR');
   const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [isCustomMissionsModalOpen, setIsCustomMissionsModalOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
+  const [showStreakFreezeDialog, setShowStreakFreezeDialog] = useState(false);
+  const [pendingMissionId, setPendingMissionId] = useState<string | null>(null);
   const { updateState } = useAppState();
+
+  const hasCompletedQuestToday = state.lastActiveDate === new Date().toDateString();
+  const streakColorClass = hasCompletedQuestToday ? "text-orange-500" : "text-gray-400";
+  const streakBgClass = hasCompletedQuestToday 
+    ? "from-orange-500/10 to-rose-500/10 border-orange-500/20 shadow-orange-500/10" 
+    : "from-gray-500/10 to-gray-600/10 border-gray-500/20 shadow-gray-500/10";
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -52,12 +61,30 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission,
     return () => clearInterval(interval);
   }, [isTimerRunning]); // Only depend on isTimerRunning to avoid clearing interval on every tick or parent re-render
 
+  const handleMissionComplete = (missionId: string) => {
+    if (checkStreakFreezeNeeded()) {
+      setPendingMissionId(missionId);
+      setShowStreakFreezeDialog(true);
+    } else {
+      onCompleteMission(missionId);
+      handleCloseModal();
+    }
+  };
+
+  const confirmStreakFreeze = (useFreeze: boolean) => {
+    if (pendingMissionId) {
+      onCompleteMission(pendingMissionId, { useFreeze });
+      setPendingMissionId(null);
+    }
+    setShowStreakFreezeDialog(false);
+    handleCloseModal();
+  };
+
   useEffect(() => {
     if (isTimerRunning && timeLeft === 0) {
       setIsTimerRunning(false);
       if (selectedMission) {
-        onCompleteMission(selectedMission.id);
-        setSelectedMission(null);
+        handleMissionComplete(selectedMission.id);
       }
     }
   }, [timeLeft, isTimerRunning, selectedMission, onCompleteMission]);
@@ -153,11 +180,11 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission,
           </div>
         </div>
         <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-1.5 bg-gradient-to-r from-orange-500/10 to-rose-500/10 px-3 py-1.5 rounded-full border border-orange-500/20 shadow-sm shadow-orange-500/10">
-            <Flame className="w-4 h-4 text-orange-500" />
-            <span className="text-sm font-bold text-orange-500">{state.streak || 0}</span>
+          <div className={`flex items-center space-x-1.5 bg-gradient-to-r ${streakBgClass} px-3 py-1.5 rounded-full border shadow-sm`}>
+            <Flame className={`w-4 h-4 ${streakColorClass}`} />
+            <span className={`text-sm font-bold ${streakColorClass}`}>{state.streak || 0}</span>
             {(state.streakFreezes || 0) > 0 && (
-              <div className="flex items-center ml-1 space-x-0.5 pl-1.5 border-l border-orange-500/20" title="Streak Freeze">
+              <div className={`flex items-center ml-1 space-x-0.5 pl-1.5 border-l ${hasCompletedQuestToday ? 'border-orange-500/20' : 'border-gray-500/20'}`} title="Streak Freeze">
                 <Shield className="w-3 h-3 text-blue-400" />
                 <span className="text-[10px] font-bold text-blue-400">{state.streakFreezes}</span>
               </div>
@@ -337,10 +364,7 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission,
                       </button>
                     ) : (
                       <button
-                        onClick={() => {
-                          onCompleteMission(selectedMission.id);
-                          handleCloseModal();
-                        }}
+                        onClick={() => handleMissionComplete(selectedMission.id)}
                         className="w-full py-5 rounded-2xl font-bold text-lg bg-primary text-background hover:bg-gray-200 transition-colors shadow-xl shadow-primary/20"
                       >
                         {t('home.mission.start_complete', state.language)}
@@ -382,6 +406,48 @@ export default function HomeScreen({ state, onCompleteMission, onReplaceMission,
         isOpen={isNotificationCenterOpen}
         onClose={() => setIsNotificationCenterOpen(false)}
       />
+
+      <AnimatePresence>
+        {showStreakFreezeDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-surface border border-white/10 rounded-3xl p-6 max-w-sm w-full shadow-2xl"
+            >
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center">
+                  <Flame className="w-8 h-8 text-blue-400" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-center mb-2">Use Streak Freeze?</h3>
+              <p className="text-primary/70 text-center mb-6">
+                Are you sure you want to use a streak freeze? This will protect your current streak from being lost.
+              </p>
+              <div className="flex flex-col space-y-3">
+                <button
+                  onClick={() => confirmStreakFreeze(true)}
+                  className="w-full py-3 rounded-xl font-bold bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                >
+                  Yes, Use Freeze
+                </button>
+                <button
+                  onClick={() => confirmStreakFreeze(false)}
+                  className="w-full py-3 rounded-xl font-bold bg-white/5 text-primary hover:bg-white/10 transition-colors"
+                >
+                  No, Reset Streak
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

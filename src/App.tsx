@@ -24,6 +24,7 @@ export default function App() {
     logout,
     updateState, 
     generateMissions, 
+    checkStreakFreezeNeeded,
     completeMission,
     replaceMission,
     changePath,
@@ -318,6 +319,7 @@ export default function App() {
                 <HomeScreen 
                   state={state} 
                   onCompleteMission={completeMission} 
+                  checkStreakFreezeNeeded={checkStreakFreezeNeeded}
                   onReplaceMission={replaceMission}
                   addCustomMission={addCustomMission}
                   removeCustomMission={removeCustomMission}

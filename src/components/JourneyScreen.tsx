@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { UserState, getRankForLevel, RANKS } from '../store';
+import { UserState, getRankForLevel, RANKS, useAppState } from '../store';
 import { Shield, Lock, Star, Check, User, Share2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import ProfileFrame from './ProfileFrame';
@@ -12,6 +12,7 @@ interface JourneyScreenProps {
 
 export default function JourneyScreen({ state, updateState }: JourneyScreenProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { incrementShareCount } = useAppState();
   const [displayLevelCharacter, setDisplayLevelCharacter] = useState(state.animatingLevelUp ? state.previousLevel : state.level);
   const [displayLevelPfp, setDisplayLevelPfp] = useState(state.animatingLevelUp ? state.previousLevel : state.level);
   const [showRankUpOverlay, setShowRankUpOverlay] = useState(false);
@@ -158,12 +159,15 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.7 }}
-                onClick={() => {
-                  shareElementAsImage(
+                onClick={async () => {
+                  const success = await shareElementAsImage(
                     'rank-up-card',
                     'I Ranked Up!',
                     `I just reached ${currentRank.name} (Level ${state.level}) on ZONE! Join me and lock in.`
                   );
+                  if (success) {
+                    incrementShareCount();
+                  }
                 }}
                 className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/20 px-6 py-3 rounded-full font-bold transition-colors backdrop-blur-md"
               >

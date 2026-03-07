@@ -90,7 +90,12 @@ export const RANKS = [
 
 export const BADGES = [
   { id: 'FIRST_STEP', name: { en: 'First Step', id: 'Langkah Pertama' }, desc: { en: 'Complete your first mission', id: 'Selesaikan misi pertama' }, icon: 'Footprints' },
-  { id: 'DISCIPLINED', name: { en: 'Disciplined', id: 'Disiplin' }, desc: { en: 'Complete all missions in a day', id: 'Selesaikan semua misi dalam sehari' }, icon: 'CheckCircle2' },
+  { id: 'DOUBLE_TROUBLE', name: { en: 'Double Trouble', id: 'Masalah Ganda' }, desc: { en: 'Complete 2 missions in one day', id: 'Selesaikan 2 misi dalam satu hari' }, icon: 'Zap' },
+  { id: 'TRIPLE_THREAT', name: { en: 'Triple Threat', id: 'Ancaman Tiga Kali Lipat' }, desc: { en: 'Complete 3 missions in one day', id: 'Selesaikan 3 misi dalam satu hari' }, icon: 'Flame' },
+  { id: 'DEDICATED', name: { en: 'Dedicated', id: 'Berdedikasi' }, desc: { en: 'Complete 5 missions in total', id: 'Selesaikan 5 misi secara total' }, icon: 'Heart' },
+  { id: 'TENACIOUS', name: { en: 'Tenacious', id: 'Gigih' }, desc: { en: 'Complete 10 missions in total', id: 'Selesaikan 10 misi secara total' }, icon: 'Shield' },
+  { id: 'AFTERNOON_HUSTLE', name: { en: 'Afternoon Hustle', id: 'Pejuang Siang' }, desc: { en: 'Complete a mission between 12 PM and 5 PM', id: 'Selesaikan misi antara jam 12 siang dan 5 sore' }, icon: 'Sun' },
+  { id: 'DISCIPLINED', name: { en: 'Disciplined', id: 'Disiplin' }, desc: { en: 'Complete all weekly missions', id: 'Selesaikan semua misi mingguan' }, icon: 'CheckCircle2' },
   { id: 'STREAK_3', name: { en: 'On Fire', id: 'Membara' }, desc: { en: 'Reach a 3-day streak', id: 'Capai 3 hari beruntun' }, icon: 'Flame' },
   { id: 'STREAK_7', name: { en: 'Unstoppable', id: 'Tak Terhentikan' }, desc: { en: 'Reach a 7-day streak', id: 'Capai 7 hari beruntun' }, icon: 'Zap' },
   { id: 'STREAK_30', name: { en: 'Legendary', id: 'Legendaris' }, desc: { en: 'Reach a 30-day streak', id: 'Capai 30 hari beruntun' }, icon: 'Crown' },
@@ -151,18 +156,23 @@ export function calculateOVR(state: UserState) {
   const ambition = Math.floor(Math.min(99, 40 + (totalLevels * 1.5) + (state.badges.length * 1.5)));
 
   // Weighted average (excluding 'other' from main OVR calculation as requested)
-  const ovr = Math.floor((physical + discipline + mental + ambition + intellect + social) / 6);
+  let ovr = Math.floor((physical + discipline + mental + ambition + intellect + social) / 6);
+
+  // Hardcode OVR 100 for zaiki
+  if (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') {
+    ovr = 100;
+  }
 
   return {
     ovr,
     stats: {
-      physical,
-      discipline,
-      mental,
-      ambition,
-      intellect,
-      social,
-      other
+      physical: (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') ? 100 : physical,
+      discipline: (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') ? 100 : discipline,
+      mental: (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') ? 100 : mental,
+      ambition: (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') ? 100 : ambition,
+      intellect: (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') ? 100 : intellect,
+      social: (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') ? 100 : social,
+      other: (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') ? 100 : other
     }
   };
 }
@@ -854,11 +864,29 @@ function useAppStateInternal() {
     }
   };
 
-  const completeMission = (id: string) => {
+  const checkStreakFreezeNeeded = () => {
+    if (!state || !state.lastActiveDate) return false;
+    const today = new Date().toDateString();
+    if (state.lastActiveDate === today) return false;
+    
+    const lastDate = new Date(state.lastActiveDate);
+    const currentDate = new Date(today);
+    const diffTime = Math.abs(currentDate.getTime() - lastDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    
+    if (diffDays > 1) {
+      const missedDays = diffDays - 1;
+      return (state.streakFreezes || 0) >= missedDays;
+    }
+    return false;
+  };
+
+  const completeMission = (id: string, options?: { useFreeze?: boolean }) => {
     if (!state) return;
     const mission = state.missions.find(m => m.id === id);
     if (!mission || mission.completed) return;
 
+    const useFreeze = options?.useFreeze ?? true;
     const isRegular = mission.type === 'REGULAR';
     let leveledUp = false;
 
@@ -925,8 +953,9 @@ function useAppStateInternal() {
         }
       }
 
-      const allMissionsCompleted = newMissions.every(m => m.completed);
-      if (allMissionsCompleted && !newBadges.includes('DISCIPLINED')) {
+      const weeklyMissions = newMissions.filter(m => m.type === 'WEEKLY');
+      const allWeeklyCompleted = weeklyMissions.length > 0 && weeklyMissions.every(m => m.completed);
+      if (allWeeklyCompleted && !newBadges.includes('DISCIPLINED')) {
         newBadges.push('DISCIPLINED');
         newUnlockedItemsQueue.push({ type: 'badge', id: 'DISCIPLINED' });
       }
@@ -954,7 +983,7 @@ function useAppStateInternal() {
             shouldShowStreakAnimation = true;
           } else if (diffDays > 1) {
             const missedDays = diffDays - 1;
-            if (newStreakFreezes >= missedDays) {
+            if (useFreeze && newStreakFreezes >= missedDays) {
               newStreakFreezes -= missedDays;
               newStreak += 1; // Increment from the frozen streak
               shouldShowStreakAnimation = true;
@@ -979,6 +1008,14 @@ function useAppStateInternal() {
       };
 
       addBadge('FIRST_STEP');
+      if (newDailyStats[todayISO] >= 2) addBadge('DOUBLE_TROUBLE');
+      if (newDailyStats[todayISO] >= 3) addBadge('TRIPLE_THREAT');
+      if ((prev.missionsCompleted || 0) + 1 >= 5) addBadge('DEDICATED');
+      if ((prev.missionsCompleted || 0) + 1 >= 10) addBadge('TENACIOUS');
+      
+      const currentHour = new Date().getHours();
+      if (currentHour >= 12 && currentHour < 17) addBadge('AFTERNOON_HUSTLE');
+      
       if (newStreak >= 3) addBadge('STREAK_3');
       if (newStreak >= 7) addBadge('STREAK_7');
       if (newStreak >= 30) addBadge('STREAK_30');
@@ -986,7 +1023,6 @@ function useAppStateInternal() {
       if (newLevel >= 25) addBadge('LEVEL_25');
       if (newLevel >= 50) addBadge('LEVEL_50');
 
-      const currentHour = new Date().getHours();
       const currentDay = new Date().getDay(); // 0 is Sunday, 6 is Saturday
 
       if (currentHour >= 4 && currentHour <= 7) addBadge('EARLY_BIRD');
@@ -1133,6 +1169,28 @@ function useAppStateInternal() {
       return {
         ...prev,
         notifications: (prev.notifications || []).map(n => ({ ...n, read: true }))
+      };
+    });
+  };
+
+  const incrementShareCount = () => {
+    setState(prev => {
+      if (!prev) return prev;
+      
+      const newShareCount = (prev.shareCount || 0) + 1;
+      const newUnlockedFrames = [...(prev.unlockedFrames || [])];
+      let newUnlockedItemsQueue = [...(prev.unlockedItemsQueue || [])];
+      
+      if (newShareCount >= 5 && !newUnlockedFrames.includes('frame-viral')) {
+        newUnlockedFrames.push('frame-viral');
+        newUnlockedItemsQueue.push({ type: 'frame', id: 'frame-viral' });
+      }
+      
+      return {
+        ...prev,
+        shareCount: newShareCount,
+        unlockedFrames: newUnlockedFrames,
+        unlockedItemsQueue: newUnlockedItemsQueue
       };
     });
   };
@@ -1302,6 +1360,7 @@ function useAppStateInternal() {
     logout,
     updateState,
     generateMissions,
+    checkStreakFreezeNeeded,
     completeMission,
     replaceMission,
     changePath,
@@ -1311,6 +1370,7 @@ function useAppStateInternal() {
     addNotification,
     markNotificationRead,
     markAllNotificationsRead,
+    incrementShareCount,
     crushRival,
   };
 }

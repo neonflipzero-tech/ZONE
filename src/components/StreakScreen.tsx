@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Flame, Share2 } from 'lucide-react';
 import { sounds } from '../utils/sounds';
 import { shareContent, shareElementAsImage } from '../utils/share';
+import { useAppState } from '../store';
 
 interface StreakScreenProps {
   key?: string;
@@ -11,9 +12,22 @@ interface StreakScreenProps {
 }
 
 export default function StreakScreen({ streak, onContinue }: StreakScreenProps) {
+  const { incrementShareCount } = useAppState();
+
   useEffect(() => {
     sounds.playLevelUp(); // Reuse level up sound for streak
   }, []);
+
+  const handleShare = async () => {
+    const success = await shareElementAsImage(
+      'streak-card',
+      'My ZONE Streak',
+      `I'm on a ${streak}-day streak on ZONE! Can you keep up with my consistency?`
+    );
+    if (success) {
+      incrementShareCount();
+    }
+  };
 
   return (
     <motion.div 
@@ -56,11 +70,7 @@ export default function StreakScreen({ streak, onContinue }: StreakScreenProps) 
 
         <div className="flex flex-col space-y-4 w-full max-w-xs" data-html2canvas-ignore>
           <button
-            onClick={() => shareElementAsImage(
-              'streak-card',
-              'My ZONE Streak',
-              `I'm on a ${streak}-day streak on ZONE! Can you keep up with my consistency?`
-            )}
+            onClick={handleShare}
             className="w-full flex items-center justify-center space-x-2 bg-surface border border-white/10 text-primary font-bold py-4 rounded-xl hover:bg-white/5 transition-colors"
           >
             <Share2 className="w-5 h-5" />

@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserState, getRankForLevel, PathType, calculateOVR, createDefaultState, BADGES, TITLES, useAppState } from '../store';
-import { Trophy, Flame, LogOut, Camera, User, Shield, ChevronDown, ChevronUp, Star, Lock, CheckCircle2, Share2, AlertTriangle, Footprints, Zap, Crown, Moon, Sun, Swords, Settings, X } from 'lucide-react';
+import { Trophy, Flame, LogOut, Camera, User, Shield, ChevronDown, ChevronUp, Star, Lock, CheckCircle2, Share2, AlertTriangle, Footprints, Zap, Crown, Moon, Sun, Swords, Settings, X, Heart, Compass } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import { t } from '../utils/translations';
 import ProfileFrame from './ProfileFrame';
@@ -17,7 +17,7 @@ import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
 const BADGE_ICONS: Record<string, any> = {
-  Footprints, CheckCircle2, Flame, Zap, Crown, Moon, Sun, Swords, Shield, Star, Trophy
+  Footprints, CheckCircle2, Flame, Zap, Crown, Moon, Sun, Swords, Shield, Star, Trophy, Heart, Compass
 };
 
 interface ProfileScreenProps {
@@ -169,12 +169,21 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
     const newShareCount = (state.shareCount || 0) + 1;
     const updates: Partial<UserState> = { shareCount: newShareCount };
     
-    if (newShareCount >= 5 && !state.titles.includes('Supporter')) {
-      updates.titles = [...state.titles, 'Supporter'];
-      updates.unlockedItemsQueue = [
-        ...(state.unlockedItemsQueue || []),
-        { type: 'title', id: 'Supporter' }
-      ];
+    let newUnlockedItemsQueue = state.unlockedItemsQueue ? [...state.unlockedItemsQueue] : [];
+    
+    if (newShareCount >= 5) {
+      if (!state.titles?.includes('Supporter')) {
+        updates.titles = [...(state.titles || []), 'Supporter'];
+        newUnlockedItemsQueue.push({ type: 'title', id: 'Supporter' });
+      }
+      if (!state.unlockedFrames?.includes('frame-viral')) {
+        updates.unlockedFrames = [...(state.unlockedFrames || []), 'frame-viral'];
+        newUnlockedItemsQueue.push({ type: 'frame', id: 'frame-viral' });
+      }
+    }
+    
+    if (newUnlockedItemsQueue.length > 0) {
+      updates.unlockedItemsQueue = newUnlockedItemsQueue;
     }
     
     updateState(updates);
@@ -340,8 +349,16 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
               <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center shrink-0">
                 <Flame className="w-5 h-5 text-rose-500" />
               </div>
-              <div>
-                <div className="text-2xl font-display font-bold text-primary">{state.streak}</div>
+              <div className="flex-1">
+                <div className="flex items-center space-x-2">
+                  <div className="text-2xl font-display font-bold text-primary">{state.streak}</div>
+                  {(state.streakFreezes || 0) > 0 && (
+                    <div className="flex items-center space-x-1 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20" title="Streak Freezes Available">
+                      <Shield className="w-3 h-3 text-blue-400" />
+                      <span className="text-xs font-bold text-blue-400">{state.streakFreezes}</span>
+                    </div>
+                  )}
+                </div>
                 <div className="text-[10px] text-secondary font-mono uppercase tracking-wider">{state.language === 'id' ? 'Hari Beruntun' : 'Day Streak'}</div>
               </div>
             </div>
@@ -512,7 +529,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
               <h4 className="text-xs font-bold text-primary mb-3 px-2 flex items-center"><Shield className="w-3 h-3 mr-1 text-accent"/> {state.language === 'id' ? 'Bingkai Profil' : 'Profile Frames'}</h4>
               <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-2">
                 {(() => {
-                  const allFrames = ['frame-default', 'frame-bronze', 'frame-silver', 'frame-gold', 'frame-platinum', 'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-legend', 'frame-mythic', 'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix'];
+                  const allFrames = ['frame-default', 'frame-bronze', 'frame-silver', 'frame-gold', 'frame-platinum', 'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-legend', 'frame-mythic', 'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral'];
                   const isZaiki = state.username?.toLowerCase() === 'zaiki';
                   const totalMissions = Object.values(state.dailyStats || {}).reduce((a, b) => a + b, 0);
                   
@@ -532,6 +549,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                       'frame-ethereal': ovr >= 95,
                       'frame-omniscience': ovr >= 100,
                       'frame-matrix': totalMissions >= 100,
+                      'frame-viral': (state.shareCount || 0) >= 5,
                     };
                     return state.unlockedFrames?.includes(frame) || 
                       frame === 'frame-default' || 
@@ -588,6 +606,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                             case 'frame-ethereal': return state.language === 'id' ? 'Capai OVR 95' : 'Reach 95 OVR';
                             case 'frame-omniscience': return state.language === 'id' ? 'Capai OVR 100 (Maksimal)' : 'Reach 100 OVR (Max)';
                             case 'frame-matrix': return state.language === 'id' ? 'Selesaikan 100 Misi' : 'Complete 100 Missions';
+                            case 'frame-viral': return state.language === 'id' ? 'Bagikan 5 kali' : 'Share 5 times';
                             default: return '';
                           }
                         };

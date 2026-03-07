@@ -17,7 +17,7 @@ const ALL_FRAMES = [
   'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-legend', 'frame-mythic',
   'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 
   'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 
-  'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix'
+  'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral'
 ];
 
 export default function FramesModal({ isOpen, onClose, state, updateState, ovr }: FramesModalProps) {
@@ -48,6 +48,7 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr }
       'frame-ethereal': ovr >= 95,
       'frame-omniscience': ovr >= 100,
       'frame-matrix': totalMissions >= 100,
+      'frame-viral': (state.shareCount || 0) >= 5,
     };
     return state.unlockedFrames?.includes(frame) || 
       frame === 'frame-default' || 
@@ -82,6 +83,7 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr }
       case 'frame-ethereal': return state.language === 'id' ? 'Capai OVR 95' : 'Reach 95 OVR';
       case 'frame-omniscience': return state.language === 'id' ? 'Capai OVR 100 (Maksimal)' : 'Reach 100 OVR (Max)';
       case 'frame-matrix': return state.language === 'id' ? 'Selesaikan 100 Misi' : 'Complete 100 Missions';
+      case 'frame-viral': return state.language === 'id' ? 'Bagikan 5 kali' : 'Share 5 times';
       default: return '';
     }
   };
@@ -112,6 +114,7 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr }
       case 'frame-ethereal': return { current: Math.min(ovr, 95), max: 95 };
       case 'frame-omniscience': return { current: Math.min(ovr, 100), max: 100 };
       case 'frame-matrix': return { current: Math.min(totalMissions, 100), max: 100 };
+      case 'frame-viral': return { current: Math.min(state.shareCount || 0, 5), max: 5 };
       default: return null;
     }
   };
