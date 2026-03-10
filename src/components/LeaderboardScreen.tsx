@@ -184,11 +184,14 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
               <div className="absolute -bottom-1 bg-gray-300 text-black text-[10px] font-bold px-1.5 rounded-full z-20">2</div>
             </div>
             <span className="text-xs font-bold truncate w-full text-center">{allUsers[1]?.username || '-'}</span>
-            {allUsers[1]?.equippedTitle && (
-              <span className={`text-[8px] font-mono uppercase tracking-widest mt-0.5 truncate w-full text-center ${TITLES.find(t => t.id === allUsers[1]?.equippedTitle)?.specialColor || 'text-accent/80'}`}>
-                {allUsers[1]?.equippedTitle}
-              </span>
-            )}
+            {allUsers[1]?.equippedTitle && (() => {
+              const titleDef = TITLES.find(t => t.id === allUsers[1]?.equippedTitle);
+              return (
+                <div className={`text-[8px] font-mono uppercase tracking-widest mt-0.5 inline-block text-center px-1 ${titleDef?.specialColor || 'text-accent/80'}`}>
+                  {titleDef?.name[state.language] || allUsers[1]?.equippedTitle}
+                </div>
+              );
+            })()}
             <div className="h-24 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-gray-300/50 flex flex-col items-center justify-end pb-2">
               <span className="text-xs font-mono text-secondary">{t('leaderboard.lvl', state.language).replace('{level}', (allUsers[1]?.level || 0).toString())}</span>
             </div>
@@ -205,11 +208,14 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
               <div className="absolute -bottom-1 bg-yellow-400 text-black text-xs font-bold px-2 rounded-full z-20">1</div>
             </div>
             <span className="text-sm font-bold truncate w-full text-center text-primary">{allUsers[0]?.username || '-'}</span>
-            {allUsers[0]?.equippedTitle && (
-              <span className={`text-[9px] font-mono uppercase tracking-widest mt-0.5 truncate w-full text-center ${TITLES.find(t => t.id === allUsers[0]?.equippedTitle)?.specialColor || 'text-accent/80'}`}>
-                {allUsers[0]?.equippedTitle}
-              </span>
-            )}
+            {allUsers[0]?.equippedTitle && (() => {
+              const titleDef = TITLES.find(t => t.id === allUsers[0]?.equippedTitle);
+              return (
+                <div className={`text-[9px] font-mono uppercase tracking-widest mt-0.5 inline-block text-center px-1 ${titleDef?.specialColor || 'text-accent/80'}`}>
+                  {titleDef?.name[state.language] || allUsers[0]?.equippedTitle}
+                </div>
+              );
+            })()}
             <div className="h-32 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-4 border-yellow-400/50 flex flex-col items-center justify-end pb-2">
               <span className="text-sm font-mono font-bold text-yellow-400">{t('leaderboard.lvl', state.language).replace('{level}', (allUsers[0]?.level || 0).toString())}</span>
             </div>
@@ -225,11 +231,14 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
               <div className="absolute -bottom-1 bg-amber-700 text-white text-[10px] font-bold px-1.5 rounded-full z-20">3</div>
             </div>
             <span className="text-xs font-bold truncate w-full text-center">{allUsers[2]?.username || '-'}</span>
-            {allUsers[2]?.equippedTitle && (
-              <span className={`text-[8px] font-mono uppercase tracking-widest mt-0.5 truncate w-full text-center ${TITLES.find(t => t.id === allUsers[2]?.equippedTitle)?.specialColor || 'text-accent/80'}`}>
-                {allUsers[2]?.equippedTitle}
-              </span>
-            )}
+            {allUsers[2]?.equippedTitle && (() => {
+              const titleDef = TITLES.find(t => t.id === allUsers[2]?.equippedTitle);
+              return (
+                <div className={`text-[8px] font-mono uppercase tracking-widest mt-0.5 inline-block text-center px-1 ${titleDef?.specialColor || 'text-accent/80'}`}>
+                  {titleDef?.name[state.language] || allUsers[2]?.equippedTitle}
+                </div>
+              );
+            })()}
             <div className="h-20 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-amber-700/50 flex flex-col items-center justify-end pb-2">
               <span className="text-xs font-mono text-secondary">{t('leaderboard.lvl', state.language).replace('{level}', (allUsers[2]?.level || 0).toString())}</span>
             </div>
@@ -264,11 +273,14 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                   <h4 className={`font-bold truncate ${isCurrentUser ? 'text-primary' : 'text-secondary'}`}>
                     {user.username} {isCurrentUser && '(You)'}
                   </h4>
-                  {user.equippedTitle && (
-                    <div className={`text-[10px] font-mono uppercase tracking-widest mt-0.5 ${TITLES.find(t => t.id === user.equippedTitle)?.specialColor || 'text-accent/80'}`}>
-                      {user.equippedTitle}
-                    </div>
-                  )}
+                  {user.equippedTitle && (() => {
+                    const titleDef = TITLES.find(t => t.id === user.equippedTitle);
+                    return (
+                      <div className={`text-[10px] font-mono uppercase tracking-widest mt-0.5 inline-block ${titleDef?.specialColor || 'text-accent/80'}`}>
+                        {titleDef?.name[state.language] || user.equippedTitle}
+                      </div>
+                    );
+                  })()}
                   <div className="flex items-center space-x-3 mt-1">
                     <span className="text-xs font-mono text-accent">{t('leaderboard.lvl', state.language).replace('{level}', user.level.toString())}</span>
                     <span className="text-xs font-mono text-secondary">{user.xp} {t('leaderboard.pts', state.language)}</span>
@@ -312,8 +324,8 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                   onClick={() => {
                     if (state.beatenRivals?.includes(selectedActionUser.userId)) {
                       addNotification({
-                        title: state.language === 'id' ? 'Tidak Bisa Memilih Rival' : 'Cannot Select Rival',
-                        description: state.language === 'id' ? 'Kamu sudah pernah mengalahkan orang ini. Cari lawan lain!' : 'You already beat this guy. Find another opponent!',
+                        title: JSON.stringify({ key: 'leaderboard.cannot_select_rival' }),
+                        description: JSON.stringify({ key: 'leaderboard.cannot_select_rival_desc' }),
                         icon: 'AlertTriangle'
                       });
                       setSelectedActionUser(null);
@@ -322,8 +334,8 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                     sounds.playSetRival();
                     updateState({ rivalId: selectedActionUser.userId });
                     addNotification({
-                      title: 'Rival Set!',
-                      description: `You are now competing against ${selectedActionUser.username}. Crush them!`,
+                      title: JSON.stringify({ key: 'leaderboard.rival_set' }),
+                      description: JSON.stringify({ key: 'leaderboard.rival_set_desc', args: { username: selectedActionUser.username } }),
                       icon: 'Swords'
                     });
                     setShowToast(true);
@@ -333,7 +345,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                   className="w-full py-4 rounded-2xl font-bold text-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-colors flex items-center justify-center space-x-2"
                 >
                   <Swords className="w-5 h-5" />
-                  <span>Set as Rival</span>
+                  <span>{t('leaderboard.set_rival', state.language)}</span>
                 </button>
               )}
               <button
@@ -344,7 +356,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                 className="w-full py-4 rounded-2xl font-bold text-lg bg-surface-hover text-primary border border-white/10 hover:bg-white/5 transition-colors flex items-center justify-center space-x-2"
               >
                 <User className="w-5 h-5" />
-                <span>See Profile</span>
+                <span>{t('leaderboard.see_profile', state.language)}</span>
               </button>
             </div>
           </motion.div>
@@ -373,7 +385,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                   <User className="w-10 h-10 text-secondary" />
                 </div>
                 <h3 className="text-xl font-bold mb-2">{selectedUser.username}</h3>
-                <p className="text-secondary text-sm">This user's profile is private.</p>
+                <p className="text-secondary text-sm">{t('leaderboard.private_profile', state.language)}</p>
               </div>
             ) : (
               <div className="flex flex-col items-center">
@@ -386,21 +398,24 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
 
                 <h3 className="text-2xl font-bold mb-1">{selectedUser.username}</h3>
                 
-                {selectedUser.equippedTitle && (
-                  <div className={`text-xs font-mono uppercase tracking-widest mb-4 ${TITLES.find(t => t.id === selectedUser.equippedTitle)?.specialColor || 'text-accent'}`}>
-                    {selectedUser.equippedTitle}
-                  </div>
-                )}
+                {selectedUser.equippedTitle && (() => {
+                  const titleDef = TITLES.find(t => t.id === selectedUser.equippedTitle);
+                  return (
+                    <div className={`text-xs font-mono uppercase tracking-widest mb-4 inline-block ${titleDef?.specialColor || 'text-accent'}`}>
+                      {titleDef?.name[state.language] || selectedUser.equippedTitle}
+                    </div>
+                  );
+                })()}
 
                 <div className="w-full bg-black/30 rounded-2xl p-4 mb-4 border border-white/5">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-secondary">Rank</span>
+                    <span className="text-sm text-secondary">{t('leaderboard.rank', state.language)}</span>
                     <span className={`font-bold ${getRankForLevel(selectedUser.level).color}`}>
                       {getRankForLevel(selectedUser.level).name}
                     </span>
                   </div>
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-secondary">Level</span>
+                    <span className="text-sm text-secondary">{t('leaderboard.level', state.language)}</span>
                     <span className="font-mono font-bold text-primary">{selectedUser.level}</span>
                   </div>
                   <div className="flex justify-between items-center mb-2">
@@ -408,7 +423,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                     <span className="font-mono font-bold text-accent">{selectedUser.ovr || calculateOVR({ ...selectedUser, dailyStats: {}, badges: [], missionsCompleted: selectedUser.missionsCompleted || 0, streak: selectedUser.streak || 0, unlockedFrames: [] } as any).ovr}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-secondary">Total XP</span>
+                    <span className="text-sm text-secondary">{t('leaderboard.total_xp', state.language)}</span>
                     <span className="font-mono font-bold text-accent">
                       {selectedUser.totalXp?.toLocaleString() || (50 * selectedUser.level * (selectedUser.level - 1) + selectedUser.xp).toLocaleString()}
                     </span>
@@ -418,22 +433,22 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                 <div className="grid grid-cols-2 gap-3 w-full">
                   <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
                     <Flame className="w-5 h-5 text-orange-500 mb-1" />
-                    <span className="text-xs text-secondary mb-1">Streak</span>
+                    <span className="text-xs text-secondary mb-1">{t('leaderboard.streak', state.language)}</span>
                     <span className="font-mono font-bold text-lg">{selectedUser.streak || 0}</span>
                   </div>
                   <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
                     <CheckCircle2 className="w-5 h-5 text-emerald-500 mb-1" />
-                    <span className="text-xs text-secondary mb-1">Missions</span>
+                    <span className="text-xs text-secondary mb-1">{t('leaderboard.missions', state.language)}</span>
                     <span className="font-mono font-bold text-lg">{selectedUser.missionsCompleted || 0}</span>
                   </div>
                   <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
                     <Star className="w-5 h-5 text-yellow-400 mb-1" />
-                    <span className="text-xs text-secondary mb-1">Badges</span>
+                    <span className="text-xs text-secondary mb-1">{t('leaderboard.badges', state.language)}</span>
                     <span className="font-mono font-bold text-lg">{selectedUser.badgesCount || 0}</span>
                   </div>
                   <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
                     <div className="w-5 h-5 border-2 border-accent rounded-md mb-1" />
-                    <span className="text-xs text-secondary mb-1">Frames</span>
+                    <span className="text-xs text-secondary mb-1">{t('leaderboard.frames', state.language)}</span>
                     <span className="font-mono font-bold text-lg">{selectedUser.framesCount || 1}</span>
                   </div>
                 </div>
@@ -453,7 +468,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
             className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-full shadow-lg font-bold flex items-center space-x-2 z-50"
           >
             <Swords className="w-5 h-5" />
-            <span>Rival Set!</span>
+            <span>{t('leaderboard.rival_set', state.language)}</span>
           </motion.div>
         )}
       </AnimatePresence>

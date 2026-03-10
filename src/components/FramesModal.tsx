@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, Lock, Shield, CheckCircle2 } from 'lucide-react';
 import ProfileFrame from './ProfileFrame';
 import { UserState } from '../store';
+import { t } from '../utils/translations';
 
 interface FramesModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface FramesModalProps {
   state: UserState;
   updateState: (updates: Partial<UserState>) => void;
   ovr: number;
+  onGoToInventory?: () => void;
 }
 
 const ALL_FRAMES = [
@@ -20,7 +22,7 @@ const ALL_FRAMES = [
   'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral'
 ];
 
-export default function FramesModal({ isOpen, onClose, state, updateState, ovr }: FramesModalProps) {
+export default function FramesModal({ isOpen, onClose, state, updateState, ovr, onGoToInventory }: FramesModalProps) {
   const [previewFrame, setPreviewFrame] = useState<string>(state.equippedFrame || 'frame-default');
   
   useEffect(() => {
@@ -58,32 +60,32 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr }
 
   const getFrameDescription = (f: string) => {
     switch(f) {
-      case 'frame-default': return state.language === 'id' ? 'Tersedia dari awal' : 'Available from start';
-      case 'frame-bronze': return state.language === 'id' ? 'Capai Rank Bronze' : 'Reach Bronze Rank';
-      case 'frame-silver': return state.language === 'id' ? 'Capai Rank Silver' : 'Reach Silver Rank';
-      case 'frame-gold': return state.language === 'id' ? 'Capai Rank Gold' : 'Reach Gold Rank';
-      case 'frame-platinum': return state.language === 'id' ? 'Capai Rank Platinum' : 'Reach Platinum Rank';
-      case 'frame-diamond': return state.language === 'id' ? 'Capai Rank Diamond' : 'Reach Diamond Rank';
-      case 'frame-master': return state.language === 'id' ? 'Capai Rank Master' : 'Reach Master Rank';
-      case 'frame-grandmaster': return state.language === 'id' ? 'Capai Rank Grandmaster' : 'Reach Grandmaster Rank';
-      case 'frame-challenger': return state.language === 'id' ? 'Capai Rank Challenger' : 'Reach Challenger Rank';
-      case 'frame-legend': return state.language === 'id' ? 'Capai Rank Legend' : 'Reach Legend Rank';
-      case 'frame-mythic': return state.language === 'id' ? 'Capai Rank Mythic' : 'Reach Mythic Rank';
-      case 'frame-rgb': return state.language === 'id' ? 'Capai 7 Hari Streak' : 'Reach 7 Day Streak';
-      case 'frame-neon': return state.language === 'id' ? 'Selesaikan 50 Misi' : 'Complete 50 Missions';
-      case 'frame-fire': return state.language === 'id' ? 'Capai 30 Hari Streak' : 'Reach 30 Day Streak';
-      case 'frame-cyberpunk': return state.language === 'id' ? 'Kumpulkan 5 Lencana' : 'Earn 5 Badges';
-      case 'frame-hologram': return state.language === 'id' ? 'Selesaikan 100 Misi' : 'Complete 100 Missions';
-      case 'frame-celestial': return state.language === 'id' ? 'Capai OVR 80' : 'Reach 80 OVR';
-      case 'frame-void': return state.language === 'id' ? 'Capai Level 20' : 'Reach Level 20';
-      case 'frame-aurora': return state.language === 'id' ? 'Capai 60 Hari Streak' : 'Reach 60 Day Streak';
-      case 'frame-radiant': return state.language === 'id' ? 'Selesaikan 200 Misi' : 'Complete 200 Missions';
-      case 'frame-abyssal': return state.language === 'id' ? 'Selesaikan 666 Misi' : 'Complete 666 Missions';
-      case 'frame-inferno': return state.language === 'id' ? 'Capai 100 Hari Streak' : 'Reach 100 Day Streak';
-      case 'frame-ethereal': return state.language === 'id' ? 'Capai OVR 95' : 'Reach 95 OVR';
-      case 'frame-omniscience': return state.language === 'id' ? 'Capai OVR 100 (Maksimal)' : 'Reach 100 OVR (Max)';
-      case 'frame-matrix': return state.language === 'id' ? 'Selesaikan 100 Misi' : 'Complete 100 Missions';
-      case 'frame-viral': return state.language === 'id' ? 'Bagikan 5 kali' : 'Share 5 times';
+      case 'frame-default': return t('frames.desc.default', state.language);
+      case 'frame-bronze': return t('frames.desc.bronze', state.language);
+      case 'frame-silver': return t('frames.desc.silver', state.language);
+      case 'frame-gold': return t('frames.desc.gold', state.language);
+      case 'frame-platinum': return t('frames.desc.platinum', state.language);
+      case 'frame-diamond': return t('frames.desc.diamond', state.language);
+      case 'frame-master': return t('frames.desc.master', state.language);
+      case 'frame-grandmaster': return t('frames.desc.grandmaster', state.language);
+      case 'frame-challenger': return t('frames.desc.challenger', state.language);
+      case 'frame-legend': return t('frames.desc.legend', state.language);
+      case 'frame-mythic': return t('frames.desc.mythic', state.language);
+      case 'frame-rgb': return t('frames.desc.rgb', state.language);
+      case 'frame-neon': return t('frames.desc.neon', state.language);
+      case 'frame-fire': return t('frames.desc.fire', state.language);
+      case 'frame-cyberpunk': return t('frames.desc.cyberpunk', state.language);
+      case 'frame-hologram': return t('frames.desc.hologram', state.language);
+      case 'frame-celestial': return t('frames.desc.celestial', state.language);
+      case 'frame-void': return t('frames.desc.void', state.language);
+      case 'frame-aurora': return t('frames.desc.aurora', state.language);
+      case 'frame-radiant': return t('frames.desc.radiant', state.language);
+      case 'frame-abyssal': return t('frames.desc.abyssal', state.language);
+      case 'frame-inferno': return t('frames.desc.inferno', state.language);
+      case 'frame-ethereal': return t('frames.desc.ethereal', state.language);
+      case 'frame-omniscience': return t('frames.desc.omniscience', state.language);
+      case 'frame-matrix': return t('frames.desc.matrix', state.language);
+      case 'frame-viral': return t('frames.desc.viral', state.language);
       default: return '';
     }
   };
@@ -147,7 +149,7 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr }
             </button>
             <h2 className="text-lg font-bold text-primary flex items-center">
               <Shield className="w-5 h-5 text-accent mr-2" />
-              {state.language === 'id' ? 'Koleksi Bingkai' : 'Frame Collection'}
+              {t('frames.title', state.language)}
             </h2>
             <div className="w-10" /> {/* Spacer for centering */}
           </div>
@@ -175,7 +177,7 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr }
               {!isPreviewUnlocked && getFrameProgress(previewFrame) && (
                 <div className="mt-3 max-w-[250px] mx-auto">
                   <div className="flex justify-between text-[10px] font-mono text-secondary mb-1">
-                    <span>{state.language === 'id' ? 'Progres' : 'Progress'}</span>
+                    <span>{t('frames.progress', state.language)}</span>
                     <span>{getFrameProgress(previewFrame)!.current} / {getFrameProgress(previewFrame)!.max}</span>
                   </div>
                   <div className="w-full h-1.5 bg-background rounded-full overflow-hidden border border-white/5">
@@ -189,11 +191,19 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr }
             </div>
 
             <button
-              onClick={handleEquip}
-              disabled={!isPreviewUnlocked || isPreviewEquipped}
+              onClick={() => {
+                if (isPreviewUnlocked) {
+                  if (onGoToInventory) {
+                    onGoToInventory();
+                  } else {
+                    handleEquip();
+                  }
+                }
+              }}
+              disabled={!isPreviewUnlocked}
               className={`w-full max-w-[250px] py-2.5 px-6 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${
                 isPreviewEquipped 
-                  ? 'bg-white/10 text-white/50 cursor-not-allowed' 
+                  ? 'bg-white/10 text-white/50 hover:bg-white/20 hover:text-white' 
                   : isPreviewUnlocked 
                     ? 'bg-accent text-white hover:bg-accent/90 shadow-[0_0_20px_rgba(242,125,38,0.3)]' 
                     : 'bg-surface border border-white/10 text-secondary cursor-not-allowed'
@@ -202,14 +212,14 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr }
               {isPreviewEquipped ? (
                 <>
                   <CheckCircle2 className="w-5 h-5" />
-                  <span>{state.language === 'id' ? 'Sedang Dipakai' : 'Equipped'}</span>
+                  <span>{state.language === 'id' ? 'Pergi ke Inventori' : 'Go to Inventory'}</span>
                 </>
               ) : isPreviewUnlocked ? (
-                <span>{state.language === 'id' ? 'Gunakan Bingkai' : 'Equip Frame'}</span>
+                <span>{state.language === 'id' ? 'Pergi ke Inventori' : 'Go to Inventory'}</span>
               ) : (
                 <>
                   <Lock className="w-5 h-5" />
-                  <span>{state.language === 'id' ? 'Terkunci' : 'Locked'}</span>
+                  <span>{t('frames.locked', state.language)}</span>
                 </>
               )}
             </button>

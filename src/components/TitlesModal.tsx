@@ -7,9 +7,10 @@ interface TitlesModalProps {
   state: UserState;
   onClose: () => void;
   updateState: (updates: Partial<UserState>) => void;
+  onGoToInventory?: () => void;
 }
 
-export default function TitlesModal({ state, onClose, updateState }: TitlesModalProps) {
+export default function TitlesModal({ state, onClose, updateState, onGoToInventory }: TitlesModalProps) {
   const [previewTitle, setPreviewTitle] = useState<string>(state.equippedTitle || 'Newbie');
 
   useEffect(() => {
@@ -68,9 +69,9 @@ export default function TitlesModal({ state, onClose, updateState }: TitlesModal
         >
           <div className="flex items-center space-x-3 mb-3">
             <div className="h-[1px] w-8 bg-gradient-to-r from-transparent to-white/20"></div>
-            <span className={`text-xs font-display font-bold uppercase tracking-[0.2em] ${previewTitleDef?.specialColor || 'text-accent'}`}>
+            <div className={`text-xs font-display font-bold uppercase tracking-[0.2em] inline-block ${previewTitleDef?.specialColor || 'text-accent'}`}>
               {previewTitleDef?.name[state.language]}
-            </span>
+            </div>
             <div className="h-[1px] w-8 bg-gradient-to-l from-transparent to-white/20"></div>
           </div>
           <h2 className="text-3xl font-black font-display tracking-tight text-white/50">{state.username}</h2>
@@ -98,11 +99,19 @@ export default function TitlesModal({ state, onClose, updateState }: TitlesModal
         </div>
 
         <button
-          onClick={handleEquip}
-          disabled={!isPreviewUnlocked || isPreviewEquipped}
+          onClick={() => {
+            if (isPreviewUnlocked) {
+              if (onGoToInventory) {
+                onGoToInventory();
+              } else {
+                handleEquip();
+              }
+            }
+          }}
+          disabled={!isPreviewUnlocked}
           className={`w-full max-w-[250px] py-2.5 px-6 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${
             isPreviewEquipped 
-              ? 'bg-white/10 text-white/50 cursor-not-allowed' 
+              ? 'bg-white/10 text-white/50 hover:bg-white/20 hover:text-white' 
               : isPreviewUnlocked 
                 ? 'bg-accent text-white hover:bg-accent/90 shadow-[0_0_20px_rgba(242,125,38,0.3)]' 
                 : 'bg-surface border border-white/10 text-secondary cursor-not-allowed'
@@ -111,10 +120,10 @@ export default function TitlesModal({ state, onClose, updateState }: TitlesModal
           {isPreviewEquipped ? (
             <>
               <CheckCircle2 className="w-5 h-5" />
-              <span>{state.language === 'id' ? 'Sedang Dipakai' : 'Equipped'}</span>
+              <span>{state.language === 'id' ? 'Pergi ke Inventori' : 'Go to Inventory'}</span>
             </>
           ) : isPreviewUnlocked ? (
-            <span>{state.language === 'id' ? 'Gunakan Gelar' : 'Equip Title'}</span>
+            <span>{state.language === 'id' ? 'Pergi ke Inventori' : 'Go to Inventory'}</span>
           ) : (
             <>
               <Lock className="w-5 h-5" />
@@ -146,7 +155,7 @@ export default function TitlesModal({ state, onClose, updateState }: TitlesModal
                 }`}
               >
                 <div>
-                  <div className={`text-base font-bold leading-tight mb-1 ${isUnlocked ? (titleDef.specialColor || 'text-primary') : 'text-secondary'}`}>
+                  <div className={`text-base font-bold leading-tight mb-1 inline-block ${isUnlocked ? (titleDef.specialColor || 'text-primary') : 'text-secondary'}`}>
                     {titleDef.name[state.language]}
                   </div>
                   <div className="text-[10px] font-mono uppercase tracking-widest text-secondary">

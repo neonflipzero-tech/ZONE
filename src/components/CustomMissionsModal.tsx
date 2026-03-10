@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Plus, Trash2, Wand2 } from 'lucide-react';
 import { MissionType, UserState } from '../store';
+import { t } from '../utils/translations';
 
 interface CustomMissionsModalProps {
   isOpen: boolean;
@@ -29,15 +30,12 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
   };
 
   const getTabLabel = (type: MissionType) => {
-    if (state.language === 'id') {
-      switch(type) {
-        case 'REGULAR': return 'Biasa';
-        case 'DAILY': return 'Harian';
-        case 'WEEKLY': return 'Mingguan';
-        case 'ROUTINE': return 'Rutinitas';
-      }
+    switch(type) {
+      case 'REGULAR': return t('custom_missions.tab.regular', state.language);
+      case 'DAILY': return t('custom_missions.tab.daily', state.language);
+      case 'WEEKLY': return t('custom_missions.tab.weekly', state.language);
+      case 'ROUTINE': return t('custom_missions.tab.routine', state.language);
     }
-    return type.charAt(0) + type.slice(1).toLowerCase();
   };
 
   const tabs = state.chosenPath === 'OTHER' 
@@ -67,7 +65,7 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
                 <Wand2 className="w-5 h-5 text-accent" />
               </div>
               <h2 className="text-xl font-display font-bold">
-                {state.language === 'id' ? 'Misi Kustom' : 'Custom Missions'}
+                {t('custom_missions.title', state.language)}
               </h2>
             </div>
             <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 transition-colors">
@@ -96,7 +94,7 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
               type="text"
               value={newMissionText}
               onChange={(e) => setNewMissionText(e.target.value)}
-              placeholder={state.language === 'id' ? 'Ketik misi baru...' : 'Type new mission...'}
+              placeholder={t('custom_missions.placeholder', state.language)}
               className="flex-1 bg-background border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-accent transition-colors"
             />
             <button 
@@ -111,9 +109,7 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
           <div className="flex-1 overflow-y-auto no-scrollbar space-y-2">
             {currentMissions.length === 0 ? (
               <div className="text-center py-8 text-secondary text-sm">
-                {state.language === 'id' 
-                  ? 'Belum ada misi kustom di kategori ini.' 
-                  : 'No custom missions in this category yet.'}
+                {t('custom_missions.empty', state.language)}
               </div>
             ) : (
               currentMissions.map((mission, idx) => (
@@ -132,13 +128,9 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
           
           <div className="mt-4 pt-4 border-t border-white/5 text-xs text-secondary text-center">
             {activeTab === 'ROUTINE' ? (
-              state.language === 'id' 
-                ? 'Misi rutinitas akan muncul setiap hari sesuai urutan ini.' 
-                : 'Routine missions will appear every day in this exact order.'
+              t('custom_missions.info.routine', state.language)
             ) : (
-              state.language === 'id' 
-                ? 'Misi kustom akan muncul secara acak saat misi baru dibuat.' 
-                : 'Custom missions will appear randomly when new missions are generated.'
+              t('custom_missions.info.other', state.language)
             )}
           </div>
         </motion.div>

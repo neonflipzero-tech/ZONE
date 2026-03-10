@@ -139,15 +139,20 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
 
     // LoginScreen.tsx
     'login.title': { en: 'Enter the Zone', id: 'Masuk ke Zona' },
-    'login.subtitle': { en: 'Enter The Zone. Just Progress.', id: 'Masuk ke Zona. Terus Berkembang.' },
+    'login.subtitle': { en: 'Lock In. Level Up.', id: 'Fokus. Naik Level.' },
     'login.email': { en: 'Email address', id: 'Alamat Email' },
     'login.username': { en: 'Username', id: 'Nama Pengguna' },
     'login.password': { en: 'Password', id: 'Kata Sandi' },
-    'login.enter': { en: 'Enter Zone', id: 'Masuk Zona' },
-    'login.join': { en: 'Join Zone', id: 'Gabung Zona' },
-    'login.no_account': { en: "Don't have an account? Sign Up", id: 'Belum punya akun? Daftar' },
-    'login.has_account': { en: 'Already have an account? Log In', id: 'Sudah punya akun? Masuk' },
+    'login.enter': { en: 'ENTER ZONE', id: 'MASUK ZONE' },
+    'login.join': { en: 'JOIN ZONE', id: 'GABUNG ZONE' },
+    'login.no_account': { en: "Don't have an account? Sign up", id: 'Belum punya akun? Daftar' },
+    'login.has_account': { en: 'Already have an account? Log in', id: 'Sudah punya akun? Masuk' },
     'login.start': { en: 'Start Journey', id: 'Mulai Perjalanan' },
+    'login.error.fill_all': { en: 'Please fill in all fields', id: 'Harap isi semua kolom' },
+    'login.error.username': { en: 'Please enter a username', id: 'Harap masukkan nama pengguna' },
+    'login.error.invalid': { en: 'Invalid email or password', id: 'Email atau kata sandi salah' },
+    'login.error.exists': { en: 'Account with this email already exists', id: 'Akun dengan email ini sudah ada' },
+    'login.establishing': { en: 'ESTABLISHING CONNECTION...', id: 'MEMBANGUN KONEKSI...' },
 
     // OnboardingScreen.tsx
     'onboarding.title': { en: 'Why are you doing this?', id: 'Mengapa kamu melakukan ini?' },
@@ -204,6 +209,87 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
 
     // BadgesModal.tsx
     'badges.title': { en: 'Badge Collection', id: 'Koleksi Lencana' },
+
+    // CustomMissionsModal.tsx
+    'custom_missions.title': { en: 'Custom Missions', id: 'Misi Kustom' },
+    'custom_missions.tab.regular': { en: 'Regular', id: 'Biasa' },
+    'custom_missions.tab.daily': { en: 'Daily', id: 'Harian' },
+    'custom_missions.tab.weekly': { en: 'Weekly', id: 'Mingguan' },
+    'custom_missions.tab.routine': { en: 'Routine', id: 'Rutinitas' },
+    'custom_missions.placeholder': { en: 'Type new mission...', id: 'Ketik misi baru...' },
+    'custom_missions.empty': { en: 'No custom missions in this category yet.', id: 'Belum ada misi kustom di kategori ini.' },
+    'custom_missions.info.routine': { en: 'Routine missions will appear every day in this exact order.', id: 'Misi rutinitas akan muncul setiap hari sesuai urutan ini.' },
+    'custom_missions.info.other': { en: 'Custom missions will appear randomly when new missions are generated.', id: 'Misi kustom akan muncul secara acak saat misi baru dibuat.' },
+
+    // FramesModal.tsx
+    'frames.title': { en: 'Frame Collection', id: 'Koleksi Bingkai' },
+    'frames.progress': { en: 'Progress', id: 'Progres' },
+    'frames.equipped': { en: 'Equipped', id: 'Sedang Dipakai' },
+    'frames.equip': { en: 'Equip Frame', id: 'Gunakan Bingkai' },
+    'frames.locked': { en: 'Locked', id: 'Terkunci' },
+    'frames.desc.default': { en: 'Available from start', id: 'Tersedia dari awal' },
+    'frames.desc.bronze': { en: 'Reach Bronze Rank', id: 'Capai Rank Bronze' },
+    'frames.desc.silver': { en: 'Reach Silver Rank', id: 'Capai Rank Silver' },
+    'frames.desc.gold': { en: 'Reach Gold Rank', id: 'Capai Rank Gold' },
+    'frames.desc.platinum': { en: 'Reach Platinum Rank', id: 'Capai Rank Platinum' },
+    'frames.desc.diamond': { en: 'Reach Diamond Rank', id: 'Capai Rank Diamond' },
+    'frames.desc.master': { en: 'Reach Master Rank', id: 'Capai Rank Master' },
+    'frames.desc.grandmaster': { en: 'Reach Grandmaster Rank', id: 'Capai Rank Grandmaster' },
+    'frames.desc.challenger': { en: 'Reach Challenger Rank', id: 'Capai Rank Challenger' },
+    'frames.desc.legend': { en: 'Reach Legend Rank', id: 'Capai Rank Legend' },
+    'frames.desc.mythic': { en: 'Reach Mythic Rank', id: 'Capai Rank Mythic' },
+    'frames.desc.rgb': { en: 'Reach 7 Day Streak', id: 'Capai 7 Hari Streak' },
+    'frames.desc.neon': { en: 'Complete 50 Missions', id: 'Selesaikan 50 Misi' },
+    'frames.desc.fire': { en: 'Reach 30 Day Streak', id: 'Capai 30 Hari Streak' },
+    'frames.desc.cyberpunk': { en: 'Earn 5 Badges', id: 'Kumpulkan 5 Lencana' },
+    'frames.desc.hologram': { en: 'Complete 100 Missions', id: 'Selesaikan 100 Misi' },
+    'frames.desc.celestial': { en: 'Reach 80 OVR', id: 'Capai OVR 80' },
+    'frames.desc.void': { en: 'Reach Level 20', id: 'Capai Level 20' },
+    'frames.desc.aurora': { en: 'Reach 60 Day Streak', id: 'Capai 60 Hari Streak' },
+    'frames.desc.radiant': { en: 'Complete 200 Missions', id: 'Selesaikan 200 Misi' },
+    'frames.desc.abyssal': { en: 'Complete 666 Missions', id: 'Selesaikan 666 Misi' },
+    'frames.desc.inferno': { en: 'Reach 100 Day Streak', id: 'Capai 100 Hari Streak' },
+    'frames.desc.ethereal': { en: 'Reach 95 OVR', id: 'Capai OVR 95' },
+    'frames.desc.omniscience': { en: 'Reach 100 OVR (Max)', id: 'Capai OVR 100 (Maksimal)' },
+    'frames.desc.matrix': { en: 'Complete 100 Missions', id: 'Selesaikan 100 Misi' },
+    'frames.desc.viral': { en: 'Share 5 times', id: 'Bagikan 5 kali' },
+
+    // LeaderboardScreen.tsx
+    'leaderboard.private_profile': { en: "This user's profile is private.", id: 'Profil pengguna ini privat.' },
+    'leaderboard.rank': { en: 'Rank', id: 'Pangkat' },
+    'leaderboard.level': { en: 'Level', id: 'Level' },
+    'leaderboard.total_xp': { en: 'Total XP', id: 'Total XP' },
+    'leaderboard.streak': { en: 'Streak', id: 'Beruntun' },
+    'leaderboard.missions': { en: 'Missions', id: 'Misi' },
+    'leaderboard.badges': { en: 'Badges', id: 'Lencana' },
+    'leaderboard.frames': { en: 'Frames', id: 'Bingkai' },
+    'leaderboard.set_rival': { en: 'Set as Rival', id: 'Jadikan Rival' },
+    'leaderboard.see_profile': { en: 'See Profile', id: 'Lihat Profil' },
+    'leaderboard.rival_set': { en: 'Rival Set!', id: 'Rival Ditetapkan!' },
+    'leaderboard.rival_set_desc': { en: 'You are now competing against {username}. Crush them!', id: 'Kamu sekarang bersaing dengan {username}. Kalahkan dia!' },
+    'leaderboard.cannot_select_rival': { en: 'Cannot Select Rival', id: 'Tidak Bisa Memilih Rival' },
+    'leaderboard.cannot_select_rival_desc': { en: 'You already beat this guy. Find another opponent!', id: 'Kamu sudah pernah mengalahkan orang ini. Cari lawan lain!' },
+
+    // NotificationCenter.tsx
+    'notifications.title': { en: 'Notifications', id: 'Notifikasi' },
+    'notifications.unread': { en: '{count} unread', id: '{count} belum dibaca' },
+    'notifications.mark_all_read': { en: 'Mark all as read', id: 'Tandai semua sudah dibaca' },
+    'notifications.empty.title': { en: 'No new notifications', id: 'Tidak ada notifikasi baru' },
+    'notifications.empty.desc': { en: "You've read all your notifications.", id: 'Kamu sudah membaca semua notifikasi.' },
+
+    // PfpPromptModal.tsx
+    'pfp_prompt.title': { en: 'Set Profile Picture', id: 'Pasang Foto Profil' },
+    'pfp_prompt.desc': { en: 'Stand out on the Leaderboard by setting up your profile picture now!', id: 'Biar makin keren di Leaderboard, yuk pasang foto profil lu sekarang!' },
+    'pfp_prompt.choose': { en: 'Choose Photo', id: 'Pilih Foto' },
+    'pfp_prompt.skip': { en: 'Skip for Now', id: 'Nanti Aja' },
+
+    // RankUpScreen.tsx
+    'rank_up.title': { en: 'Rank Up', id: 'Naik Pangkat' },
+    'rank_up.keep_going': { en: 'Keep Going', id: 'Terus Lanjutkan' },
+
+    // SettingsScreen.tsx
+    'settings.privacy_policy.title': { en: 'Privacy Policy', id: 'Kebijakan Privasi' },
+    'settings.terms_of_service.title': { en: 'Terms of Service', id: 'Syarat & Ketentuan' },
 
     // StreakScreen.tsx
     'streak.title': { en: 'Day Streak!', id: 'Hari Beruntun!' },

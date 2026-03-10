@@ -73,6 +73,10 @@ export interface UserState {
   streakFreezeUsedToday: boolean;
   rivalId: string | null;
   beatenRivals: string[];
+  zoneCoins: number;
+  doubleXpPotions: number;
+  doubleXpActiveUntil: string | null;
+  isPremium: boolean;
 }
 
 export const RANKS = [
@@ -108,11 +112,11 @@ export const BADGES = [
 ];
 
 export const TITLES = [
-  { id: 'Newbie', name: { en: 'Newbie', id: 'Pemula' }, desc: { en: 'Just started the journey', id: 'Baru memulai perjalanan' } },
-  { id: 'The Early Bird', name: { en: 'The Early Bird', id: 'Burung Pagi' }, desc: { en: 'Active in the morning', id: 'Aktif di pagi hari' } },
-  { id: 'Night Owl', name: { en: 'Night Owl', id: 'Burung Hantu' }, desc: { en: 'Active at night', id: 'Aktif di malam hari' } },
-  { id: 'Unstoppable', name: { en: 'Unstoppable', id: 'Tak Terhentikan' }, desc: { en: 'Reached a 5-day streak', id: 'Mencapai 5 hari beruntun' } },
-  { id: 'Legend', name: { en: 'Legend', id: 'Legenda' }, desc: { en: 'Reached a 30-day streak', id: 'Mencapai 30 hari beruntun' } },
+  { id: 'Newbie', name: { en: 'Newbie', id: 'Pemula' }, desc: { en: 'Just started the journey', id: 'Baru memulai perjalanan' }, specialColor: 'text-gray-300' },
+  { id: 'The Early Bird', name: { en: 'The Early Bird', id: 'Burung Pagi' }, desc: { en: 'Active in the morning', id: 'Aktif di pagi hari' }, specialColor: 'text-yellow-300 drop-shadow-[0_0_8px_rgba(253,224,71,0.5)]' },
+  { id: 'Night Owl', name: { en: 'Night Owl', id: 'Burung Hantu' }, desc: { en: 'Active at night', id: 'Aktif di malam hari' }, specialColor: 'text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]' },
+  { id: 'Unstoppable', name: { en: 'Unstoppable', id: 'Tak Terhentikan' }, desc: { en: 'Reached a 5-day streak', id: 'Mencapai 5 hari beruntun' }, specialColor: 'text-orange-400 drop-shadow-[0_0_8px_rgba(251,146,60,0.5)]' },
+  { id: 'Legend', name: { en: 'Legend', id: 'Legenda' }, desc: { en: 'Reached a 30-day streak', id: 'Mencapai 30 hari beruntun' }, specialColor: 'text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]' },
   { id: 'Veteran', name: { en: 'Veteran', id: 'Veteran' }, desc: { en: 'Reached Level 10', id: 'Mencapai Level 10' }, specialColor: 'text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]' },
   { id: 'Master', name: { en: 'Master', id: 'Master' }, desc: { en: 'Reached Level 50', id: 'Mencapai Level 50' }, specialColor: 'text-fuchsia-500 drop-shadow-[0_0_8px_rgba(217,70,239,0.5)]' },
   { id: 'Rival Crusher', name: { en: 'Rival Crusher', id: 'Penghancur Rival' }, desc: { en: 'Surpassed your rival', id: 'Melampaui rivalmu' }, specialColor: 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]' },
@@ -253,6 +257,10 @@ export const createDefaultState = (username: string): UserState => ({
   streakFreezeUsedToday: false,
   rivalId: null,
   beatenRivals: [],
+  zoneCoins: 0,
+  doubleXpPotions: 0,
+  doubleXpActiveUntil: null,
+  isPremium: false,
 });
 
 const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
@@ -911,8 +919,13 @@ function useAppStateInternal() {
       let newMissions = [...prev.missions];
       newMissions[missionIndex] = { ...m, completed: true };
 
-      const xpReward = m.type === 'WEEKLY' ? 200 : m.type === 'DAILY' ? 100 : 50;
+      const baseXpReward = m.type === 'WEEKLY' ? 200 : m.type === 'DAILY' ? 100 : 50;
+      const isDoubleXpActive = prev.doubleXpActiveUntil && new Date(prev.doubleXpActiveUntil) > new Date();
+      const xpReward = isDoubleXpActive ? baseXpReward * 2 : baseXpReward;
+      const zcReward = m.type === 'WEEKLY' ? 50 : m.type === 'DAILY' ? 20 : 10;
+      
       let newXp = prev.xp + xpReward;
+      let newZoneCoins = (prev.zoneCoins || 0) + zcReward;
       let newLevel = prev.level;
       let newBadges = [...prev.badges];
       let newUnlockedFrames = prev.unlockedFrames ? [...prev.unlockedFrames] : ['frame-default', 'frame-rgb'];
@@ -1077,6 +1090,7 @@ function useAppStateInternal() {
         missionsCompleted: (prev.missionsCompleted || 0) + 1,
         streakFreezes: newStreakFreezes,
         streakFreezeUsedToday: streakFreezeUsedToday || prev.streakFreezeUsedToday,
+        zoneCoins: newZoneCoins,
       };
     });
 

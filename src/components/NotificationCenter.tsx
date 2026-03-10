@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Bell, CheckCircle2, Info, AlertCircle, Swords, ArrowUpCircle } from 'lucide-react';
 import { useAppState } from '../store';
+import { t } from '../utils/translations';
 
 interface NotificationCenterProps {
   isOpen: boolean;
@@ -26,6 +27,26 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
     }
   };
 
+  const renderText = (text: string) => {
+    try {
+      if (text.startsWith('{')) {
+        const parsed = JSON.parse(text);
+        if (parsed.key) {
+          let translated = t(parsed.key, state.language);
+          if (parsed.args) {
+            for (const [k, v] of Object.entries(parsed.args)) {
+              translated = translated.replace(`{${k}}`, v as string);
+            }
+          }
+          return translated;
+        }
+      }
+    } catch (e) {
+      // Fallback to original text if parsing fails
+    }
+    return text;
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -43,8 +64,8 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
                 <Bell className="w-5 h-5 text-accent" />
               </div>
               <div>
-                <h2 className="text-xl font-display font-bold">Notifications</h2>
-                <p className="text-xs text-secondary">{unreadCount} unread</p>
+                <h2 className="text-xl font-display font-bold">{t('notifications.title', state.language)}</h2>
+                <p className="text-xs text-secondary">{t('notifications.unread', state.language).replace('{count}', unreadCount.toString())}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -53,7 +74,7 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
                   onClick={markAllNotificationsRead}
                   className="text-xs font-medium text-accent hover:text-accent/80 transition-colors px-3 py-1.5 rounded-full bg-accent/10"
                 >
-                  Mark all as read
+                  {t('notifications.mark_all_read', state.language)}
                 </button>
               )}
               <button 
@@ -70,8 +91,8 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center opacity-50">
                 <Bell className="w-16 h-16 mb-4 text-secondary" />
-                <p className="text-lg font-medium">Tidak ada notifikasi baru</p>
-                <p className="text-sm text-secondary mt-1">Kamu sudah membaca semua notifikasi.</p>
+                <p className="text-lg font-medium">{t('notifications.empty.title', state.language)}</p>
+                <p className="text-sm text-secondary mt-1">{t('notifications.empty.desc', state.language)}</p>
               </div>
             ) : (
               notifications.map((notif) => (
@@ -92,14 +113,14 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start mb-1">
                       <h4 className={`font-bold text-sm ${notif.read ? 'text-secondary' : 'text-primary'}`}>
-                        {notif.title}
+                        {renderText(notif.title)}
                       </h4>
                       <span className="text-[10px] text-secondary whitespace-nowrap ml-2">
                         {new Date(notif.timestamp).toLocaleDateString()}
                       </span>
                     </div>
                     <p className={`text-xs leading-relaxed ${notif.read ? 'text-secondary/70' : 'text-secondary'}`}>
-                      {notif.description}
+                      {renderText(notif.description)}
                     </p>
                   </div>
                   {!notif.read && (

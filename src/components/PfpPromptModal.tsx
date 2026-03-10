@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Camera, X } from 'lucide-react';
 import ImageCropper from './ImageCropper';
+import { t } from '../utils/translations';
 
 interface PfpPromptModalProps {
   language: 'en' | 'id';
@@ -49,12 +50,10 @@ export default function PfpPromptModal({ language, onComplete }: PfpPromptModalP
           </div>
           
           <h2 className="text-2xl font-display font-black mb-2">
-            {language === 'id' ? 'Pasang Foto Profil' : 'Set Profile Picture'}
+            {t('pfp_prompt.title', language)}
           </h2>
           <p className="text-secondary text-sm mb-8">
-            {language === 'id' 
-              ? 'Biar makin keren di Leaderboard, yuk pasang foto profil lu sekarang!' 
-              : 'Stand out on the Leaderboard by setting up your profile picture now!'}
+            {t('pfp_prompt.desc', language)}
           </p>
 
           <div className="flex flex-col gap-3 w-full">
@@ -63,13 +62,13 @@ export default function PfpPromptModal({ language, onComplete }: PfpPromptModalP
               className="w-full py-3 rounded-xl bg-accent text-white font-bold flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(242,125,38,0.3)] hover:bg-accent/90 transition-colors"
             >
               <Camera className="w-5 h-5" />
-              {language === 'id' ? 'Pilih Foto' : 'Choose Photo'}
+              {t('pfp_prompt.choose', language)}
             </button>
             <button 
               onClick={() => onComplete(null)}
               className="w-full py-3 rounded-xl bg-white/5 text-secondary font-bold hover:bg-white/10 hover:text-white transition-colors"
             >
-              {language === 'id' ? 'Nanti Aja' : 'Skip for Now'}
+              {t('pfp_prompt.skip', language)}
             </button>
           </div>
           

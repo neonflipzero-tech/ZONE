@@ -23,12 +23,12 @@ export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
     setError('');
     
     if (!email.trim() || !password.trim()) {
-      setError('Please fill in all fields');
+      setError(t('login.error.fill_all', language));
       return;
     }
 
     if (!isLoginMode && !username.trim()) {
-      setError('Please enter a username');
+      setError(t('login.error.username', language));
       return;
     }
 
@@ -45,13 +45,13 @@ export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
         if (users[normalizedEmail] && users[normalizedEmail].password === password) {
           onLogin(normalizedEmail, users[normalizedEmail].username);
         } else {
-          setError('Invalid email or password');
+          setError(t('login.error.invalid', language));
           setIsLoading(false);
         }
       } else {
         // Sign Up
         if (users[normalizedEmail]) {
-          setError('Account with this email already exists');
+          setError(t('login.error.exists', language));
           setIsLoading(false);
         } else {
           const userCount = Object.keys(users).length;
@@ -106,7 +106,7 @@ export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
             ZONE
           </motion.h2>
           <p className="text-white/40 font-mono text-[10px] uppercase tracking-[0.2em] ml-[0.2em]">
-            ESTABLISHING CONNECTION...
+            {t('login.establishing', language)}
           </p>
         </div>
       </div>

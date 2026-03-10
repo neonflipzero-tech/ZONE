@@ -197,7 +197,7 @@ export default function SettingsScreen({
                 <ChevronLeft className="w-6 h-6 text-primary" />
               </button>
               <h2 className="text-xl font-bold text-primary">
-                {state.language === 'id' ? 'Kebijakan Privasi' : 'Privacy Policy'}
+                {t('settings.privacy_policy.title', state.language)}
               </h2>
             </div>
             <div className="p-6 overflow-y-auto text-secondary space-y-4 text-sm">
@@ -236,7 +236,7 @@ export default function SettingsScreen({
                 <ChevronLeft className="w-6 h-6 text-primary" />
               </button>
               <h2 className="text-xl font-bold text-primary">
-                {state.language === 'id' ? 'Syarat & Ketentuan' : 'Terms of Service'}
+                {t('settings.terms_of_service.title', state.language)}
               </h2>
             </div>
             <div className="p-6 overflow-y-auto text-secondary space-y-4 text-sm">

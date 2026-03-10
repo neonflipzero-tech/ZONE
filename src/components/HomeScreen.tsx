@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, useEffect } from 'react';
-import { UserState, MissionType, getRankForLevel, Mission, useAppState } from '../store';
+import { UserState, MissionType, getRankForLevel, Mission, useAppState, TITLES } from '../store';
 import { CheckCircle2, Circle, Flame, Trophy, User, Shield, Timer, Wand2, Bell } from 'lucide-react';
 import { t } from '../utils/translations';
 import { sounds } from '../utils/sounds';
@@ -174,9 +174,14 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
               <Shield className={`w-3 h-3 ${currentRank.color}`} />
               <p className={`text-xs font-mono uppercase tracking-wider ${currentRank.color}`}>{currentRank.name} • Lvl {state.level}</p>
             </div>
-            {state.equippedTitle && (
-              <p className="text-[10px] font-mono uppercase tracking-widest text-accent/80 mt-0.5">{state.equippedTitle}</p>
-            )}
+            {state.equippedTitle && (() => {
+              const titleDef = TITLES.find(t => t.id === state.equippedTitle);
+              return (
+                <div className={`text-[10px] font-mono uppercase tracking-widest mt-0.5 inline-block ${titleDef?.specialColor || 'text-accent/80'}`}>
+                  {titleDef?.name[state.language] || state.equippedTitle}
+                </div>
+              );
+            })()}
           </div>
         </div>
         <div className="flex items-center space-x-3">
@@ -211,7 +216,9 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                   <Wand2 className="w-4 h-4" />
                 </button>
               )}
-              <span className="text-sm text-secondary font-mono">{completedMissionsCount}/{totalMissions}</span>
+              {activeTab !== 'REGULAR' && (
+                <span className="text-sm text-secondary font-mono">{completedMissionsCount}/{totalMissions}</span>
+              )}
             </div>
           </div>
 
@@ -264,7 +271,9 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
               </div>
             ) : (
               displayedMissions.map((mission, index) => {
-                const xpReward = mission.type === 'WEEKLY' ? 200 : mission.type === 'DAILY' ? 100 : 50;
+                const baseXpReward = mission.type === 'WEEKLY' ? 200 : mission.type === 'DAILY' ? 100 : 50;
+                const isDoubleXpActive = state.doubleXpActiveUntil && new Date(state.doubleXpActiveUntil) > new Date();
+                const xpReward = isDoubleXpActive ? baseXpReward * 2 : baseXpReward;
                 
                 // For ROUTINE missions, lock them if the previous one isn't completed
                 const isRoutine = activeTab === 'ROUTINE';
@@ -343,7 +352,11 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                       {selectedMission.type} MISSION
                     </span>
                     <span className="px-4 py-2 bg-accent/10 text-accent rounded-full text-sm font-mono font-bold border border-accent/20">
-                      +{selectedMission.type === 'WEEKLY' ? 200 : selectedMission.type === 'DAILY' ? 100 : 50} XP
+                      +{(() => {
+                        const baseXp = selectedMission.type === 'WEEKLY' ? 200 : selectedMission.type === 'DAILY' ? 100 : 50;
+                        const isDoubleXpActive = state.doubleXpActiveUntil && new Date(state.doubleXpActiveUntil) > new Date();
+                        return isDoubleXpActive ? baseXp * 2 : baseXp;
+                      })()} XP
                     </span>
                   </div>
                   

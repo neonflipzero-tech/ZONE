@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { X, Trophy } from 'lucide-react';
 import { BADGES } from '../store';
+import { t } from '../utils/translations';
 
 interface BadgesModalProps {
   badges: string[];
@@ -23,7 +24,7 @@ export default function BadgesModal({ badges, language, onClose, badgeIcons }: B
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-display font-bold text-primary flex items-center">
             <Trophy className="w-5 h-5 mr-2 text-accent" />
-            {language === 'id' ? 'Koleksi Lencana' : 'Badge Collection'}
+            {t('badges.title', language)}
           </h2>
           <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-secondary hover:text-white transition-colors">
             <X className="w-5 h-5" />

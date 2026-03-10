@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserState, getRankForLevel, PathType, calculateOVR, createDefaultState, BADGES, TITLES, useAppState } from '../store';
-import { Trophy, Flame, LogOut, Camera, User, Shield, ChevronDown, ChevronUp, Star, Lock, CheckCircle2, Share2, AlertTriangle, Footprints, Zap, Crown, Moon, Sun, Swords, Settings, X, Heart, Compass } from 'lucide-react';
+import { Trophy, Flame, LogOut, Camera, User, Shield, ChevronDown, ChevronUp, Star, Lock, CheckCircle2, Share2, AlertTriangle, Footprints, Zap, Crown, Moon, Sun, Swords, Settings, X, Heart, Compass, Package, Store, ChevronRight } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import { t } from '../utils/translations';
 import ProfileFrame from './ProfileFrame';
@@ -12,7 +12,9 @@ import ResetProgressModal from './ResetProgressModal';
 import FramesModal from './FramesModal';
 import BadgesModal from './BadgesModal';
 import TitlesModal from './TitlesModal';
+import InventoryModal from './InventoryModal';
 import SettingsScreen from './SettingsScreen';
+import ZoneStoreModal from './ZoneStoreModal';
 import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -37,6 +39,8 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
   const [isFramesModalOpen, setIsFramesModalOpen] = useState(false);
   const [isBadgesModalOpen, setIsBadgesModalOpen] = useState(false);
   const [isTitlesModalOpen, setIsTitlesModalOpen] = useState(false);
+  const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
+  const [isZoneStoreModalOpen, setIsZoneStoreModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [rivalData, setRivalData] = useState<any | null>(null);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
@@ -286,15 +290,18 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             
             <h2 className="text-3xl font-black font-display tracking-tight mb-1">{state.username}</h2>
             
-            {state.equippedTitle ? (
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="h-[1px] w-8 bg-gradient-to-r from-transparent to-white/20"></div>
-                <span className={`text-[10px] font-display font-bold uppercase tracking-[0.2em] ${TITLES.find(t => t.id === state.equippedTitle)?.specialColor || 'text-accent'}`}>
-                  {state.equippedTitle}
-                </span>
-                <div className="h-[1px] w-8 bg-gradient-to-l from-transparent to-white/20"></div>
-              </div>
-            ) : (
+            {state.equippedTitle ? (() => {
+              const titleDef = TITLES.find(t => t.id === state.equippedTitle);
+              return (
+                <div className="flex items-center space-x-3 mb-6">
+                  <div className="h-[1px] w-8 bg-gradient-to-r from-transparent to-white/20"></div>
+                  <div className={`text-[10px] font-display font-bold uppercase tracking-[0.2em] inline-block ${titleDef?.specialColor || 'text-accent'}`}>
+                    {titleDef?.name[state.language] || state.equippedTitle}
+                  </div>
+                  <div className="h-[1px] w-8 bg-gradient-to-l from-transparent to-white/20"></div>
+                </div>
+              );
+            })() : (
               <div className="h-6 mb-6" />
             )}
 
@@ -498,161 +505,49 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
 
         {/* Equipment / Inventory */}
         <div className="mb-8">
-          <h3 className="text-sm font-mono uppercase tracking-widest text-secondary mb-4 px-2">{t('profile.customization', state.language)}</h3>
-          
-          <div className="space-y-6">
-            {/* Titles */}
-            <div>
-              <h4 className="text-xs font-bold text-primary mb-3 px-2 flex items-center"><Star className="w-3 h-3 mr-1 text-accent"/> {t('profile.titles', state.language)}</h4>
-              <div className="flex flex-wrap gap-2 px-2">
-                {state.titles?.map(title => {
-                  const isEquipped = state.equippedTitle === title;
-                  return (
-                    <button
-                      key={title}
-                      onClick={() => updateState({ equippedTitle: title })}
-                      className={`px-4 py-2 rounded-full text-xs font-mono uppercase tracking-wider transition-all ${
-                        isEquipped 
-                          ? 'bg-accent text-white shadow-[0_0_15px_rgba(242,125,38,0.3)] border border-accent/50' 
-                          : 'bg-surface border border-white/10 text-secondary hover:border-white/30 hover:text-white'
-                      }`}
-                    >
-                      {title}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Frames */}
-            <div>
-              <h4 className="text-xs font-bold text-primary mb-3 px-2 flex items-center"><Shield className="w-3 h-3 mr-1 text-accent"/> {t('profile.profile_frames', state.language)}</h4>
-              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-2">
-                {(() => {
-                  const allFrames = ['frame-default', 'frame-bronze', 'frame-silver', 'frame-gold', 'frame-platinum', 'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-legend', 'frame-mythic', 'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral'];
-                  const isZaiki = state.username?.toLowerCase() === 'zaiki';
-                  const totalMissions = Object.values(state.dailyStats || {}).reduce((a, b) => a + b, 0);
-                  
-                  const checkUnlocked = (frame: string) => {
-                    const specialConditions: Record<string, boolean> = {
-                      'frame-rgb': state.streak >= 7,
-                      'frame-neon': totalMissions >= 50,
-                      'frame-fire': state.streak >= 30,
-                      'frame-cyberpunk': state.badges.length >= 5,
-                      'frame-hologram': totalMissions >= 100,
-                      'frame-celestial': ovr >= 80,
-                      'frame-void': state.level >= 20,
-                      'frame-aurora': state.streak >= 60,
-                      'frame-radiant': totalMissions >= 200,
-                      'frame-abyssal': totalMissions >= 666,
-                      'frame-inferno': state.streak >= 100,
-                      'frame-ethereal': ovr >= 95,
-                      'frame-omniscience': ovr >= 100,
-                      'frame-matrix': totalMissions >= 100,
-                      'frame-viral': (state.shareCount || 0) >= 5,
-                    };
-                    return state.unlockedFrames?.includes(frame) || 
-                      frame === 'frame-default' || 
-                      isZaiki || 
-                      (specialConditions[frame] ?? false);
-                  };
-
-                  const sortedFrames = [...allFrames].sort((a, b) => {
-                    const aEquipped = state.equippedFrame === a || (a === 'frame-default' && !state.equippedFrame);
-                    const bEquipped = state.equippedFrame === b || (b === 'frame-default' && !state.equippedFrame);
-                    if (aEquipped) return -1;
-                    if (bEquipped) return 1;
-                    
-                    const aUnlocked = checkUnlocked(a);
-                    const bUnlocked = checkUnlocked(b);
-                    if (aUnlocked && !bUnlocked) return -1;
-                    if (!aUnlocked && bUnlocked) return 1;
-                    
-                    return allFrames.indexOf(a) - allFrames.indexOf(b);
-                  });
-
-                  const displayFrames = sortedFrames.slice(0, 3);
-
-                  return (
-                    <>
-                      {displayFrames.map(frame => {
-                        const isUnlocked = checkUnlocked(frame);
-                        const isEquipped = state.equippedFrame === frame || (frame === 'frame-default' && !state.equippedFrame);
-                        
-                        const getFrameDescription = (f: string) => {
-                          switch(f) {
-                            case 'frame-default': return t('profile.frame.default', state.language);
-                            case 'frame-bronze': return t('profile.frame.bronze', state.language);
-                            case 'frame-silver': return t('profile.frame.silver', state.language);
-                            case 'frame-gold': return t('profile.frame.gold', state.language);
-                            case 'frame-platinum': return t('profile.frame.platinum', state.language);
-                            case 'frame-diamond': return t('profile.frame.diamond', state.language);
-                            case 'frame-master': return t('profile.frame.master', state.language);
-                            case 'frame-grandmaster': return t('profile.frame.grandmaster', state.language);
-                            case 'frame-challenger': return t('profile.frame.challenger', state.language);
-                            case 'frame-legend': return t('profile.frame.legend', state.language);
-                            case 'frame-mythic': return t('profile.frame.mythic', state.language);
-                            case 'frame-rgb': return t('profile.frame.rgb', state.language);
-                            case 'frame-neon': return t('profile.frame.neon', state.language);
-                            case 'frame-fire': return t('profile.frame.fire', state.language);
-                            case 'frame-cyberpunk': return t('profile.frame.cyberpunk', state.language);
-                            case 'frame-hologram': return t('profile.frame.hologram', state.language);
-                            case 'frame-celestial': return t('profile.frame.celestial', state.language);
-                            case 'frame-void': return t('profile.frame.void', state.language);
-                            case 'frame-aurora': return t('profile.frame.aurora', state.language);
-                            case 'frame-radiant': return t('profile.frame.radiant', state.language);
-                            case 'frame-abyssal': return t('profile.frame.abyssal', state.language);
-                            case 'frame-inferno': return t('profile.frame.inferno', state.language);
-                            case 'frame-ethereal': return t('profile.frame.ethereal', state.language);
-                            case 'frame-omniscience': return t('profile.frame.omniscience', state.language);
-                            case 'frame-matrix': return t('profile.frame.matrix', state.language);
-                            case 'frame-viral': return t('profile.frame.viral', state.language);
-                            default: return '';
-                          }
-                        };
-
-                        return (
-                          <button
-                            key={frame}
-                            onClick={() => isUnlocked && updateState({ equippedFrame: frame === 'frame-default' ? null : frame })}
-                            disabled={!isUnlocked}
-                            className={`relative flex-shrink-0 snap-center rounded-xl p-4 transition-all flex flex-col items-center gap-3 w-36 ${
-                              isEquipped ? 'bg-accent/10 border border-accent' : 
-                              isUnlocked ? 'bg-surface border border-white/5 hover:border-white/20' : 
-                              'bg-surface/30 border border-white/5 opacity-50 cursor-not-allowed'
-                            }`}
-                          >
-                            <ProfileFrame frame={frame} src={state.profilePicture} size="md" />
-                            <div className="flex flex-col items-center text-center mt-2 w-full">
-                              <span className="text-[11px] font-mono uppercase tracking-wider text-primary font-bold mb-1.5">
-                                {frame.replace('frame-', '')}
-                              </span>
-                              <span className="text-[9px] text-secondary/90 leading-snug">
-                                {getFrameDescription(frame)}
-                              </span>
-                            </div>
-                            {!isUnlocked && <Lock className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-white drop-shadow-md" />}
-                            {isEquipped && <div className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full shadow-[0_0_10px_rgba(242,125,38,1)]" />}
-                          </button>
-                        );
-                      })}
-                      <button
-                        onClick={() => setIsFramesModalOpen(true)}
-                        className="relative flex-shrink-0 snap-center rounded-xl p-4 transition-all flex flex-col items-center justify-center gap-3 w-36 bg-surface border border-white/5 hover:border-white/20 hover:bg-white/5"
-                      >
-                        <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
-                          <span className="text-2xl text-secondary">+</span>
-                        </div>
-                        <span className="text-[11px] font-mono uppercase tracking-wider text-primary font-bold mt-2">
-                          {t('profile.show_all', state.language)}
-                        </span>
-                      </button>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
+          <div className="flex justify-between items-center mb-4 px-2">
+            <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{state.language === 'id' ? 'Kustomisasi' : 'Customization'}</h3>
           </div>
+          <button
+            onClick={() => setIsInventoryModalOpen(true)}
+            className="w-full bg-surface border border-white/5 hover:border-white/20 hover:bg-white/5 rounded-2xl p-4 flex items-center justify-between transition-all group mb-4"
+          >
+            <div className="flex items-center">
+              <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mr-4 group-hover:bg-accent/20 transition-colors">
+                <Package className="w-6 h-6 text-accent" />
+              </div>
+              <div className="text-left">
+                <h4 className="font-bold text-primary">{state.language === 'id' ? 'Inventori' : 'Inventory'}</h4>
+                <p className="text-xs text-secondary mt-0.5">{state.language === 'id' ? 'Kelola bingkai dan gelar' : 'Manage frames and titles'}</p>
+              </div>
+            </div>
+            <div className="flex -space-x-2">
+              <div className="w-8 h-8 rounded-full bg-surface border-2 border-background flex items-center justify-center z-10">
+                <Shield className="w-4 h-4 text-primary" />
+              </div>
+              <div className="w-8 h-8 rounded-full bg-surface border-2 border-background flex items-center justify-center">
+                <Star className="w-4 h-4 text-primary" />
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setIsZoneStoreModalOpen(true)}
+            className="w-full bg-gradient-to-r from-accent/10 to-purple-500/10 border border-accent/20 hover:border-accent/40 rounded-2xl p-4 flex items-center justify-between transition-all group"
+          >
+            <div className="flex items-center">
+              <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                <Store className="w-6 h-6 text-accent" />
+              </div>
+              <div className="text-left">
+                <h4 className="font-bold text-primary">{state.language === 'id' ? 'Toko Zona' : 'Zone Store'}</h4>
+                <p className="text-xs text-secondary mt-0.5">{state.language === 'id' ? 'Buka item eksklusif' : 'Unlock exclusive items'}</p>
+              </div>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
+              <ChevronRight className="w-4 h-4 text-accent" />
+            </div>
+          </button>
         </div>
 
         {/* Activity Chart */}
@@ -690,62 +585,6 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 );
               })}
             </div>
-          </div>
-        </div>
-
-        {/* Titles */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4 px-2">
-            <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{t('profile.titles', state.language)}</h3>
-            <button 
-              onClick={() => setIsTitlesModalOpen(true)}
-              className="text-xs font-bold text-accent hover:text-accent-hover transition-colors"
-            >
-              {t('profile.view_all', state.language)}
-            </button>
-          </div>
-          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-2">
-            {(() => {
-              const isZaiki = state.username?.toLowerCase() === 'zaiki';
-              // Sort titles: unlocked first, then locked
-              const sortedTitles = [...TITLES].sort((a, b) => {
-                const aUnlocked = isZaiki || state.titles.includes(a.id);
-                const bUnlocked = isZaiki || state.titles.includes(b.id);
-                if (aUnlocked && !bUnlocked) return -1;
-                if (!aUnlocked && bUnlocked) return 1;
-                return 0;
-              });
-
-              // Show only top 4
-              const displayTitles = sortedTitles.slice(0, 4);
-
-              return displayTitles.map((titleDef) => {
-                const isUnlocked = isZaiki || state.titles.includes(titleDef.id);
-                const isEquipped = state.equippedTitle === titleDef.id;
-                
-                return (
-                  <div 
-                    key={titleDef.id} 
-                    className={`shrink-0 w-32 snap-center border rounded-xl p-4 flex flex-col items-center justify-center text-center transition-all ${
-                      isUnlocked 
-                        ? isEquipped
-                          ? 'bg-accent/20 border-accent shadow-lg shadow-accent/20'
-                          : 'bg-gradient-to-b from-surface to-surface-hover border-white/10' 
-                        : 'bg-surface/30 border-white/5 opacity-50 grayscale'
-                    }`}
-                  >
-                    <span className={`text-xs font-bold leading-tight mb-1 ${isUnlocked ? (titleDef.specialColor || 'text-primary') : 'text-secondary'}`}>
-                      {titleDef.name[state.language]}
-                    </span>
-                    {isEquipped && (
-                      <span className="text-[10px] text-accent font-mono uppercase tracking-widest mt-2">
-                        {t('profile.equipped', state.language)}
-                      </span>
-                    )}
-                  </div>
-                );
-              });
-            })()}
           </div>
         </div>
 
@@ -997,7 +836,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                   <h3 className="text-2xl font-bold mb-1">{selectedUser.username}</h3>
                   
                   {selectedUser.equippedTitle && (
-                    <div className={`text-xs font-mono uppercase tracking-widest mb-4 ${TITLES.find(t => t.id === selectedUser.equippedTitle)?.specialColor || 'text-accent'}`}>
+                    <div className={`text-xs font-mono uppercase tracking-widest mb-4 inline-block ${TITLES.find(t => t.id === selectedUser.equippedTitle)?.specialColor || 'text-accent'}`}>
                       {selectedUser.equippedTitle}
                     </div>
                   )}
@@ -1085,6 +924,10 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
         state={state}
         updateState={updateState}
         ovr={ovr}
+        onGoToInventory={() => {
+          setIsFramesModalOpen(false);
+          setIsInventoryModalOpen(true);
+        }}
       />
 
       <AnimatePresence>
@@ -1104,9 +947,26 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             state={state}
             onClose={() => setIsTitlesModalOpen(false)}
             updateState={updateState}
+            onGoToInventory={() => {
+              setIsTitlesModalOpen(false);
+              setIsInventoryModalOpen(true);
+            }}
           />
         )}
       </AnimatePresence>
+
+      <InventoryModal
+        isOpen={isInventoryModalOpen}
+        onClose={() => setIsInventoryModalOpen(false)}
+      />
+
+      <ZoneStoreModal
+        isOpen={isZoneStoreModalOpen}
+        onClose={() => setIsZoneStoreModalOpen(false)}
+        state={state}
+        ovr={ovr}
+        updateState={updateState}
+      />
 
       <AnimatePresence>
         {isSettingsOpen && (

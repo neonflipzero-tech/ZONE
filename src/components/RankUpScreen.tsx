@@ -3,15 +3,17 @@ import { motion } from 'motion/react';
 import { PathType, PATH_QUOTES } from '../store';
 import { Trophy } from 'lucide-react';
 import { sounds } from '../utils/sounds';
+import { t } from '../utils/translations';
 
 interface RankUpScreenProps {
   rankName: string;
   rankColor: string;
   path: PathType;
   onContinue: () => void;
+  language: 'en' | 'id';
 }
 
-export default function RankUpScreen({ rankName, rankColor, path, onContinue }: RankUpScreenProps) {
+export default function RankUpScreen({ rankName, rankColor, path, onContinue, language }: RankUpScreenProps) {
   const quotes = PATH_QUOTES[path];
   const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
 
@@ -51,7 +53,7 @@ export default function RankUpScreen({ rankName, rankColor, path, onContinue }: 
           <Trophy className={`w-12 h-12 ${rankColor}`} />
         </div>
         
-        <h2 className="text-sm font-mono text-secondary uppercase tracking-[0.3em] mb-2">Rank Up</h2>
+        <h2 className="text-sm font-mono text-secondary uppercase tracking-[0.3em] mb-2">{t('rank_up.title', language)}</h2>
         <h1 className={`text-6xl font-display font-black tracking-tighter mb-8 ${rankColor} drop-shadow-lg`}>
           {rankName}
         </h1>
@@ -64,7 +66,7 @@ export default function RankUpScreen({ rankName, rankColor, path, onContinue }: 
           onClick={onContinue}
           className="w-full max-w-xs bg-primary text-background font-bold py-4 rounded-xl hover:bg-gray-200 transition-colors"
         >
-          Keep Going
+          {t('rank_up.keep_going', language)}
         </button>
       </motion.div>
     </motion.div>
