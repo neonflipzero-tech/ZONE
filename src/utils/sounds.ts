@@ -129,6 +129,91 @@ export class SoundManager {
     }
   }
 
+  playPurchase() {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, t); // A5
+      osc.frequency.setValueAtTime(1108.73, t + 0.1); // C#6
+      
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(1.2, t + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+      
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      
+      osc.start(t);
+      osc.stop(t + 0.3);
+    } catch (e) {
+      console.error("Audio playback failed", e);
+    }
+  }
+
+  playUseItem() {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, t); // A4
+      osc.frequency.exponentialRampToValueAtTime(880, t + 0.3); // A5
+      
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.4, t + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+      
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      
+      osc.start(t);
+      osc.stop(t + 0.4);
+    } catch (e) {
+      console.error("Audio playback failed", e);
+    }
+  }
+
+  playVictory() {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      
+      const playNote = (freq: number, startTime: number, duration: number) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+
+      // Triumphant arpeggio
+      playNote(523.25, t, 0.15);       // C5
+      playNote(659.25, t + 0.15, 0.15); // E5
+      playNote(783.99, t + 0.3, 0.15);  // G5
+      playNote(1046.50, t + 0.45, 0.6); // C6 (held)
+    } catch (e) {
+      console.error("Audio playback failed", e);
+    }
+  }
+
   playTick() {
     try {
       this.init();

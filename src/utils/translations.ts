@@ -119,6 +119,8 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
     'profile.frame.omniscience': { en: 'Reach 100 OVR (Max)', id: 'Capai OVR 100 (Maksimal)' },
     'profile.frame.matrix': { en: 'Complete 100 Missions', id: 'Selesaikan 100 Misi' },
     'profile.frame.viral': { en: 'Share 5 times', id: 'Bagikan 5 kali' },
+    'profile.frame.royal': { en: 'Royal Frame (Store)', id: 'Bingkai Royal (Toko)' },
+    'profile.frame.dragon': { en: 'Dragon Frame (Store)', id: 'Bingkai Naga (Toko)' },
     'profile.show_all': { en: 'Show All', id: 'Lihat Semua' },
     'profile.missions': { en: 'Missions', id: 'Misi' },
     'profile.equipped': { en: 'Equipped', id: 'Dipakai' },
@@ -253,6 +255,8 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
     'frames.desc.omniscience': { en: 'Reach 100 OVR (Max)', id: 'Capai OVR 100 (Maksimal)' },
     'frames.desc.matrix': { en: 'Complete 100 Missions', id: 'Selesaikan 100 Misi' },
     'frames.desc.viral': { en: 'Share 5 times', id: 'Bagikan 5 kali' },
+    'frames.desc.royal': { en: 'A frame fit for royalty. Available in the Zone Store.', id: 'Bingkai untuk kaum bangsawan. Tersedia di Toko Zona.' },
+    'frames.desc.dragon': { en: 'Unleash the dragon. Available in the Zone Store.', id: 'Lepaskan kekuatan naga. Tersedia di Toko Zona.' },
 
     // LeaderboardScreen.tsx
     'leaderboard.private_profile': { en: "This user's profile is private.", id: 'Profil pengguna ini privat.' },

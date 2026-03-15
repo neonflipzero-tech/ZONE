@@ -470,7 +470,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             </div>
             
             <div className="w-full grid grid-cols-3 gap-2 mt-4" data-html2canvas-ignore>
-              {radarData.map((stat, i) => {
+              {radarData.map((stat) => {
                 const getStatColor = (subject: string) => {
                   switch(subject) {
                     case 'Fisik':
@@ -490,7 +490,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 
                 return (
                   <button 
-                    key={i} 
+                    key={stat.id} 
                     onClick={() => setSelectedStat(stat)}
                     className="flex flex-col items-center bg-background/50 rounded-xl p-2 border border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
                   >
@@ -555,8 +555,8 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
           <h3 className="text-sm font-mono uppercase tracking-widest text-secondary mb-4 px-2">{t('profile.consistency_record', state.language)}</h3>
           <div className="bg-surface border border-white/5 rounded-2xl p-5 h-64 flex flex-col justify-end relative">
             <div className="absolute inset-0 p-5 flex flex-col justify-between pointer-events-none">
-              {[1, 0.75, 0.5, 0.25, 0].map((tick, i) => (
-                <div key={i} className="w-full border-b border-white/5 h-0 relative">
+              {[1, 0.75, 0.5, 0.25, 0].map((tick) => (
+                <div key={tick} className="w-full border-b border-white/5 h-0 relative">
                   <span className="absolute -left-2 -top-2 text-[10px] text-secondary -translate-x-full">
                     {Math.round(maxMissions * tick)}
                   </span>
@@ -567,7 +567,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
               {chartData.map((data, i) => {
                 const height = `${(data.missions / maxMissions) * 100}%`;
                 return (
-                  <div key={i} className="flex flex-col items-center w-8 group">
+                  <div key={data.date} className="flex flex-col items-center w-8 group">
                     <div className="w-full h-48 flex items-end justify-center relative">
                       <motion.div 
                         initial={{ height: 0 }}

@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, Shield, Star, Package, CheckCircle2, Zap, Snowflake } from 'lucide-react';
+import { ZoneCoinIcon } from './ZoneCoinIcon';
 import { useAppState } from '../store';
 import { t } from '../utils/translations';
 import { TITLES } from '../store';
 import ProfileFrame from './ProfileFrame';
+import { sounds } from '../utils/sounds';
 
 interface InventoryModalProps {
   isOpen: boolean;
@@ -14,6 +16,56 @@ interface InventoryModalProps {
 export default function InventoryModal({ isOpen, onClose }: InventoryModalProps) {
   const { state, updateState } = useAppState();
   const [activeTab, setActiveTab] = useState<'frames' | 'titles' | 'items'>('frames');
+  const [timeLeft, setTimeLeft] = useState<string | null>(null);
+  const [coinTimeLeft, setCoinTimeLeft] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const updateTimer = () => {
+      const now = new Date().getTime();
+
+      // XP Timer
+      if (state.doubleXpActiveUntil) {
+        const end = new Date(state.doubleXpActiveUntil).getTime();
+        const diff = end - now;
+        
+        if (diff > 0) {
+          const hours = Math.floor(diff / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+          setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
+        } else {
+          setTimeLeft(null);
+          updateState({ doubleXpActiveUntil: null });
+        }
+      } else {
+        setTimeLeft(null);
+      }
+
+      // Coin Timer
+      if (state.doubleCoinActiveUntil) {
+        const end = new Date(state.doubleCoinActiveUntil).getTime();
+        const diff = end - now;
+        
+        if (diff > 0) {
+          const hours = Math.floor(diff / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+          setCoinTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
+        } else {
+          setCoinTimeLeft(null);
+          updateState({ doubleCoinActiveUntil: null });
+        }
+      } else {
+        setCoinTimeLeft(null);
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [isOpen, state.doubleXpActiveUntil, state.doubleCoinActiveUntil, updateState]);
 
   if (!isOpen) return null;
 
@@ -203,7 +255,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
 
             {activeTab === 'items' && (
               <div className="flex flex-col gap-3 max-w-md mx-auto">
-                {((state.doubleXpPotions || 0) === 0 && (state.streakFreezes || 0) === 0) ? (
+                {((state.doubleXpPotions || 0) === 0 && (state.streakFreezes || 0) === 0 && (state.doubleCoinPotions || 0) === 0) ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <div className="w-16 h-16 rounded-full bg-surface/50 border border-white/5 flex items-center justify-center mb-4">
                       <Package className="w-8 h-8 text-secondary" />
@@ -239,6 +291,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                         <button
                           onClick={() => {
                             if ((state.doubleXpPotions || 0) > 0) {
+                              sounds.playUseItem();
                               const now = new Date();
                               now.setHours(now.getHours() + 24);
                               updateState({
@@ -256,7 +309,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                         >
                           <span>
                             {state.doubleXpActiveUntil && new Date(state.doubleXpActiveUntil) > new Date()
-                              ? (state.language === 'id' ? 'Aktif' : 'Active')
+                              ? (state.language === 'id' ? `Aktif (${timeLeft})` : `Active (${timeLeft})`)
                               : (state.language === 'id' ? 'Gunakan' : 'Use')}
                           </span>
                         </button>
@@ -285,6 +338,53 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                         <div className="w-full py-3 rounded-xl font-bold flex items-center justify-center space-x-2 bg-white/5 text-white/50">
                           <span>{state.language === 'id' ? 'Otomatis digunakan saat terlewat' : 'Automatically used when missed'}</span>
                         </div>
+                      </div>
+                    )}
+
+                    {/* 2x Coin Potion */}
+                    {(state.doubleCoinPotions || 0) > 0 && (
+                      <div className="p-4 rounded-2xl bg-surface/50 border border-white/10 flex flex-col">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
+                              <ZoneCoinIcon className="w-6 h-6 text-yellow-400" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-primary">2x Coin Potion</h4>
+                              <p className="text-xs text-secondary mt-0.5">
+                                {state.language === 'id' ? 'Gandakan Zone Coins selama 24 jam' : 'Double Zone Coins for 24 hours'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="bg-surface px-3 py-1 rounded-full border border-white/10 text-xs font-bold text-primary">
+                            x{state.doubleCoinPotions || 0}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if ((state.doubleCoinPotions || 0) > 0) {
+                              sounds.playUseItem();
+                              const now = new Date();
+                              now.setHours(now.getHours() + 24);
+                              updateState({
+                                doubleCoinPotions: (state.doubleCoinPotions || 0) - 1,
+                                doubleCoinActiveUntil: now.toISOString()
+                              });
+                            }
+                          }}
+                          disabled={(state.doubleCoinPotions || 0) === 0 || (state.doubleCoinActiveUntil ? new Date(state.doubleCoinActiveUntil) > new Date() : false)}
+                          className={`w-full py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${
+                            (state.doubleCoinPotions || 0) > 0 && !(state.doubleCoinActiveUntil ? new Date(state.doubleCoinActiveUntil) > new Date() : false)
+                              ? 'bg-yellow-500 text-white hover:bg-yellow-600' 
+                              : 'bg-white/5 text-white/30 cursor-not-allowed'
+                          }`}
+                        >
+                          <span>
+                            {state.doubleCoinActiveUntil && new Date(state.doubleCoinActiveUntil) > new Date()
+                              ? (state.language === 'id' ? `Aktif (${coinTimeLeft})` : `Active (${coinTimeLeft})`)
+                              : (state.language === 'id' ? 'Gunakan' : 'Use')}
+                          </span>
+                        </button>
                       </div>
                     )}
                   </>

@@ -54,6 +54,16 @@ export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
           setError(t('login.error.exists', language));
           setIsLoading(false);
         } else {
+          // Check if username is already taken
+          const isUsernameTaken = Object.values(users).some(
+            (u: any) => u.username.toLowerCase() === username.trim().toLowerCase()
+          );
+          if (isUsernameTaken) {
+            setError(language === 'id' ? 'Username sudah digunakan' : 'Username is already taken');
+            setIsLoading(false);
+            return;
+          }
+
           const userCount = Object.keys(users).length;
           const isOG = userCount < 100;
           
@@ -202,15 +212,27 @@ export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
             )}
           </button>
           
-          <div className="text-center pt-4">
+          <div className="text-center pt-4 space-y-4">
             <button 
               onClick={() => {
                 setIsLoginMode(!isLoginMode);
                 setError('');
               }}
-              className="text-sm text-secondary hover:text-primary transition-colors"
+              className="text-sm text-secondary hover:text-primary transition-colors block w-full"
             >
               {isLoginMode ? t('login.no_account', language) : t('login.has_account', language)}
+            </button>
+
+            <button 
+              onClick={() => {
+                if (window.confirm(language === 'id' ? 'Hapus semua data lokal? Ini akan menghapus semua akun di perangkat ini.' : 'Reset all local data? This will delete all accounts on this device.')) {
+                  localStorage.clear();
+                  window.location.reload();
+                }
+              }}
+              className="text-[10px] text-secondary/30 hover:text-accent transition-colors uppercase tracking-widest"
+            >
+              {language === 'id' ? 'Reset Data Aplikasi' : 'Reset App Data'}
             </button>
           </div>
         </motion.div>

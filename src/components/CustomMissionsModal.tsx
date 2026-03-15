@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Plus, Trash2, Wand2 } from 'lucide-react';
+import { X, Plus, Trash2, Wand2, Lock } from 'lucide-react';
 import { MissionType, UserState } from '../store';
 import { t } from '../utils/translations';
+import PremiumModal from './PremiumModal';
 
 interface CustomMissionsModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface CustomMissionsModalProps {
 export default function CustomMissionsModal({ isOpen, onClose, state, addCustomMission, removeCustomMission }: CustomMissionsModalProps) {
   const [activeTab, setActiveTab] = useState<MissionType>('REGULAR');
   const [newMissionText, setNewMissionText] = useState('');
+  const [showPremiumPrompt, setShowPremiumPrompt] = useState(false);
 
   if (!isOpen) return null;
 
@@ -23,6 +25,10 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!state.isPremium && currentMissions.length >= 10) {
+      setShowPremiumPrompt(true);
+      return;
+    }
     if (newMissionText.trim()) {
       addCustomMission(activeTab, newMissionText.trim());
       setNewMissionText('');
@@ -59,7 +65,7 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
           exit={{ scale: 0.95, opacity: 0, y: 20 }}
           className="relative w-full max-w-md bg-surface border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col max-h-[80vh]"
         >
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-6 shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
                 <Wand2 className="w-5 h-5 text-accent" />
@@ -73,7 +79,7 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
             </button>
           </div>
 
-          <div className="flex bg-background rounded-xl p-1 mb-6 border border-white/5 overflow-x-auto no-scrollbar">
+          <div className="flex bg-background rounded-xl p-1 mb-6 border border-white/5 overflow-x-auto no-scrollbar shrink-0">
             {tabs.map(type => (
               <button
                 key={type}
@@ -89,7 +95,15 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
             ))}
           </div>
 
-          <form onSubmit={handleAdd} className="flex gap-2 mb-6">
+          <div className="flex justify-between items-center mb-2 shrink-0">
+            <label className="text-sm font-bold text-secondary">
+              {state.language === 'id' ? 'Misi Baru' : 'New Mission'}
+            </label>
+            <span className={`text-xs font-bold ${currentMissions.length >= 10 && !state.isPremium ? 'text-red-400' : 'text-white/30'}`}>
+              {currentMissions.length} {state.isPremium ? '' : '/ 10'}
+            </span>
+          </div>
+          <form onSubmit={handleAdd} className="flex gap-2 mb-6 shrink-0">
             <input
               type="text"
               value={newMissionText}
@@ -106,14 +120,14 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
             </button>
           </form>
 
-          <div className="flex-1 overflow-y-auto no-scrollbar space-y-2">
+          <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 min-h-0">
             {currentMissions.length === 0 ? (
               <div className="text-center py-8 text-secondary text-sm">
                 {t('custom_missions.empty', state.language)}
               </div>
             ) : (
               currentMissions.map((mission, idx) => (
-                <div key={idx} className="flex items-center justify-between bg-background border border-white/5 p-4 rounded-xl group">
+                <div key={`${mission}-${idx}`} className="flex items-center justify-between bg-background border border-white/5 p-4 rounded-xl group">
                   <span className="text-sm pr-4">{mission}</span>
                   <button 
                     onClick={() => removeCustomMission(activeTab, mission)}
@@ -126,7 +140,7 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
             )}
           </div>
           
-          <div className="mt-4 pt-4 border-t border-white/5 text-xs text-secondary text-center">
+          <div className="mt-4 pt-4 border-t border-white/5 text-xs text-secondary text-center shrink-0">
             {activeTab === 'ROUTINE' ? (
               t('custom_missions.info.routine', state.language)
             ) : (
@@ -134,6 +148,12 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
             )}
           </div>
         </motion.div>
+        
+        <PremiumModal 
+          isOpen={showPremiumPrompt} 
+          onClose={() => setShowPremiumPrompt(false)} 
+          language={state.language} 
+        />
       </div>
     </AnimatePresence>
   );

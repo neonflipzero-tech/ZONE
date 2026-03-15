@@ -95,9 +95,9 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
                 <p className="text-sm text-secondary mt-1">{t('notifications.empty.desc', state.language)}</p>
               </div>
             ) : (
-              notifications.map((notif) => (
+              notifications.map((notif, index) => (
                 <motion.div
-                  key={notif.id}
+                  key={`${notif.id || notif.timestamp}-${index}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   onClick={() => !notif.read && markNotificationRead(notif.id)}

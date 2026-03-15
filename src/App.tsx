@@ -41,6 +41,17 @@ export default function App() {
   const [isChangingGoal, setIsChangingGoal] = useState(false);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('upgrade') === 'success') {
+      updateState({ isPremium: true });
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setTimeout(() => {
+        alert(state?.language === 'id' ? 'LockIn Premium Aktif! Terima kasih atas dukungan Anda.' : 'LockIn Premium Activated! Thank you for your support.');
+      }, 500);
+    }
+  }, [state?.language]);
+
+  useEffect(() => {
     // Simulate initial app load
     const timer = setTimeout(() => {
       setIsAppLoading(false);

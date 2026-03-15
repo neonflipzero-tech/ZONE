@@ -27,8 +27,8 @@ export default function FeedScreen({ posts, onLike, language }: FeedScreenProps)
           {t('feed.no_posts', language)}
         </div>
       ) : (
-        posts.map((post) => (
-          <div key={post.id} className="relative w-full h-[calc(100vh-4rem)] snap-start snap-always shrink-0 bg-black flex items-center justify-center overflow-hidden">
+        posts.map((post, index) => (
+          <div key={`${post.id || post.createdAt}-${index}`} className="relative w-full h-[calc(100vh-4rem)] snap-start snap-always shrink-0 bg-black flex items-center justify-center overflow-hidden">
             {/* Background blur for images that don't fit */}
             {post.type === 'image' && (
               <div 

@@ -64,28 +64,13 @@ export default function ProfileFrame({ frame, src, size = 'md' }: ProfileFramePr
       break;
     case 'frame-challenger':
       bgClass = 'bg-red-500';
-      borderClass = 'p-1.5';
+      borderClass = 'p-[4px]';
       decorations = (
-        <>
-          {/* Left Ear */}
-          <div className="absolute -top-2.5 -left-1 w-7 h-7 z-0 -rotate-12">
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full text-red-500 drop-shadow-md">
-              <path d="M12 2L2 22h20L12 2z" />
-            </svg>
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full text-background absolute inset-0 scale-50 origin-bottom">
-              <path d="M12 2L2 22h20L12 2z" />
-            </svg>
-          </div>
-          {/* Right Ear */}
-          <div className="absolute -top-2.5 -right-1 w-7 h-7 z-0 rotate-12">
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full text-red-500 drop-shadow-md">
-              <path d="M12 2L2 22h20L12 2z" />
-            </svg>
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full text-background absolute inset-0 scale-50 origin-bottom">
-              <path d="M12 2L2 22h20L12 2z" />
-            </svg>
-          </div>
-        </>
+        <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_20px_#ef4444,inset_0_0_15px_#ef4444] bg-red-950">
+          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,transparent,#ef4444,#dc2626,transparent)] animate-[spin_2s_linear_infinite] opacity-90 blur-sm" />
+          <div className="absolute inset-0 rounded-full border-2 border-red-400 border-dashed animate-[spin_4s_linear_infinite_reverse]" />
+          <div className="absolute inset-0 rounded-full border border-red-300/50" />
+        </div>
       );
       break;
     case 'frame-legend':
@@ -308,6 +293,33 @@ export default function ProfileFrame({ frame, src, size = 'md' }: ProfileFramePr
           <div className="absolute inset-0 rounded-full border-2 border-white/50" />
           <div className="absolute -top-1 -right-1 w-3 h-3 bg-pink-500 rounded-full animate-ping" />
           <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-blue-500 rounded-full animate-ping" style={{ animationDelay: '0.5s' }} />
+        </div>
+      );
+      break;
+    case 'frame-royal':
+      bgClass = 'bg-transparent';
+      borderClass = 'p-[5px]';
+      decorations = (
+        <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_30px_#fbbf24,inset_0_0_20px_#7e22ce] bg-purple-900">
+          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#fbbf24,#7e22ce,#fbbf24)] animate-[spin_4s_linear_infinite] opacity-90 blur-sm" />
+          <div className="absolute inset-0 rounded-full border-[3px] border-yellow-400 shadow-[0_0_15px_#fbbf24]" />
+          <div className="absolute inset-2 rounded-full border border-yellow-200/30" />
+          {/* Crown-like spikes */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-yellow-400 rotate-45 shadow-[0_0_10px_#fbbf24]" />
+        </div>
+      );
+      break;
+    case 'frame-dragon':
+      bgClass = 'bg-transparent';
+      borderClass = 'p-[6px]';
+      decorations = (
+        <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_25px_#ef4444,inset_0_0_15px_#991b1b] bg-red-950">
+          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#ef4444,#991b1b,#f97316,#ef4444)] animate-[spin_3s_linear_infinite] opacity-90 blur-md" />
+          <div className="absolute inset-0 rounded-full border-[4px] border-red-600 shadow-[0_0_20px_#ef4444]" />
+          {/* Dragon scales effect */}
+          <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_center,transparent_0%,black_100%)]" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] drop-shadow-[0_0_5px_#ef4444]">🔥</div>
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 text-[10px] drop-shadow-[0_0_5px_#ef4444]">🔥</div>
         </div>
       );
       break;

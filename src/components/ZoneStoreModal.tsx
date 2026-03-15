@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, Lock, Shield, Star, Store, Coins, Package, Zap, Snowflake } from 'lucide-react';
+import { ChevronLeft, Lock, Shield, Star, Store, Package, Zap, Snowflake, CheckCircle2 } from 'lucide-react';
+import { ZoneCoinIcon } from './ZoneCoinIcon';
 import ProfileFrame from './ProfileFrame';
 import { UserState, TITLES } from '../store';
 import { t } from '../utils/translations';
+import { sounds } from '../utils/sounds';
+import ZoneCoinInfoModal from './ZoneCoinInfoModal';
 
 interface ZoneStoreModalProps {
   isOpen: boolean;
@@ -18,20 +21,38 @@ const ALL_FRAMES = [
   'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-legend', 'frame-mythic',
   'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 
   'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 
-  'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral'
+  'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral',
+  'frame-royal', 'frame-dragon'
 ];
+
+const FRAME_COSTS: Record<string, number> = {
+  'frame-royal': 500,
+  'frame-dragon': 750,
+};
 
 export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateState }: ZoneStoreModalProps) {
   const [activeTab, setActiveTab] = useState<'frames' | 'titles' | 'items'>('frames');
   const [previewFrame, setPreviewFrame] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState<string | null>(null);
+  const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
+  const [isCoinInfoModalOpen, setIsCoinInfoModalOpen] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       setPreviewFrame(null);
       setPreviewTitle(null);
+      setPurchaseSuccess(null);
     }
   }, [isOpen]);
+
+  const handlePurchase = (cost: number, itemName: string, updateFn: () => void) => {
+    if ((state.zoneCoins || 0) >= cost) {
+      sounds.playPurchase();
+      updateFn();
+      setPurchaseSuccess(itemName);
+      setTimeout(() => setPurchaseSuccess(null), 2000);
+    }
+  };
 
   const isZaiki = state.username?.toLowerCase() === 'zaiki';
   const totalMissions = Object.values(state.dailyStats || {}).reduce((a, b) => (a as number) + (b as number), 0) as number;
@@ -88,6 +109,8 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
       case 'frame-omniscience': return t('frames.desc.omniscience', state.language);
       case 'frame-matrix': return t('frames.desc.matrix', state.language);
       case 'frame-viral': return t('frames.desc.viral', state.language);
+      case 'frame-royal': return t('frames.desc.royal', state.language);
+      case 'frame-dragon': return t('frames.desc.dragon', state.language);
       default: return '';
     }
   };
@@ -160,10 +183,13 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
               <Store className="w-5 h-5 text-accent mr-2" />
               {state.language === 'id' ? 'Toko Zona' : 'Zone Store'}
             </h2>
-            <div className="flex items-center space-x-1.5 bg-yellow-500/10 px-3 py-1.5 rounded-full border border-yellow-500/20">
-              <Coins className="w-4 h-4 text-yellow-400" />
+            <button 
+              onClick={() => setIsCoinInfoModalOpen(true)}
+              className="flex items-center space-x-1.5 bg-yellow-500/10 px-3 py-1.5 rounded-full border border-yellow-500/20 hover:scale-105 transition-transform cursor-pointer"
+            >
+              <ZoneCoinIcon className="w-4 h-4 text-yellow-400" />
               <span className="text-sm font-bold text-yellow-400">{state.zoneCoins || 0}</span>
-            </div>
+            </button>
           </div>
 
           {/* Tabs */}
@@ -248,6 +274,29 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
                           />
                         </div>
                       </div>
+                    )}
+
+                    {FRAME_COSTS[previewFrame] && (
+                      <button
+                        onClick={() => handlePurchase(FRAME_COSTS[previewFrame], previewFrame, () => {
+                          updateState({
+                            zoneCoins: (state.zoneCoins || 0) - FRAME_COSTS[previewFrame],
+                            unlockedFrames: [...(state.unlockedFrames || []), previewFrame]
+                          });
+                        })}
+                        disabled={(state.zoneCoins || 0) < FRAME_COSTS[previewFrame]}
+                        className={`mt-4 w-full max-w-[200px] py-2.5 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${
+                          (state.zoneCoins || 0) >= FRAME_COSTS[previewFrame] 
+                            ? 'bg-accent text-background hover:scale-105 active:scale-95' 
+                            : 'bg-white/5 text-white/30 cursor-not-allowed'
+                        }`}
+                      >
+                        <span>{state.language === 'id' ? 'Beli' : 'Buy'}</span>
+                        <div className="flex items-center space-x-1">
+                          <ZoneCoinIcon className="w-4 h-4" />
+                          <span>{FRAME_COSTS[previewFrame]}</span>
+                        </div>
+                      </button>
                     )}
                   </div>
                 </>
@@ -378,14 +427,12 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
                     </div>
                   </div>
                   <button
-                    onClick={() => {
-                      if ((state.zoneCoins || 0) >= 100) {
-                        updateState({
-                          zoneCoins: (state.zoneCoins || 0) - 100,
-                          doubleXpPotions: (state.doubleXpPotions || 0) + 1
-                        });
-                      }
-                    }}
+                    onClick={() => handlePurchase(100, '2x XP Potion', () => {
+                      updateState({
+                        zoneCoins: (state.zoneCoins || 0) - 100,
+                        doubleXpPotions: (state.doubleXpPotions || 0) + 1
+                      });
+                    })}
                     disabled={(state.zoneCoins || 0) < 100}
                     className={`w-full py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${
                       (state.zoneCoins || 0) >= 100 
@@ -395,7 +442,7 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
                   >
                     <span>{state.language === 'id' ? 'Beli' : 'Buy'}</span>
                     <div className="flex items-center space-x-1">
-                      <Coins className="w-4 h-4" />
+                      <ZoneCoinIcon className="w-4 h-4" />
                       <span>100</span>
                     </div>
                   </button>
@@ -417,14 +464,12 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
                     </div>
                   </div>
                   <button
-                    onClick={() => {
-                      if ((state.zoneCoins || 0) >= 150) {
-                        updateState({
-                          zoneCoins: (state.zoneCoins || 0) - 150,
-                          streakFreezes: (state.streakFreezes || 0) + 1
-                        });
-                      }
-                    }}
+                    onClick={() => handlePurchase(150, 'Streak Freeze', () => {
+                      updateState({
+                        zoneCoins: (state.zoneCoins || 0) - 150,
+                        streakFreezes: (state.streakFreezes || 0) + 1
+                      });
+                    })}
                     disabled={(state.zoneCoins || 0) < 150}
                     className={`w-full py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${
                       (state.zoneCoins || 0) >= 150 
@@ -434,8 +479,45 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
                   >
                     <span>{state.language === 'id' ? 'Beli' : 'Buy'}</span>
                     <div className="flex items-center space-x-1">
-                      <Coins className="w-4 h-4" />
+                      <ZoneCoinIcon className="w-4 h-4" />
                       <span>150</span>
+                    </div>
+                  </button>
+                </div>
+
+                {/* 2x Coin Potion */}
+                <div className="p-4 rounded-2xl bg-surface/50 border border-white/10 flex flex-col">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
+                        <ZoneCoinIcon className="w-6 h-6 text-yellow-400" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-primary">2x Coin Potion</h4>
+                        <p className="text-xs text-secondary mt-0.5">
+                          {state.language === 'id' ? 'Gandakan Zone Coins selama 24 jam' : 'Double Zone Coins for 24 hours'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handlePurchase(200, '2x Coin Potion', () => {
+                      updateState({
+                        zoneCoins: (state.zoneCoins || 0) - 200,
+                        doubleCoinPotions: (state.doubleCoinPotions || 0) + 1
+                      });
+                    })}
+                    disabled={(state.zoneCoins || 0) < 200}
+                    className={`w-full py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${
+                      (state.zoneCoins || 0) >= 200 
+                        ? 'bg-accent text-background hover:bg-accent/90' 
+                        : 'bg-white/5 text-white/30 cursor-not-allowed'
+                    }`}
+                  >
+                    <span>{state.language === 'id' ? 'Beli' : 'Buy'}</span>
+                    <div className="flex items-center space-x-1">
+                      <ZoneCoinIcon className="w-4 h-4" />
+                      <span>200</span>
                     </div>
                   </button>
                 </div>
@@ -443,8 +525,29 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
             )}
             <div className="h-8" /> {/* Extra padding at bottom */}
           </div>
+
+          {/* Purchase Success Toast */}
+          <AnimatePresence>
+            {purchaseSuccess && (
+              <motion.div
+                initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.9 }}
+                className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full font-bold shadow-lg shadow-green-500/20 flex items-center space-x-2 z-50 whitespace-nowrap"
+              >
+                <CheckCircle2 className="w-5 h-5" />
+                <span>{state.language === 'id' ? `Berhasil membeli ${purchaseSuccess}!` : `Successfully purchased ${purchaseSuccess}!`}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )}
+      
+      <ZoneCoinInfoModal
+        isOpen={isCoinInfoModalOpen}
+        onClose={() => setIsCoinInfoModalOpen(false)}
+        state={state}
+      />
     </AnimatePresence>
   );
 }

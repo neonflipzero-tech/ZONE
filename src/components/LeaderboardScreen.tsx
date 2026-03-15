@@ -36,8 +36,15 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
   const [isUsingFirebase, setIsUsingFirebase] = useState(!!db);
   const [selectedUser, setSelectedUser] = useState<LeaderboardUser | null>(null);
   const [selectedActionUser, setSelectedActionUser] = useState<LeaderboardUser | null>(null);
+  const [rivalError, setRivalError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const { updateState, addNotification } = useAppState();
+
+  useEffect(() => {
+    if (selectedActionUser) {
+      setRivalError(null);
+    }
+  }, [selectedActionUser]);
 
   useEffect(() => {
     if (db) {
@@ -182,6 +189,9 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
             <div className="w-12 h-12 flex items-center justify-center mb-2 relative">
               <ProfileFrame frame={allUsers[1]?.equippedFrame || null} src={allUsers[1]?.profilePicture || null} size="sm" />
               <div className="absolute -bottom-1 bg-gray-300 text-black text-[10px] font-bold px-1.5 rounded-full z-20">2</div>
+              {state.rivalId === allUsers[1]?.userId && (
+                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
+              )}
             </div>
             <span className="text-xs font-bold truncate w-full text-center">{allUsers[1]?.username || '-'}</span>
             {allUsers[1]?.equippedTitle && (() => {
@@ -206,6 +216,9 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
               <ProfileFrame frame={allUsers[0]?.equippedFrame || null} src={allUsers[0]?.profilePicture || null} size="md" />
               <Trophy className="w-6 h-6 text-yellow-400 absolute -top-3 drop-shadow-md z-20" />
               <div className="absolute -bottom-1 bg-yellow-400 text-black text-xs font-bold px-2 rounded-full z-20">1</div>
+              {state.rivalId === allUsers[0]?.userId && (
+                <div className="absolute top-0 -right-2 bg-red-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
+              )}
             </div>
             <span className="text-sm font-bold truncate w-full text-center text-primary">{allUsers[0]?.username || '-'}</span>
             {allUsers[0]?.equippedTitle && (() => {
@@ -229,6 +242,9 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
             <div className="w-12 h-12 flex items-center justify-center mb-2 relative">
               <ProfileFrame frame={allUsers[2]?.equippedFrame || null} src={allUsers[2]?.profilePicture || null} size="sm" />
               <div className="absolute -bottom-1 bg-amber-700 text-white text-[10px] font-bold px-1.5 rounded-full z-20">3</div>
+              {state.rivalId === allUsers[2]?.userId && (
+                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
+              )}
             </div>
             <span className="text-xs font-bold truncate w-full text-center">{allUsers[2]?.username || '-'}</span>
             {allUsers[2]?.equippedTitle && (() => {
@@ -253,7 +269,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
             
             return (
               <div 
-                key={user.username}
+                key={`${user.userId || user.username}-${index}`}
                 onClick={() => setSelectedActionUser(user)}
                 className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all cursor-pointer hover:scale-[1.02] ${
                   isCurrentUser 
@@ -270,9 +286,16 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <h4 className={`font-bold truncate ${isCurrentUser ? 'text-primary' : 'text-secondary'}`}>
-                    {user.username} {isCurrentUser && '(You)'}
-                  </h4>
+                  <div className="flex items-center space-x-2">
+                    <h4 className={`font-bold truncate ${isCurrentUser ? 'text-primary' : 'text-secondary'}`}>
+                      {user.username} {isCurrentUser && '(You)'}
+                    </h4>
+                    {state.rivalId === user.userId && (
+                      <span className="px-1.5 py-0.5 rounded-md bg-red-500/20 text-red-500 text-[8px] font-bold uppercase tracking-wider border border-red-500/30">
+                        Rival
+                      </span>
+                    )}
+                  </div>
                   {user.equippedTitle && (() => {
                     const titleDef = TITLES.find(t => t.id === user.equippedTitle);
                     return (
@@ -319,18 +342,30 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
             </div>
 
             <div className="space-y-3">
+              {rivalError && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold flex items-center space-x-2 mb-2"
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{rivalError}</span>
+                </motion.div>
+              )}
+
               {state.userId !== selectedActionUser.userId && (
                 <button
                   onClick={() => {
-                    if (state.beatenRivals?.includes(selectedActionUser.userId)) {
-                      addNotification({
-                        title: JSON.stringify({ key: 'leaderboard.cannot_select_rival' }),
-                        description: JSON.stringify({ key: 'leaderboard.cannot_select_rival_desc' }),
-                        icon: 'AlertTriangle'
-                      });
-                      setSelectedActionUser(null);
+                    if (state.rivalId === selectedActionUser.userId) {
+                      setRivalError(state.language === 'id' ? 'Kamu sudah bersaing dengan mereka!' : 'You are already rival with them!');
                       return;
                     }
+
+                    if (state.beatenRivals?.includes(selectedActionUser.userId) && selectedActionUser.level <= state.level) {
+                      setRivalError(state.language === 'id' ? 'Kamu sudah mengalahkan rival ini! Cari lawan yang lebih kuat.' : 'You already defeated this rival! Find a stronger opponent.');
+                      return;
+                    }
+                    
                     sounds.playSetRival();
                     updateState({ rivalId: selectedActionUser.userId });
                     addNotification({

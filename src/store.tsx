@@ -2,7 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { sounds } from './utils/sounds';
 
 export type PathType = 'PRODUCTIVE' | 'STRONGER' | 'EXTROVERT' | 'DISCIPLINE' | 'MENTAL_HEALTH' | 'OTHER';
-export type MissionType = 'REGULAR' | 'DAILY' | 'WEEKLY' | 'ROUTINE';
+export type MissionType = 'REGULAR' | 'DAILY' | 'WEEKLY' | 'ROUTINE' | 'BOSS';
 
 export interface Mission {
   id: string;
@@ -33,6 +33,23 @@ export interface Notification {
   icon: string;
   read: boolean;
   timestamp: number;
+}
+
+export interface BossTask {
+  id: string;
+  text: string;
+  completed: boolean;
+  damage: number;
+}
+
+export interface BossState {
+  isActive: boolean;
+  topic: string | null;
+  hp: number;
+  maxHp: number;
+  tasks: BossTask[];
+  lastEncounterDate: string | null;
+  status: 'pending_choice' | 'active' | 'defeated' | 'escaped';
 }
 
 export interface UserState {
@@ -76,7 +93,10 @@ export interface UserState {
   zoneCoins: number;
   doubleXpPotions: number;
   doubleXpActiveUntil: string | null;
+  doubleCoinPotions: number;
+  doubleCoinActiveUntil: string | null;
   isPremium: boolean;
+  bossState?: BossState;
 }
 
 export const RANKS = [
@@ -245,7 +265,8 @@ export const createDefaultState = (username: string): UserState => ({
     REGULAR: [],
     DAILY: [],
     WEEKLY: [],
-    ROUTINE: []
+    ROUTINE: [],
+    BOSS: []
   },
   unlockedItemsQueue: [],
   shareCount: 0,
@@ -260,7 +281,18 @@ export const createDefaultState = (username: string): UserState => ({
   zoneCoins: 0,
   doubleXpPotions: 0,
   doubleXpActiveUntil: null,
+  doubleCoinPotions: 0,
+  doubleCoinActiveUntil: null,
   isPremium: false,
+  bossState: {
+    isActive: false,
+    topic: null,
+    hp: 0,
+    maxHp: 0,
+    tasks: [],
+    lastEncounterDate: null,
+    status: 'pending_choice'
+  }
 });
 
 const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
@@ -319,7 +351,8 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Review your monthly goals", "Set goals for next month", "Create a vision board", 
       "Read a biography", "Watch a documentary"
     ],
-    ROUTINE: []
+    ROUTINE: [],
+    BOSS: []
   },
   STRONGER: {
     REGULAR: [
@@ -376,7 +409,8 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Meal prep for 7 days", "Track macros for 7 days", "Do 200 push-ups in one day", 
       "Do 200 squats in one day", "Run a 5k under 30 mins"
     ],
-    ROUTINE: []
+    ROUTINE: [],
+    BOSS: []
   },
   EXTROVERT: {
     REGULAR: [
@@ -433,7 +467,8 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Go to a trade show", "Volunteer at an animal shelter", "Volunteer at a food bank", 
       "Join a book club", "Start a conversation with a stranger at a cafe"
     ],
-    ROUTINE: []
+    ROUTINE: [],
+    BOSS: []
   },
   DISCIPLINE: {
     REGULAR: [
@@ -490,7 +525,8 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Wash all windows", "Clean the oven", "Clean the fridge", 
       "Organize the garage", "Donate 5 items"
     ],
-    ROUTINE: []
+    ROUTINE: [],
+    BOSS: []
   },
   MENTAL_HEALTH: {
     REGULAR: [
@@ -547,13 +583,15 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Have a pajama day", "Sleep in without an alarm", "Do a 1-hour meditation", 
       "Do a 1-hour yoga class", "Write a short story"
     ],
-    ROUTINE: []
+    ROUTINE: [],
+    BOSS: []
   },
   OTHER: {
     REGULAR: [],
     DAILY: [],
     WEEKLY: [],
-    ROUTINE: []
+    ROUTINE: [],
+    BOSS: []
   }
 };
 
@@ -672,8 +710,9 @@ function useAppStateInternal() {
   }, [state, activeUserEmail]);
 
   useEffect(() => {
-    if (state && (state.username.toLowerCase() === 'zaiki' || activeUserEmail === 'zaikiwildan@gmail.com')) {
-      if (state.level < 50) {
+    if (state && (state.username.toLowerCase().includes('zaiki') || (activeUserEmail && activeUserEmail.toLowerCase().includes('zaiki')))) {
+      const needsUpdate = state.level < 50 || (state.zoneCoins || 0) < 1000;
+      if (needsUpdate) {
         setState(prev => {
           if (!prev) return prev;
           const newFrames = [...(prev.unlockedFrames || [])];
@@ -681,11 +720,12 @@ function useAppStateInternal() {
           
           return {
             ...prev,
-            level: 50,
-            xp: 0,
-            highestRankAchieved: 'Mythic',
+            level: Math.max(prev.level, 50),
+            xp: prev.level < 50 ? 0 : prev.xp,
+            highestRankAchieved: prev.level < 50 ? 'Mythic' : prev.highestRankAchieved,
             unlockedFrames: newFrames,
-            equippedFrame: 'frame-mythic'
+            equippedFrame: prev.level < 50 ? 'frame-mythic' : prev.equippedFrame,
+            zoneCoins: Math.max(prev.zoneCoins || 0, 1000)
           };
         });
       }
@@ -697,6 +737,7 @@ function useAppStateInternal() {
     const usersStr = localStorage.getItem('lockin_auth_users');
     const users = usersStr ? JSON.parse(usersStr) : {};
     const isOG = users[email]?.isOG;
+    const isZaiki = username.toLowerCase().includes('zaiki') || email.toLowerCase().includes('zaiki');
 
     let newState: UserState;
     if (saved) {
@@ -707,13 +748,16 @@ function useAppStateInternal() {
         if (!parsed.titles) parsed.titles = ['Newbie'];
         if (isOG && !parsed.titles.includes('OG')) parsed.titles.push('OG');
         newState = { ...createDefaultState(username), ...parsed, isLoggedIn: true, username };
+        if (isZaiki) newState.isPremium = true;
       } catch (e) {
         newState = createDefaultState(username);
         if (isOG) newState.titles.push('OG');
+        if (isZaiki) newState.isPremium = true;
       }
     } else {
       newState = createDefaultState(username);
       if (isOG) newState.titles.push('OG');
+      if (isZaiki) newState.isPremium = true;
     }
     setActiveUserEmail(email);
     setState(newState);
@@ -745,7 +789,7 @@ function useAppStateInternal() {
     let missionsChanged = false;
 
     const pathMissions = path === 'OTHER' 
-      ? (state.customMissions || { REGULAR: [], DAILY: [], WEEKLY: [], ROUTINE: [] })
+      ? (state.customMissions || { REGULAR: [], DAILY: [], WEEKLY: [], ROUTINE: [], BOSS: [] })
       : PATH_MISSIONS[path];
 
     const getMissionsForType = (type: MissionType) => {
@@ -771,6 +815,78 @@ function useAppStateInternal() {
         updates.streakFreezes = (state.streakFreezes || 0) + 1;
         updates.lastStreakFreezeGiven = currentWeek;
       }
+    }
+
+    const isMonday = new Date().getDay() === 1;
+    let bossState = state.bossState || {
+      isActive: false,
+      topic: null,
+      hp: 0,
+      maxHp: 0,
+      tasks: [],
+      lastEncounterDate: null,
+      status: 'escaped' as const // Default to escaped so new users don't get penalized immediately
+    };
+    let bossChanged = false;
+
+    if (isMonday) {
+      if (bossState.lastEncounterDate !== currentWeek) {
+        bossState = {
+          isActive: true,
+          topic: null,
+          hp: 0,
+          maxHp: 0,
+          tasks: [],
+          lastEncounterDate: currentWeek,
+          status: 'pending_choice'
+        };
+        bossChanged = true;
+      }
+    } else {
+      if (bossState.lastEncounterDate !== null && bossState.lastEncounterDate !== currentWeek) {
+        // User missed Monday entirely
+        bossState = {
+          ...bossState,
+          isActive: false,
+          status: 'escaped',
+          lastEncounterDate: currentWeek
+        };
+        updates.zoneCoins = Math.max(0, (state.zoneCoins || 0) - 50);
+        updates.notifications = [
+          {
+            id: `boss-escape-${Date.now()}-${Math.random()}`,
+            title: state.language === 'id' ? 'Bos Mingguan Kabur!' : 'Weekly Boss Escaped!',
+            description: state.language === 'id' ? 'Kamu melewatkan bos mingguan dan dia mencuri 50 Zone Coins milikmu!' : 'You missed the weekly boss and it stole 50 of your Zone Coins!',
+            icon: 'Skull',
+            read: false
+          },
+          ...(state.notifications || [])
+        ];
+        bossChanged = true;
+      } else if (bossState.lastEncounterDate === currentWeek && (bossState.isActive || bossState.status === 'pending_choice')) {
+        // User saw the boss on Monday but didn't defeat it
+        bossState = {
+          ...bossState,
+          isActive: false,
+          status: 'escaped'
+        };
+        updates.zoneCoins = Math.max(0, (state.zoneCoins || 0) - 50);
+        updates.notifications = [
+          {
+            id: `boss-escape-${Date.now()}-${Math.random()}`,
+            title: state.language === 'id' ? 'Bos Mingguan Kabur!' : 'Weekly Boss Escaped!',
+            description: state.language === 'id' ? 'Bos mingguan berhasil kabur dan mencuri 50 Zone Coins milikmu!' : 'The weekly boss escaped and stole 50 of your Zone Coins!',
+            icon: 'Skull',
+            read: false
+          },
+          ...(state.notifications || [])
+        ];
+        bossChanged = true;
+      }
+    }
+
+    if (bossChanged) {
+      updates.bossState = bossState;
     }
 
     // Ensure all mission types have the correct number of missions
@@ -922,7 +1038,9 @@ function useAppStateInternal() {
       const baseXpReward = m.type === 'WEEKLY' ? 200 : m.type === 'DAILY' ? 100 : 50;
       const isDoubleXpActive = prev.doubleXpActiveUntil && new Date(prev.doubleXpActiveUntil) > new Date();
       const xpReward = isDoubleXpActive ? baseXpReward * 2 : baseXpReward;
-      const zcReward = m.type === 'WEEKLY' ? 50 : m.type === 'DAILY' ? 20 : 10;
+      const baseZcReward = m.type === 'WEEKLY' ? 50 : m.type === 'DAILY' ? 20 : 10;
+      const isDoubleCoinActive = prev.doubleCoinActiveUntil && new Date(prev.doubleCoinActiveUntil) > new Date();
+      const zcReward = isDoubleCoinActive ? baseZcReward * 2 : baseZcReward;
       
       let newXp = prev.xp + xpReward;
       let newZoneCoins = (prev.zoneCoins || 0) + zcReward;
@@ -953,7 +1071,7 @@ function useAppStateInternal() {
         }
       }
 
-      if (newXp >= newLevel * 100) {
+      while (newXp >= newLevel * 100) {
         newXp = newXp - newLevel * 100;
         newLevel += 1;
         leveledUp = true;
@@ -1221,11 +1339,34 @@ function useAppStateInternal() {
         newUnlockedItemsQueue.push({ type: 'title', id: 'Rival Crusher' });
       }
 
-      const newBeatenRivals = [...(prev.beatenRivals || []), prev.rivalId];
+      const newBeatenRivals = prev.beatenRivals?.includes(prev.rivalId) 
+        ? prev.beatenRivals 
+        : [...(prev.beatenRivals || []), prev.rivalId];
+
+      let newXp = prev.xp + 500;
+      let newLevel = prev.level;
+      let leveledUp = false;
+      let newUnlockedFrames = [...(prev.unlockedFrames || [])];
+
+      while (newXp >= newLevel * 100) {
+        newXp = newXp - newLevel * 100;
+        newLevel += 1;
+        leveledUp = true;
+        
+        const newRank = getRankForLevel(newLevel);
+        const frameName = `frame-${newRank.name.toLowerCase()}`;
+        if (!newUnlockedFrames.includes(frameName)) {
+          newUnlockedFrames.push(frameName);
+          newUnlockedItemsQueue.push({ type: 'frame', id: frameName });
+        }
+      }
 
       return {
         ...prev,
-        xp: prev.xp + 500, // Bonus XP
+        xp: newXp,
+        level: newLevel,
+        animatingLevelUp: leveledUp ? true : prev.animatingLevelUp,
+        unlockedFrames: newUnlockedFrames,
         titles: newTitles,
         unlockedItemsQueue: newUnlockedItemsQueue,
         rivalId: null, // Clear rival after crushing
@@ -1344,7 +1485,7 @@ function useAppStateInternal() {
           if (availableTexts && availableTexts.length > 0) {
             const randomText = availableTexts[Math.floor(Math.random() * availableTexts.length)];
             newMissions.push({
-              id: `${Date.now()}-${type}`,
+              id: `${Date.now()}-${type}-${Math.random()}`,
               text: randomText,
               completed: false,
               type,

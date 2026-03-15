@@ -1,12 +1,16 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, useEffect } from 'react';
 import { UserState, MissionType, getRankForLevel, Mission, useAppState, TITLES } from '../store';
-import { CheckCircle2, Circle, Flame, Trophy, User, Shield, Timer, Wand2, Bell } from 'lucide-react';
+import { CheckCircle2, Circle, Flame, Trophy, User, Shield, Timer, Wand2, Bell, Zap, Skull, Swords, X, ArrowLeft, Target, Mountain, Star } from 'lucide-react';
+import { ZoneCoinIcon } from './ZoneCoinIcon';
 import { t } from '../utils/translations';
 import { sounds } from '../utils/sounds';
 import ProfileFrame from './ProfileFrame';
 import CustomMissionsModal from './CustomMissionsModal';
 import NotificationCenter from './NotificationCenter';
+import ZoneCoinInfoModal from './ZoneCoinInfoModal';
+import ZoneStoreModal from './ZoneStoreModal';
+import { calculateOVR } from '../store';
 
 interface HomeScreenProps {
   state: UserState;
@@ -34,6 +38,9 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [isCustomMissionsModalOpen, setIsCustomMissionsModalOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
+  const [isCoinInfoModalOpen, setIsCoinInfoModalOpen] = useState(false);
+  const [isZoneStoreModalOpen, setIsZoneStoreModalOpen] = useState(false);
+  const [showVictoryAnimation, setShowVictoryAnimation] = useState(false);
   const [showStreakFreezeDialog, setShowStreakFreezeDialog] = useState(false);
   const [pendingMissionId, setPendingMissionId] = useState<string | null>(null);
   const { updateState } = useAppState();
@@ -116,6 +123,10 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
   const currentRank = getRankForLevel(state.level);
   const unreadNotificationsCount = (state.notifications || []).filter(n => !n.read).length;
 
+  const isXpActive = state.doubleXpActiveUntil && new Date(state.doubleXpActiveUntil) > new Date();
+  const isCoinActive = state.doubleCoinActiveUntil && new Date(state.doubleCoinActiveUntil) > new Date();
+  const anyItemActive = isXpActive || isCoinActive;
+
   // Clear streak freeze notification after 5 seconds
   useEffect(() => {
     if (state.streakFreezeUsedToday) {
@@ -125,6 +136,37 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
       return () => clearTimeout(timer);
     }
   }, [state.streakFreezeUsedToday, updateState]);
+
+  useEffect(() => {
+    const isMonday = new Date().getDay() === 1;
+    if (isMonday) {
+      if (state.bossState && !state.bossState.isActive && state.chosenPath) {
+        // Use setTimeout to avoid updating state during render
+        setTimeout(() => {
+          updateState({
+            bossState: {
+              ...state.bossState!,
+              isActive: true,
+              status: 'pending_choice',
+              lastEncounterDate: null
+            }
+          });
+        }, 0);
+      }
+    } else {
+      // If not Monday, ensure boss is NOT active
+      if (state.bossState?.isActive) {
+        setTimeout(() => {
+          updateState({
+            bossState: {
+              ...state.bossState!,
+              isActive: false
+            }
+          });
+        }, 0);
+      }
+    }
+  }, [state.bossState?.isActive, state.chosenPath, updateState]);
 
   return (
     <motion.div 
@@ -162,7 +204,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
       </button>
 
       {/* Header */}
-      <div className="px-6 pt-16 pb-6 flex justify-between items-center sticky top-0 bg-background/80 backdrop-blur-md z-10">
+      <div className={`px-6 ${anyItemActive ? 'pt-10' : 'pt-16'} pb-6 flex justify-between items-center sticky top-0 bg-background/80 backdrop-blur-md z-10`}>
         <div className="flex items-center space-x-3">
           <div className="relative">
             <ProfileFrame frame={state.equippedFrame} src={state.profilePicture} size="sm" />
@@ -184,20 +226,57 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
             })()}
           </div>
         </div>
-        <div className="flex items-center space-x-3">
-          <div className={`flex items-center space-x-1.5 bg-gradient-to-r ${streakBgClass} px-3 py-1.5 rounded-full border shadow-sm`}>
-            <Flame className={`w-4 h-4 ${streakColorClass}`} />
-            <span className={`text-sm font-bold ${streakColorClass}`}>{state.streak || 0}</span>
-            {(state.streakFreezes || 0) > 0 && (
-              <div className={`flex items-center ml-1 space-x-0.5 pl-1.5 border-l ${hasCompletedQuestToday ? 'border-orange-500/20' : 'border-gray-500/20'}`} title="Streak Freeze">
-                <Shield className="w-3 h-3 text-blue-400" />
-                <span className="text-[10px] font-bold text-blue-400">{state.streakFreezes}</span>
+        <div className={`flex flex-col items-end ${anyItemActive ? 'space-y-1.5' : 'space-y-1'}`}>
+          {anyItemActive ? (
+            <>
+              <div className="flex items-center space-x-1.5 bg-gradient-to-r from-surface to-surface-hover px-3 py-1.5 rounded-full border border-white/10 shadow-sm shadow-accent/5">
+                <span className="text-xs font-bold text-accent tracking-tight">{state.xp} XP</span>
               </div>
-            )}
-          </div>
-          <div className="flex items-center space-x-1.5 bg-gradient-to-r from-surface to-surface-hover px-3 py-1.5 rounded-full border border-white/10 shadow-sm shadow-accent/5">
-            <span className="text-sm font-bold text-accent">{state.xp} XP</span>
-          </div>
+              <div className="flex items-center space-x-2">
+                <div className={`flex items-center space-x-1.5 bg-gradient-to-r ${streakBgClass} px-3 py-1.5 rounded-full border shadow-sm`}>
+                  <Flame className={`w-4 h-4 ${streakColorClass}`} />
+                  <span className={`text-sm font-bold ${streakColorClass}`}>{state.streak || 0}</span>
+                  
+                  {(state.streakFreezes || 0) > 0 && (
+                    <div className={`flex items-center ml-1 space-x-0.5 pl-1.5 border-l ${hasCompletedQuestToday ? 'border-orange-500/20' : 'border-gray-500/20'}`} title="Streak Freeze">
+                      <Shield className="w-3 h-3 text-blue-400" />
+                      <span className="text-[10px] font-bold text-blue-400">{state.streakFreezes}</span>
+                    </div>
+                  )}
+
+                  {isXpActive && (
+                    <div className={`flex items-center ml-1 space-x-0.5 pl-1.5 border-l ${hasCompletedQuestToday ? 'border-orange-500/20' : 'border-gray-500/20'}`} title="2x XP Active">
+                      <Zap className="w-3 h-3 text-purple-400" />
+                      <span className="text-[10px] font-bold text-purple-400">2x</span>
+                    </div>
+                  )}
+                  {isCoinActive && (
+                    <div className={`flex items-center ml-1 space-x-0.5 pl-1.5 border-l ${hasCompletedQuestToday ? 'border-orange-500/20' : 'border-gray-500/20'}`} title="2x Coin Active">
+                      <ZoneCoinIcon className="w-3 h-3 text-yellow-400" />
+                      <span className="text-[10px] font-bold text-yellow-400">2x</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <div className={`flex items-center space-x-1.5 bg-gradient-to-r ${streakBgClass} px-3 py-1.5 rounded-full border shadow-sm`}>
+                <Flame className={`w-4 h-4 ${streakColorClass}`} />
+                <span className={`text-sm font-bold ${streakColorClass}`}>{state.streak || 0}</span>
+                
+                {(state.streakFreezes || 0) > 0 && (
+                  <div className={`flex items-center ml-1 space-x-0.5 pl-1.5 border-l ${hasCompletedQuestToday ? 'border-orange-500/20' : 'border-gray-500/20'}`} title="Streak Freeze">
+                    <Shield className="w-3 h-3 text-blue-400" />
+                    <span className="text-[10px] font-bold text-blue-400">{state.streakFreezes}</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center space-x-1.5 bg-gradient-to-r from-surface to-surface-hover px-3 py-1.5 rounded-full border border-white/10 shadow-sm shadow-accent/5">
+                <span className="text-xs font-bold text-accent tracking-tight">{state.xp} XP</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -224,10 +303,17 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
 
           {/* Tabs */}
           <div className="flex bg-surface rounded-xl p-1 mb-6 border border-white/5 overflow-x-auto no-scrollbar">
-            {(state.chosenPath === 'OTHER' 
-              ? ['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] as MissionType[]
-              : ['REGULAR', 'DAILY', 'WEEKLY'] as MissionType[]
-            ).map((tab) => (
+            {(() => {
+              const baseTabs = state.chosenPath === 'OTHER' 
+                ? ['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] as MissionType[]
+                : ['REGULAR', 'DAILY', 'WEEKLY'] as MissionType[];
+              
+              const isMonday = new Date().getDay() === 1;
+              if (isMonday && (state.bossState?.isActive || state.bossState?.status === 'pending_choice')) {
+                return [...baseTabs, 'BOSS' as MissionType];
+              }
+              return baseTabs;
+            })().map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -237,23 +323,25 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                     : 'text-secondary hover:text-primary'
                 }`}
               >
-                {t(`home.tab.${tab.toLowerCase()}`, state.language)}
+                {tab === 'BOSS' ? 'BOSS' : t(`home.tab.${tab.toLowerCase()}`, state.language)}
               </button>
             ))}
           </div>
           
           {/* Progress Bar */}
-          <div className="h-1.5 w-full bg-surface rounded-full mb-6 overflow-hidden">
-            <motion.div 
-              className="h-full bg-gradient-to-r from-accent to-orange-500"
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPercentage}%` }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-            />
-          </div>
+          {activeTab !== 'BOSS' && (
+            <div className="h-1.5 w-full bg-surface rounded-full mb-6 overflow-hidden">
+              <motion.div 
+                className="h-full bg-gradient-to-r from-accent to-orange-500"
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPercentage}%` }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+              />
+            </div>
+          )}
 
           <div className="space-y-3">
-            {displayedMissions.length === 0 ? (
+            {activeTab === 'BOSS' ? null : displayedMissions.length === 0 ? (
               <div className="text-center py-12 px-4 bg-surface/50 rounded-2xl border border-white/5">
                 <Wand2 className="w-12 h-12 text-secondary/30 mx-auto mb-4" />
                 <h4 className="text-lg font-bold mb-2">
@@ -282,7 +370,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
 
                 return (
                   <motion.div
-                    key={mission.id}
+                    key={`${mission.id || mission.text}-${index}`}
                     initial={{ y: 10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: index * 0.1 }}
@@ -405,6 +493,244 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {activeTab === 'BOSS' && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed inset-0 z-50 bg-black overflow-y-auto flex flex-col"
+          >
+            {/* Header with Close Button */}
+            <div className="p-6 flex items-center sticky top-0 bg-black/80 backdrop-blur-md z-20 border-b border-white/5">
+              <button 
+                onClick={() => setActiveTab('REGULAR')} 
+                className="p-2 bg-surface rounded-full hover:bg-surface-hover transition-colors border border-white/10 mr-4"
+              >
+                <ArrowLeft className="w-6 h-6 text-white" />
+              </button>
+              <h2 className="text-xl font-display font-bold text-rose-500 tracking-wider">
+                {state.language === 'id' ? 'LAWAN BOS' : 'BOSS BATTLE'}
+              </h2>
+            </div>
+
+            {/* Boss Content */}
+            <div className="flex-1 flex flex-col items-center justify-center p-6 pb-20">
+              <div className="w-full max-w-2xl text-center py-12 px-6 bg-surface/50 rounded-3xl border border-rose-500/20 shadow-[0_0_50px_rgba(244,63,94,0.05)] relative overflow-hidden">
+                {/* Background glow */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-40 bg-rose-500/10 blur-[60px] pointer-events-none" />
+                
+                <AnimatePresence>
+                  {showVictoryAnimation && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 1.2 }}
+                      className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md"
+                    >
+                      <motion.div
+                        animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.2, 1] }}
+                        transition={{ duration: 1, repeat: Infinity }}
+                        className="relative"
+                      >
+                        <div className="absolute inset-0 bg-rose-500/30 blur-3xl rounded-full" />
+                        <Trophy className="w-32 h-32 text-rose-400 drop-shadow-[0_0_30px_rgba(244,63,94,0.8)] mb-6 relative z-10" />
+                      </motion.div>
+                      <h2 className="text-4xl font-display font-black text-rose-400 mb-2 uppercase tracking-widest">
+                        {state.language === 'id' ? 'Bos Dikalahkan!' : 'Boss Defeated!'}
+                      </h2>
+                      <p className="text-xl text-rose-200/80 font-bold">+500 Zone Coins</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {state.bossState?.status === 'pending_choice' ? (
+                  <div className="relative z-10">
+                    <div className="w-20 h-20 mx-auto bg-rose-500/10 rounded-full flex items-center justify-center mb-6 border border-rose-500/20">
+                      <Swords className="w-10 h-10 text-rose-500" />
+                    </div>
+                    <h4 className="text-3xl font-display font-black mb-3 text-rose-500 tracking-tight">
+                      {state.language === 'id' ? 'PILIH BOS' : 'CHOOSE BOSS'}
+                    </h4>
+                    <p className="text-base text-secondary mb-10 max-w-sm mx-auto">
+                      {state.language === 'id' ? 'Pilih bos mingguanmu. Kalahkan sebelum hari Selasa!' : 'Choose your weekly boss. Defeat it before Tuesday!'}
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {['Productivity', 'Fitness', 'Learning', 'Mindfulness'].map(topic => (
+                        <button
+                          key={topic}
+                          onClick={() => {
+                            const bossTaskTemplates: Record<string, string[]> = {
+                              'Productivity': [
+                                'Clear your email inbox completely',
+                                'Plan your entire week ahead',
+                                'Complete a 2-hour deep work session',
+                                'Organize your physical workspace',
+                                'Review and update all your goals'
+                              ],
+                              'Fitness': [
+                                'Do a 30-minute intense workout',
+                                'Hit 10,000 steps today',
+                                'Drink 3 liters of water',
+                                'Do 50 push-ups',
+                                'Stretch for 15 minutes'
+                              ],
+                              'Learning': [
+                                'Read 2 chapters of a book',
+                                'Watch an educational documentary',
+                                'Practice a new skill for 1 hour',
+                                'Listen to an informative podcast',
+                                'Write a summary of what you learned'
+                              ],
+                              'Mindfulness': [
+                                'Meditate for 20 minutes',
+                                'Write down 5 things you are grateful for',
+                                'Take a 30-minute walk without your phone',
+                                'Do a digital detox for 4 hours',
+                                'Practice deep breathing for 10 minutes'
+                              ]
+                            };
+                            
+                            const tasks = bossTaskTemplates[topic] || bossTaskTemplates['Productivity'];
+                            
+                            // Initialize boss
+                            updateState({
+                              bossState: {
+                                ...state.bossState!,
+                                status: 'active',
+                                topic,
+                                hp: 5,
+                                maxHp: 5,
+                                tasks: tasks.map((text, i) => ({
+                                  id: `boss-task-${Date.now()}-${i}`,
+                                  text,
+                                  completed: false,
+                                  damage: 1
+                                }))
+                              }
+                            });
+                          }}
+                          className="group p-6 rounded-2xl bg-surface border border-white/5 hover:border-rose-500/50 hover:bg-rose-500/5 transition-all duration-300 flex flex-col items-center justify-center space-y-3"
+                        >
+                          <span className="text-lg font-bold text-primary group-hover:text-rose-400 transition-colors">{topic}</span>
+                          <span className="text-sm font-medium text-secondary group-hover:text-rose-500/70 transition-colors">
+                            {state.language === 'id' ? 'Lawan Bos' : 'Fight Boss'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h4 className="text-2xl font-display font-bold text-rose-500 uppercase tracking-tight">
+                          {state.bossState?.topic} {state.language === 'id' ? 'BOS' : 'BOSS'}
+                        </h4>
+                        <p className="text-sm text-secondary">
+                          {state.language === 'id' ? 'Kalahkan bos mingguan sebelum hari Selasa!' : 'Defeat the weekly boss before Tuesday!'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-rose-500 block mb-1">HP</span>
+                        <span className="text-xl font-bold text-white">{state.bossState?.hp} / {state.bossState?.maxHp}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {state.bossState?.tasks.map((task, index) => (
+                        <motion.div
+                          key={`${task.id || index}-${index}`}
+                          initial={{ y: 10, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: index * 0.1 }}
+                          onClick={() => {
+                            if (task.completed) return;
+                            const newTasks = [...state.bossState!.tasks];
+                            newTasks[index].completed = true;
+                            const newHp = Math.max(0, (state.bossState?.hp || 0) - task.damage);
+                            
+                            if (newHp === 0) {
+                              // Boss defeated
+                              sounds.playVictory();
+                              setShowVictoryAnimation(true);
+                              
+                              setTimeout(() => {
+                                updateState({
+                                  bossState: {
+                                    ...state.bossState!,
+                                    hp: 0,
+                                    tasks: newTasks,
+                                    status: 'defeated',
+                                    isActive: false,
+                                    lastEncounterDate: (() => {
+                                      const d = new Date();
+                                      d.setHours(0, 0, 0, 0);
+                                      d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+                                      const yearStart = new Date(d.getFullYear(), 0, 1);
+                                      const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+                                      return `${d.getFullYear()}-W${weekNo}`;
+                                    })()
+                                  },
+                                  zoneCoins: (state.zoneCoins || 0) + 500,
+                                  notifications: [
+                                    {
+                                      id: `boss-defeated-${Date.now()}-${Math.random()}`,
+                                      title: state.language === 'id' ? 'Bos Dikalahkan!' : 'Boss Defeated!',
+                                      description: state.language === 'id' ? 'Kamu berhasil mengalahkan bos mingguan dan mendapatkan 500 Zone Coins!' : 'You defeated the weekly boss and earned 500 Zone Coins!',
+                                      icon: 'Trophy',
+                                      read: false
+                                    },
+                                    ...(state.notifications || [])
+                                  ]
+                                });
+                                setShowVictoryAnimation(false);
+                                setActiveTab('REGULAR');
+                              }, 3000);
+                            } else {
+                              updateState({
+                                bossState: {
+                                  ...state.bossState!,
+                                  hp: newHp,
+                                  tasks: newTasks
+                                }
+                              });
+                            }
+                          }}
+                          className={`group p-5 rounded-2xl flex items-center space-x-4 border transition-all duration-300 ${
+                            task.completed 
+                              ? 'bg-surface/30 border-white/5 opacity-50' 
+                              : 'bg-gradient-to-br from-surface to-surface-hover border-rose-500/20 cursor-pointer hover:border-rose-500/50 hover:shadow-lg hover:shadow-rose-500/10'
+                          }`}
+                        >
+                          {task.completed ? (
+                            <CheckCircle2 className="w-8 h-8 text-rose-500 shrink-0" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full border-2 border-rose-500/30 group-hover:border-rose-500 flex items-center justify-center shrink-0 transition-colors">
+                              <div className="w-3 h-3 rounded-full bg-rose-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <span className={`text-lg font-medium block truncate ${task.completed ? 'line-through text-secondary' : 'text-primary group-hover:text-rose-50 transition-colors'}`}>
+                              {task.text}
+                            </span>
+                          </div>
+                          {!task.completed && (
+                            <span className="ml-auto text-sm font-mono font-bold text-rose-500 bg-rose-500/10 px-3 py-1.5 rounded-lg border border-rose-500/20">
+                              {task.damage} DMG
+                            </span>
+                          )}
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <CustomMissionsModal
         isOpen={isCustomMissionsModalOpen}
         onClose={() => setIsCustomMissionsModalOpen(false)}
@@ -416,6 +742,20 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
       <NotificationCenter 
         isOpen={isNotificationCenterOpen}
         onClose={() => setIsNotificationCenterOpen(false)}
+      />
+
+      <ZoneCoinInfoModal
+        isOpen={isCoinInfoModalOpen}
+        onClose={() => setIsCoinInfoModalOpen(false)}
+        state={state}
+      />
+
+      <ZoneStoreModal
+        isOpen={isZoneStoreModalOpen}
+        onClose={() => setIsZoneStoreModalOpen(false)}
+        state={state}
+        ovr={calculateOVR(state).ovr}
+        updateState={updateState}
       />
 
       <AnimatePresence>
