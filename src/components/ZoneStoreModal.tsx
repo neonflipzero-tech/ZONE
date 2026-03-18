@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, Lock, Shield, Star, Store, Package, Zap, Snowflake, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Lock, Shield, Star, Store, Package, Zap, Snowflake, CheckCircle2, Users } from 'lucide-react';
 import { ZoneCoinIcon } from './ZoneCoinIcon';
 import ProfileFrame from './ProfileFrame';
 import { UserState, TITLES } from '../store';
@@ -22,12 +22,13 @@ const ALL_FRAMES = [
   'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 
   'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 
   'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral',
-  'frame-royal', 'frame-dragon'
+  'frame-royal', 'frame-dragon', 'frame-elite'
 ];
 
 const FRAME_COSTS: Record<string, number> = {
   'frame-royal': 500,
   'frame-dragon': 750,
+  'frame-elite': 2000,
 };
 
 export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateState }: ZoneStoreModalProps) {
@@ -51,6 +52,8 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
       updateFn();
       setPurchaseSuccess(itemName);
       setTimeout(() => setPurchaseSuccess(null), 2000);
+    } else {
+      sounds.playError();
     }
   };
 
@@ -195,7 +198,7 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
           {/* Tabs */}
           <div className="flex border-b border-white/5">
             <button
-              onClick={() => { setActiveTab('frames'); setPreviewFrame(null); setPreviewTitle(null); }}
+              onClick={() => { sounds.playClick(); setActiveTab('frames'); setPreviewFrame(null); setPreviewTitle(null); }}
               className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors relative ${
                 activeTab === 'frames' ? 'text-accent' : 'text-secondary hover:text-primary'
               }`}
@@ -209,7 +212,7 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
               )}
             </button>
             <button
-              onClick={() => { setActiveTab('titles'); setPreviewFrame(null); setPreviewTitle(null); }}
+              onClick={() => { sounds.playClick(); setActiveTab('titles'); setPreviewFrame(null); setPreviewTitle(null); }}
               className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors relative ${
                 activeTab === 'titles' ? 'text-accent' : 'text-secondary hover:text-primary'
               }`}
@@ -223,7 +226,7 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
               )}
             </button>
             <button
-              onClick={() => { setActiveTab('items'); setPreviewFrame(null); setPreviewTitle(null); }}
+              onClick={() => { sounds.playClick(); setActiveTab('items'); setPreviewFrame(null); setPreviewTitle(null); }}
               className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors relative ${
                 activeTab === 'items' ? 'text-accent' : 'text-secondary hover:text-primary'
               }`}
@@ -285,9 +288,9 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
                           });
                         })}
                         disabled={(state.zoneCoins || 0) < FRAME_COSTS[previewFrame]}
-                        className={`mt-4 w-full max-w-[200px] py-2.5 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${
+                        className={`mt-4 w-full max-w-[200px] mx-auto py-2.5 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${
                           (state.zoneCoins || 0) >= FRAME_COSTS[previewFrame] 
-                            ? 'bg-accent text-background hover:scale-105 active:scale-95' 
+                            ? 'bg-accent text-background hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]' 
                             : 'bg-white/5 text-white/30 cursor-not-allowed'
                         }`}
                       >
@@ -352,12 +355,12 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
           <div className="flex-1 overflow-y-auto p-4 pb-safe">
             {activeTab === 'frames' && (
               <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
-                {lockedFrames.length > 0 ? lockedFrames.map(frame => {
+                {lockedFrames.length > 0 ? lockedFrames.map((frame, idx) => {
                   const isSelected = previewFrame === frame;
 
                   return (
                     <button
-                      key={frame}
+                      key={`locked-frame-${frame}-${idx}`}
                       onClick={() => setPreviewFrame(frame)}
                       className={`relative aspect-square rounded-2xl p-2 transition-all flex flex-col items-center justify-center gap-2 ${
                         isSelected ? 'bg-white/10 border-2 border-white/30 scale-105 z-10' : 
@@ -383,12 +386,12 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
             
             {activeTab === 'titles' && (
               <div className="flex flex-col gap-2 max-w-md mx-auto">
-                {lockedTitles.length > 0 ? lockedTitles.map(titleDef => {
+                {lockedTitles.length > 0 ? lockedTitles.map((titleDef, idx) => {
                   const isSelected = previewTitle === titleDef.id;
 
                   return (
                     <button
-                      key={titleDef.id}
+                      key={`locked-title-${titleDef.id}-${idx}`}
                       onClick={() => setPreviewTitle(titleDef.id)}
                       className={`p-4 rounded-xl flex items-center justify-between transition-all ${
                         isSelected ? 'bg-white/10 border border-white/30 scale-[1.02] z-10' : 
@@ -526,17 +529,74 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
             <div className="h-8" /> {/* Extra padding at bottom */}
           </div>
 
-          {/* Purchase Success Toast */}
+          {/* Purchase Success Overlay */}
           <AnimatePresence>
             {purchaseSuccess && (
               <motion.div
-                initial={{ opacity: 0, y: 50, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 20, scale: 0.9 }}
-                className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full font-bold shadow-lg shadow-green-500/20 flex items-center space-x-2 z-50 whitespace-nowrap"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-[200] bg-background/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center"
               >
-                <CheckCircle2 className="w-5 h-5" />
-                <span>{state.language === 'id' ? `Berhasil membeli ${purchaseSuccess}!` : `Successfully purchased ${purchaseSuccess}!`}</span>
+                <motion.div
+                  initial={{ scale: 0, rotate: -20 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", damping: 12 }}
+                  className="mb-8"
+                >
+                  {activeTab === 'frames' ? (
+                    <ProfileFrame frame={purchaseSuccess} src={state.profilePicture} size="2xl" />
+                  ) : (
+                    <div className="w-32 h-32 rounded-3xl bg-green-500/20 flex items-center justify-center border border-green-500/30">
+                      <CheckCircle2 className="w-16 h-16 text-green-400" />
+                    </div>
+                  )}
+                </motion.div>
+
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <h3 className="text-3xl font-black text-primary font-display tracking-tight uppercase mb-2">
+                    {state.language === 'id' ? 'PEMBELIAN BERHASIL!' : 'PURCHASE SUCCESS!'}
+                  </h3>
+                  <p className="text-secondary mb-8">
+                    {state.language === 'id' 
+                      ? `${purchaseSuccess.replace('frame-', '').toUpperCase()} telah ditambahkan ke inventori Anda.` 
+                      : `${purchaseSuccess.replace('frame-', '').toUpperCase()} has been added to your inventory.`}
+                  </p>
+                  
+                  <button
+                    onClick={() => setPurchaseSuccess(null)}
+                    className="px-8 py-3 bg-accent text-background rounded-xl font-bold hover:scale-105 active:scale-95 transition-transform"
+                  >
+                    {state.language === 'id' ? 'Lanjutkan' : 'Continue'}
+                  </button>
+                </motion.div>
+
+                {/* Confetti-like particles */}
+                {Array.from({ length: 20 }).map((_, i) => (
+                  <motion.div
+                    key={`confetti-${i}`}
+                    initial={{ 
+                      x: 0, 
+                      y: 0, 
+                      scale: 0 
+                    }}
+                    animate={{ 
+                      x: (Math.random() - 0.5) * 400, 
+                      y: (Math.random() - 0.5) * 400, 
+                      scale: Math.random() * 1.5,
+                      rotate: Math.random() * 360
+                    }}
+                    transition={{ 
+                      duration: 1.5, 
+                      ease: "easeOut" 
+                    }}
+                    className="absolute w-2 h-2 bg-accent rounded-full pointer-events-none"
+                  />
+                ))}
               </motion.div>
             )}
           </AnimatePresence>

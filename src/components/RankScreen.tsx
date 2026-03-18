@@ -1,8 +1,13 @@
 import { motion } from 'motion/react';
 import { UserState, getRankForLevel, RANKS } from '../store';
-import { Shield, Trophy, Flame } from 'lucide-react';
+import { Shield, Trophy, Flame, Zap, Crown, Star } from 'lucide-react';
 
 import { t } from '../utils/translations';
+
+function getRankIcon(rankName: string, className: string) {
+  if (rankName === 'Mythic') return <Crown className={className} />;
+  return <Trophy className={className} />;
+}
 
 interface RankScreenProps {
   state: UserState;
@@ -11,6 +16,9 @@ interface RankScreenProps {
 export default function RankScreen({ state }: RankScreenProps) {
   const currentRank = getRankForLevel(state.level);
   
+  const isMaxLevel = state.level >= 50;
+  const xpProgress = isMaxLevel ? 100 : (state.xp / (state.level * 100)) * 100;
+
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -26,7 +34,7 @@ export default function RankScreen({ state }: RankScreenProps) {
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-accent/10 to-transparent pointer-events-none" />
           
           <div className="w-32 h-32 rounded-full bg-background border-4 border-surface flex items-center justify-center mb-6 relative z-10 shadow-2xl shadow-accent/20">
-            <Trophy className={`w-16 h-16 ${currentRank.color}`} />
+            {getRankIcon(currentRank.name, `w-16 h-16 ${currentRank.color}`)}
           </div>
           
           <h2 className={`text-3xl font-display font-black tracking-tighter mb-2 ${currentRank.color} drop-shadow-md`}>
@@ -38,14 +46,14 @@ export default function RankScreen({ state }: RankScreenProps) {
 
           <div className="w-full">
             <div className="flex justify-between text-xs font-mono text-secondary mb-2">
-              <span>{state.xp} XP</span>
-              <span>{state.level * 100} XP</span>
+              <span>{isMaxLevel ? 'MAX' : `${state.xp} XP`}</span>
+              <span>{isMaxLevel ? 'MAX' : `${state.level * 100} XP`}</span>
             </div>
             <div className="h-2 w-full bg-background rounded-full overflow-hidden border border-white/5">
               <motion.div 
                 className="h-full bg-gradient-to-r from-accent to-orange-500"
                 initial={{ width: 0 }}
-                animate={{ width: `${(state.xp / (state.level * 100)) * 100}%` }}
+                animate={{ width: `${xpProgress}%` }}
                 transition={{ duration: 1, ease: "easeOut" }}
               />
             </div>
@@ -90,7 +98,7 @@ export default function RankScreen({ state }: RankScreenProps) {
                   }`}
                 >
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isUnlocked ? rank.bg + '/20' : 'bg-white/5'}`}>
-                    <Shield className={`w-6 h-6 ${isUnlocked ? rank.color : 'text-secondary'}`} />
+                    {getRankIcon(rank.name, `w-6 h-6 ${isUnlocked ? rank.color : 'text-secondary'}`)}
                   </div>
                   <div className="flex-1">
                     <h4 className={`font-bold ${isUnlocked ? 'text-primary' : 'text-secondary'}`}>{rank.name}</h4>

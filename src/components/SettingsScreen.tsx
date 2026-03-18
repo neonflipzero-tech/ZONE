@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, LogOut, AlertTriangle, ChevronDown, ChevronUp, ChevronRight } from 'lucide-react';
 import { UserState, PathType } from '../store';
 import { useState, useRef } from 'react';
+import { sounds } from '../utils/sounds';
 
 import { t } from '../utils/translations';
 
@@ -55,7 +56,7 @@ export default function SettingsScreen({
     >
       <div className="flex items-center p-4 border-b border-white/5 bg-surface/50 backdrop-blur-md sticky top-0 z-10">
         <button
-          onClick={onBack}
+          onClick={() => { onBack(); }}
           className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors mr-3"
         >
           <ChevronLeft className="w-6 h-6 text-primary" />
@@ -71,7 +72,7 @@ export default function SettingsScreen({
           <div className="p-4 border-b border-white/5">
             <div 
               className="flex justify-between items-center cursor-pointer"
-              onClick={() => setIsGoalDropdownOpen(!isGoalDropdownOpen)}
+              onClick={() => { setIsGoalDropdownOpen(!isGoalDropdownOpen); }}
             >
               <span className="font-bold">{t('settings.goal', state.language)}</span>
               <div className="flex items-center space-x-2">

@@ -79,7 +79,21 @@ export default function FeedScreen({ posts, onLike, language }: FeedScreenProps)
                   <span className="text-white text-xs font-bold mt-1 drop-shadow-md">0</span>
                 </button>
 
-                <button className="flex flex-col items-center group">
+                <button 
+                  onClick={() => {
+                    const shareData = {
+                      title: 'Zone Store',
+                      text: post.caption,
+                      url: window.location.href
+                    };
+                    if (navigator.share) {
+                      navigator.share(shareData).catch(console.error);
+                    } else {
+                      navigator.clipboard.writeText(window.location.href);
+                    }
+                  }}
+                  className="flex flex-col items-center group"
+                >
                   <div className="p-3 rounded-full bg-black/20 backdrop-blur-md border border-white/10 group-hover:bg-white/10 transition-colors">
                     <Share2 className="w-7 h-7 text-white" />
                   </div>

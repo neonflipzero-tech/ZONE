@@ -63,7 +63,7 @@ export default function RankUpScreen({ rankName, rankColor, path, onContinue, la
         </div>
 
         <button
-          onClick={onContinue}
+          onClick={() => { onContinue(); }}
           className="w-full max-w-xs bg-primary text-background font-bold py-4 rounded-xl hover:bg-gray-200 transition-colors"
         >
           {t('rank_up.keep_going', language)}

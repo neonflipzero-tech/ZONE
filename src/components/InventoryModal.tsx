@@ -104,7 +104,14 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
       (specialConditions[frame] ?? false);
   };
 
-  const allFrames = ['frame-default', 'frame-bronze', 'frame-silver', 'frame-gold', 'frame-platinum', 'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-legend', 'frame-mythic', 'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral'];
+  const allFrames = [
+    'frame-default', 'frame-bronze', 'frame-silver', 'frame-gold', 'frame-platinum', 
+    'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-legend', 'frame-mythic', 
+    'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 
+    'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 
+    'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral',
+    'frame-royal', 'frame-dragon', 'frame-elite'
+  ];
   const unlockedFrames = allFrames.filter(checkFrameUnlocked);
   const unlockedTitles = TITLES.filter(t => isZaiki || state.titles.includes(t.id));
 
@@ -152,7 +159,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
           {/* Tabs */}
           <div className="flex border-b border-white/5">
             <button
-              onClick={() => setActiveTab('frames')}
+              onClick={() => { sounds.playClick(); setActiveTab('frames'); }}
               className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors relative ${
                 activeTab === 'frames' ? 'text-accent' : 'text-secondary hover:text-primary'
               }`}
@@ -166,7 +173,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
               )}
             </button>
             <button
-              onClick={() => setActiveTab('titles')}
+              onClick={() => { sounds.playClick(); setActiveTab('titles'); }}
               className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors relative ${
                 activeTab === 'titles' ? 'text-accent' : 'text-secondary hover:text-primary'
               }`}
@@ -180,7 +187,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
               )}
             </button>
             <button
-              onClick={() => setActiveTab('items')}
+              onClick={() => { sounds.playClick(); setActiveTab('items'); }}
               className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors relative ${
                 activeTab === 'items' ? 'text-accent' : 'text-secondary hover:text-primary'
               }`}
@@ -200,12 +207,15 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
             {activeTab === 'frames' && (
               <div className="flex flex-col gap-4 max-w-md mx-auto">
                 <div className="grid grid-cols-3 gap-3">
-                  {unlockedFrames.map(frame => {
+                  {unlockedFrames.map((frame, idx) => {
                     const isEquipped = state.equippedFrame === frame || (frame === 'frame-default' && !state.equippedFrame);
                     return (
                       <button
-                        key={frame}
-                        onClick={() => updateState({ equippedFrame: frame === 'frame-default' ? null : frame })}
+                        key={`unlocked-frame-${frame}-${idx}`}
+                        onClick={() => {
+                          sounds.playUseItem();
+                          updateState({ equippedFrame: frame === 'frame-default' ? null : frame });
+                        }}
                         className={`relative aspect-square rounded-2xl p-2 transition-all flex flex-col items-center justify-center gap-2 ${
                           isEquipped ? 'bg-accent/10 border border-accent/50' : 'bg-surface border border-white/5 hover:border-white/20'
                         }`}
@@ -227,12 +237,15 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
             {activeTab === 'titles' && (
               <div className="flex flex-col gap-4 max-w-md mx-auto">
                 <div className="flex flex-col gap-2">
-                  {unlockedTitles.map(titleDef => {
+                  {unlockedTitles.map((titleDef, idx) => {
                     const isEquipped = state.equippedTitle === titleDef.id;
                     return (
                       <button
-                        key={titleDef.id}
-                        onClick={() => updateState({ equippedTitle: titleDef.id })}
+                        key={`unlocked-title-${titleDef.id}-${idx}`}
+                        onClick={() => {
+                          sounds.playUseItem();
+                          updateState({ equippedTitle: titleDef.id });
+                        }}
                         className={`p-4 rounded-xl flex items-center justify-between transition-all ${
                           isEquipped ? 'bg-accent/10 border border-accent/50' : 'bg-surface border border-white/5 hover:border-white/20'
                         }`}

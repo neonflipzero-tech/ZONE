@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserState, RANKS, getRankForLevel, TITLES, calculateOVR, useAppState } from '../store';
-import { Trophy, Flame, Shield, User, AlertCircle, X, CheckCircle2, Star, Swords } from 'lucide-react';
+import { Trophy, Flame, Shield, User, AlertCircle, X, CheckCircle2, Star, Swords, Zap, Crown } from 'lucide-react';
 import ProfileFrame from './ProfileFrame';
 import { db } from '../firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
@@ -28,6 +28,11 @@ interface LeaderboardUser {
   missionsCompleted?: number;
   isProfilePublic?: boolean;
   ovr?: number;
+}
+
+function getRankIcon(rankName: string, className: string) {
+  if (rankName === 'Mythic') return <Crown className={className} />;
+  return <Trophy className={className} />;
 }
 
 export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
@@ -80,7 +85,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
       } else {
         // Mock data if empty
         setUsers([
-          { userId: 'zaiki-123', username: 'Zaiki', level: 100, xp: 99999, totalXp: 999999, equippedFrame: 'frame-omniscience', equippedTitle: 'The Creator', profilePicture: 'https://picsum.photos/seed/zaiki/200/200' },
+          { userId: 'zaiki-123', username: 'Zaiki', level: 50, xp: 4999, totalXp: 999999, equippedFrame: 'frame-omniscience', equippedTitle: 'The Creator', profilePicture: 'https://picsum.photos/seed/zaiki/200/200' },
           { userId: 'progamer-123', username: 'ProGamer', level: 42, xp: 15000, totalXp: 101100, equippedFrame: 'frame-abyssal', equippedTitle: 'Grind Master', profilePicture: 'https://picsum.photos/seed/progamer/200/200' },
           { userId: 'newbie-123', username: 'Newbie', level: 5, xp: 1200, totalXp: 2200, equippedFrame: 'frame-bronze', equippedTitle: 'Newbie', profilePicture: 'https://picsum.photos/seed/newbie/200/200' },
         ]);
@@ -184,7 +189,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
           {/* 2nd Place */}
           <div 
             className="flex flex-col items-center w-24 cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => allUsers[1] && setSelectedActionUser(allUsers[1])}
+            onClick={() => { if (allUsers[1]) setSelectedActionUser(allUsers[1]); }}
           >
             <div className="w-12 h-12 flex items-center justify-center mb-2 relative">
               <ProfileFrame frame={allUsers[1]?.equippedFrame || null} src={allUsers[1]?.profilePicture || null} size="sm" />
@@ -210,7 +215,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
           {/* 1st Place */}
           <div 
             className="flex flex-col items-center w-28 z-10 cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => allUsers[0] && setSelectedActionUser(allUsers[0])}
+            onClick={() => { if (allUsers[0]) setSelectedActionUser(allUsers[0]); }}
           >
             <div className="w-16 h-16 flex items-center justify-center mb-2 relative">
               <ProfileFrame frame={allUsers[0]?.equippedFrame || null} src={allUsers[0]?.profilePicture || null} size="md" />
@@ -237,7 +242,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
           {/* 3rd Place */}
           <div 
             className="flex flex-col items-center w-24 cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => allUsers[2] && setSelectedActionUser(allUsers[2])}
+            onClick={() => { if (allUsers[2]) setSelectedActionUser(allUsers[2]); }}
           >
             <div className="w-12 h-12 flex items-center justify-center mb-2 relative">
               <ProfileFrame frame={allUsers[2]?.equippedFrame || null} src={allUsers[2]?.profilePicture || null} size="sm" />
@@ -311,7 +316,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                 </div>
                 
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${rankObj.bg}/20`}>
-                  <Shield className={`w-4 h-4 ${rankObj.color}`} />
+                  {getRankIcon(rankObj.name, `w-4 h-4 ${rankObj.color}`)}
                 </div>
               </div>
             );
@@ -366,7 +371,6 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                       return;
                     }
                     
-                    sounds.playSetRival();
                     updateState({ rivalId: selectedActionUser.userId });
                     addNotification({
                       title: JSON.stringify({ key: 'leaderboard.rival_set' }),
@@ -427,7 +431,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                 <div className="relative mb-4">
                   <ProfileFrame frame={selectedUser.equippedFrame} src={selectedUser.profilePicture || null} size="lg" />
                   <div className={`absolute -bottom-2 -right-2 w-10 h-10 rounded-full flex items-center justify-center border-4 border-surface ${getRankForLevel(selectedUser.level).bg} z-50`}>
-                    <Shield className="w-5 h-5 text-white" />
+                    {getRankIcon(getRankForLevel(selectedUser.level).name, "w-5 h-5 text-white")}
                   </div>
                 </div>
 

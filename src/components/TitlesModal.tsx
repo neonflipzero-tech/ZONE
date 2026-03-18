@@ -136,14 +136,14 @@ export default function TitlesModal({ state, onClose, updateState, onGoToInvento
       {/* List Area */}
       <div className="flex-1 overflow-y-auto p-4 pb-safe">
         <div className="flex flex-col gap-3 max-w-md mx-auto">
-          {TITLES.map((titleDef) => {
+          {TITLES.map((titleDef, idx) => {
             const isUnlocked = isZaiki || state.titles.includes(titleDef.id);
             const isEquipped = state.equippedTitle === titleDef.id;
             const isSelected = previewTitle === titleDef.id;
             
             return (
               <button 
-                key={titleDef.id} 
+                key={`title-${titleDef.id}-${idx}`} 
                 onClick={() => setPreviewTitle(titleDef.id)}
                 className={`text-left border rounded-xl p-4 flex items-center justify-between transition-all ${
                   isSelected ? 'bg-white/10 border-white/30 scale-[1.02] z-10' :

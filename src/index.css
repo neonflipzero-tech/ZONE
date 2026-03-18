@@ -51,11 +51,18 @@ body {
   100% { clip-path: inset(30% 0 50% 0); transform: translate(1px, -1px); }
 }
 
-@keyframes glitch-anim-2 {
-  0% { clip-path: inset(10% 0 60% 0); transform: translate(2px, -1px); }
-  20% { clip-path: inset(30% 0 20% 0); transform: translate(-2px, 2px); }
-  40% { clip-path: inset(70% 0 10% 0); transform: translate(2px, 1px); }
-  60% { clip-path: inset(20% 0 50% 0); transform: translate(-1px, -2px); }
-  80% { clip-path: inset(50% 0 30% 0); transform: translate(1px, 2px); }
-  100% { clip-path: inset(5% 0 80% 0); transform: translate(-2px, -1px); }
+@keyframes shimmer {
+  0% { transform: translateX(-100%) translateY(-100%); }
+  100% { transform: translateX(100%) translateY(100%); }
+}
+
+@keyframes shooting-star {
+  0% { transform: translateX(-100%) translateY(-100%) rotate(-45deg); opacity: 0; }
+  10% { opacity: 1; }
+  30% { transform: translateX(100%) translateY(100%) rotate(-45deg); opacity: 0; }
+  100% { transform: translateX(100%) translateY(100%) rotate(-45deg); opacity: 0; }
+}
+
+.animate-shimmer {
+  animation: shimmer 3s infinite;
 }

@@ -33,13 +33,13 @@ export default function BadgesModal({ badges, language, onClose, badgeIcons }: B
 
         <div className="overflow-y-auto no-scrollbar flex-1 -mx-2 px-2">
           <div className="grid grid-cols-2 gap-3 pb-4">
-            {BADGES.map((badgeDef) => {
+            {BADGES.map((badgeDef, idx) => {
               const isUnlocked = badges.includes(badgeDef.id);
               const Icon = badgeIcons[badgeDef.icon] || Trophy;
               
               return (
                 <div 
-                  key={badgeDef.id} 
+                  key={`badge-${badgeDef.id}-${idx}`} 
                   className={`border rounded-xl p-4 flex flex-col items-center justify-center text-center transition-all ${
                     isUnlocked 
                       ? 'bg-gradient-to-b from-surface to-surface-hover border-accent/30 shadow-lg shadow-accent/5' 

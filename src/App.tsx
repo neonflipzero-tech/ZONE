@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useAppState, PathType, getRankForLevel, calculateOVR } from './store';
+import { sounds } from './utils/sounds';
 import { db } from './firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import LoginScreen from './components/LoginScreen';
@@ -109,7 +110,7 @@ export default function App() {
       try {
         const savedLeaderboard = localStorage.getItem('lockin_global_leaderboard');
         let users = savedLeaderboard ? JSON.parse(savedLeaderboard) : [
-          { userId: 'zaiki-123', username: 'Zaiki', level: 100, xp: 99999, equippedFrame: 'frame-omniscience', equippedTitle: 'The Creator', profilePicture: 'https://picsum.photos/seed/zaiki/200/200' },
+          { userId: 'zaiki-123', username: 'Zaiki', level: 50, xp: 99999, equippedFrame: 'frame-omniscience', equippedTitle: 'The Creator', profilePicture: 'https://picsum.photos/seed/zaiki/200/200' },
           { userId: 'progamer-123', username: 'ProGamer', level: 42, xp: 15000, equippedFrame: 'frame-abyssal', equippedTitle: 'Grind Master', profilePicture: 'https://picsum.photos/seed/progamer/200/200' },
           { userId: 'newbie-123', username: 'Newbie', level: 5, xp: 1200, equippedFrame: 'frame-bronze', equippedTitle: 'Newbie', profilePicture: 'https://picsum.photos/seed/newbie/200/200' },
         ];
@@ -134,6 +135,16 @@ export default function App() {
       }
     }
   }, [state?.level, state?.xp, state?.equippedFrame, state?.equippedTitle, state?.profilePicture, state?.username, state?.isLoggedIn, state?.userId, state?.streak, state?.badges?.length, state?.unlockedFrames?.length, state?.missionsCompleted, state?.isProfilePublic]);
+
+  // Level Cap Migration
+  useEffect(() => {
+    if (state?.isLoggedIn && state.level > 50) {
+      updateState({ 
+        level: 50, 
+        xp: Math.min(state.xp, 50 * 100 - 1)
+      });
+    }
+  }, [state?.isLoggedIn, state?.level]);
 
   const [isLevelUpAnimationComplete, setIsLevelUpAnimationComplete] = useState(true);
 

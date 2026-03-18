@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Bell, CheckCircle2, Info, AlertCircle, Swords, ArrowUpCircle } from 'lucide-react';
 import { useAppState } from '../store';
 import { t } from '../utils/translations';
+import { sounds } from '../utils/sounds';
 
 interface NotificationCenterProps {
   isOpen: boolean;
@@ -71,14 +72,14 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
             <div className="flex items-center space-x-2">
               {unreadCount > 0 && (
                 <button 
-                  onClick={markAllNotificationsRead}
+                  onClick={() => { markAllNotificationsRead(); }}
                   className="text-xs font-medium text-accent hover:text-accent/80 transition-colors px-3 py-1.5 rounded-full bg-accent/10"
                 >
                   {t('notifications.mark_all_read', state.language)}
                 </button>
               )}
               <button 
-                onClick={onClose}
+                onClick={() => { onClose(); }}
                 className="p-2 bg-surface rounded-full border border-white/10 hover:bg-white/5 transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -100,7 +101,7 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
                   key={`${notif.id || notif.timestamp}-${index}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  onClick={() => !notif.read && markNotificationRead(notif.id)}
+                  onClick={() => { if (!notif.read) { markNotificationRead(notif.id); } }}
                   className={`p-4 rounded-2xl border transition-all cursor-pointer flex gap-4 ${
                     notif.read 
                       ? 'bg-surface/30 border-white/5 opacity-60' 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { User } from 'lucide-react';
 
 interface ProfileFrameProps {
@@ -300,12 +301,24 @@ export default function ProfileFrame({ frame, src, size = 'md' }: ProfileFramePr
       bgClass = 'bg-transparent';
       borderClass = 'p-[5px]';
       decorations = (
-        <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_30px_#fbbf24,inset_0_0_20px_#7e22ce] bg-purple-900">
-          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#fbbf24,#7e22ce,#fbbf24)] animate-[spin_4s_linear_infinite] opacity-90 blur-sm" />
+        <div className="absolute inset-0 rounded-full z-0 overflow-visible shadow-[0_0_30px_#fbbf24,inset_0_0_20px_#7e22ce] bg-purple-900">
+          {/* Majestic rotating aura */}
+          <div className="absolute inset-[-20%] bg-[conic-gradient(from_0deg,transparent,#fbbf24,transparent,#7e22ce,transparent)] animate-[spin_6s_linear_infinite] opacity-60 blur-md" />
+          
+          {/* Pulsing inner glow */}
+          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-purple-600/40 to-yellow-400/40 animate-pulse" />
+          
+          {/* Main golden border */}
           <div className="absolute inset-0 rounded-full border-[3px] border-yellow-400 shadow-[0_0_15px_#fbbf24]" />
-          <div className="absolute inset-2 rounded-full border border-yellow-200/30" />
-          {/* Crown-like spikes */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-yellow-400 rotate-45 shadow-[0_0_10px_#fbbf24]" />
+          
+          {/* Crown Spikes */}
+          <div className="absolute inset-0 animate-[spin_12s_linear_infinite]">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-yellow-400 rotate-45 shadow-[0_0_10px_#fbbf24] border border-yellow-200" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full mb-1 text-[8px] animate-bounce">👑</div>
+          </div>
+          
+          {/* Secondary rotating ring */}
+          <div className="absolute inset-1 rounded-full border border-yellow-200/30 border-dashed animate-[spin_8s_linear_infinite_reverse]" />
         </div>
       );
       break;
@@ -313,13 +326,39 @@ export default function ProfileFrame({ frame, src, size = 'md' }: ProfileFramePr
       bgClass = 'bg-transparent';
       borderClass = 'p-[6px]';
       decorations = (
-        <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_25px_#ef4444,inset_0_0_15px_#991b1b] bg-red-950">
-          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#ef4444,#991b1b,#f97316,#ef4444)] animate-[spin_3s_linear_infinite] opacity-90 blur-md" />
+        <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_35px_#ef4444,inset_0_0_20px_#991b1b] bg-red-950">
+          {/* Intense swirling fire */}
+          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#ef4444,#991b1b,#f97316,#ef4444)] animate-[spin_2s_linear_infinite] opacity-90 blur-md" />
+          
+          {/* Flickering fire overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-red-600/40 via-orange-500/20 to-transparent animate-pulse" />
+          
+          {/* Thick dragon-scale border */}
           <div className="absolute inset-0 rounded-full border-[4px] border-red-600 shadow-[0_0_20px_#ef4444]" />
-          {/* Dragon scales effect */}
-          <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_center,transparent_0%,black_100%)]" />
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] drop-shadow-[0_0_5px_#ef4444]">🔥</div>
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 text-[10px] drop-shadow-[0_0_5px_#ef4444]">🔥</div>
+          
+          {/* Animated fire emojis */}
+          <div className="absolute inset-0 animate-[spin_4s_linear_infinite]">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs drop-shadow-[0_0_8px_#ef4444] animate-pulse">🔥</div>
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 text-xs drop-shadow-[0_0_8px_#ef4444] animate-pulse">🔥</div>
+          </div>
+          
+          {/* Inner glowing ring */}
+          <div className="absolute inset-1 rounded-full border-2 border-orange-400/50 border-dotted animate-[spin_10s_linear_infinite_reverse]" />
+          
+          {/* Smoke/Heat distortion effect */}
+          <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_center,transparent_30%,#000_100%)]" />
+        </div>
+      );
+      break;
+    case 'frame-elite':
+      bgClass = 'bg-transparent';
+      borderClass = 'p-[4px]';
+      decorations = (
+        <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_20px_rgba(255,0,0,0.8),inset_0_0_15px_rgba(255,215,0,0.6)]">
+          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#FFD700,#FF0000,#FFD700,#FF0000,#FFD700)] animate-[spin_4s_linear_infinite] opacity-90 blur-md" />
+          <div className="absolute inset-0 rounded-full border-2 border-white/50" />
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#FF0000] rounded-full animate-ping" />
+          <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-[#FFD700] rounded-full animate-ping" style={{ animationDelay: '0.5s' }} />
         </div>
       );
       break;

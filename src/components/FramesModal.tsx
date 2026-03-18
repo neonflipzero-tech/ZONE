@@ -19,7 +19,8 @@ const ALL_FRAMES = [
   'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-legend', 'frame-mythic',
   'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 
   'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 
-  'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral'
+  'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral',
+  'frame-royal', 'frame-dragon', 'frame-elite'
 ];
 
 export default function FramesModal({ isOpen, onClose, state, updateState, ovr, onGoToInventory }: FramesModalProps) {
@@ -86,6 +87,9 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr, 
       case 'frame-omniscience': return t('frames.desc.omniscience', state.language);
       case 'frame-matrix': return t('frames.desc.matrix', state.language);
       case 'frame-viral': return t('frames.desc.viral', state.language);
+      case 'frame-royal': return t('frames.desc.royal', state.language);
+      case 'frame-dragon': return t('frames.desc.dragon', state.language);
+      case 'frame-elite': return state.language === 'id' ? 'Bingkai Eksklusif Elite Zone' : 'Exclusive Elite Zone Frame';
       default: return '';
     }
   };
@@ -228,14 +232,14 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr, 
           {/* Grid Area */}
           <div className="flex-1 overflow-y-auto p-4 pb-safe">
             <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
-              {ALL_FRAMES.map(frame => {
+              {ALL_FRAMES.map((frame, idx) => {
                 const isUnlocked = checkUnlocked(frame);
                 const isEquipped = state.equippedFrame === frame || (frame === 'frame-default' && !state.equippedFrame);
                 const isSelected = previewFrame === frame;
 
                 return (
                   <button
-                    key={frame}
+                    key={`frame-${frame}-${idx}`}
                     onClick={() => setPreviewFrame(frame)}
                     className={`relative aspect-square rounded-2xl p-2 transition-all flex flex-col items-center justify-center gap-2 ${
                       isSelected ? 'bg-white/10 border-2 border-white/30 scale-105 z-10' : 

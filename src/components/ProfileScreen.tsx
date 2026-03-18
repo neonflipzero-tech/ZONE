@@ -4,6 +4,7 @@ import { UserState, getRankForLevel, PathType, calculateOVR, createDefaultState,
 import { Trophy, Flame, LogOut, Camera, User, Shield, ChevronDown, ChevronUp, Star, Lock, CheckCircle2, Share2, AlertTriangle, Footprints, Zap, Crown, Moon, Sun, Swords, Settings, X, Heart, Compass, Package, Store, ChevronRight } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import { t } from '../utils/translations';
+import { sounds } from '../utils/sounds';
 import ProfileFrame from './ProfileFrame';
 import { shareContent, shareElementAsImage } from '../utils/share';
 import StatDetailModal from './StatDetailModal';
@@ -27,6 +28,11 @@ interface ProfileScreenProps {
   onLogout: () => void;
   updateState: (updates: Partial<UserState>) => void;
   changePath: (path: PathType) => void;
+}
+
+function getRankIcon(rankName: string, className: string) {
+  if (rankName === 'Mythic') return <Crown className={className} />;
+  return <Trophy className={className} />;
 }
 
 export default function ProfileScreen({ state, onLogout, updateState, changePath }: ProfileScreenProps) {
@@ -307,7 +313,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
 
             <div className="w-full flex items-center justify-between mb-3 px-2">
               <div className="flex items-center space-x-2">
-                <Shield className={`w-5 h-5 ${currentRank.color}`} />
+                {getRankIcon(currentRank.name, `w-5 h-5 ${currentRank.color}`)}
                 <span className={`font-bold ${currentRank.color}`}>{currentRank.name}</span>
               </div>
               <div className="flex items-center space-x-3">
@@ -327,12 +333,14 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
               <motion.div 
                 className="absolute top-0 left-0 h-full bg-gradient-to-r from-accent to-orange-500"
                 initial={{ width: 0 }}
-                animate={{ width: `${(state.xp / (state.level * 100)) * 100}%` }}
+                animate={{ width: `${state.level >= 50 ? 100 : (state.xp / (state.level * 100)) * 100}%` }}
                 transition={{ duration: 1, ease: "easeOut" }}
               />
             </div>
             <div className="w-full text-right mt-2 px-2">
-              <span className="text-[10px] font-mono text-secondary">{state.xp} / {(state.level) * 100} XP</span>
+              <span className="text-[10px] font-mono text-secondary">
+                {state.level >= 50 ? 'MAX LEVEL' : `${state.xp} / ${(state.level) * 100} XP`}
+              </span>
             </div>
           </div>
         </div>
@@ -423,20 +431,15 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                     tick={(props: any) => {
                       const { payload, x, y, textAnchor, stroke, radius } = props;
                       const getStatColorHex = (subject: string) => {
-                        switch(subject) {
-                          case 'Fisik':
-                          case 'Physical': return '#ef4444'; // red-500
-                          case 'Disiplin':
-                          case 'Discipline': return '#3b82f6'; // blue-500
-                          case 'Mental': return '#a855f7'; // purple-500
-                          case 'Ambisi':
-                          case 'Ambition': return '#eab308'; // yellow-500
-                          case 'Intelek':
-                          case 'Intellect': return '#06b6d4'; // cyan-500
-                          case 'Sosial':
-                          case 'Social': return '#22c55e'; // green-500
-                          default: return '#ffffff';
-                        }
+                        // Match by subject name (translated) or ID
+                        const lowerSubject = subject.toLowerCase();
+                        if (lowerSubject.includes('fisik') || lowerSubject.includes('physical')) return '#ef4444'; // red-500
+                        if (lowerSubject.includes('disiplin') || lowerSubject.includes('discipline')) return '#3b82f6'; // blue-500
+                        if (lowerSubject.includes('mental')) return '#a855f7'; // purple-500
+                        if (lowerSubject.includes('ambisi') || lowerSubject.includes('ambition')) return '#eab308'; // yellow-500
+                        if (lowerSubject.includes('intelek') || lowerSubject.includes('intellect')) return '#06b6d4'; // cyan-500
+                        if (lowerSubject.includes('sosial') || lowerSubject.includes('social')) return '#22c55e'; // green-500
+                        return '#ffffff';
                       };
                       return (
                         <text 
@@ -556,7 +559,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
           <div className="bg-surface border border-white/5 rounded-2xl p-5 h-64 flex flex-col justify-end relative">
             <div className="absolute inset-0 p-5 flex flex-col justify-between pointer-events-none">
               {[1, 0.75, 0.5, 0.25, 0].map((tick) => (
-                <div key={tick} className="w-full border-b border-white/5 h-0 relative">
+                <div key={`tick-${tick}`} className="w-full border-b border-white/5 h-0 relative">
                   <span className="absolute -left-2 -top-2 text-[10px] text-secondary -translate-x-full">
                     {Math.round(maxMissions * tick)}
                   </span>
@@ -567,7 +570,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
               {chartData.map((data, i) => {
                 const height = `${(data.missions / maxMissions) * 100}%`;
                 return (
-                  <div key={data.date} className="flex flex-col items-center w-8 group">
+                  <div key={`chart-bar-${data.date}-${i}`} className="flex flex-col items-center w-8 group">
                     <div className="w-full h-48 flex items-end justify-center relative">
                       <motion.div 
                         initial={{ height: 0 }}

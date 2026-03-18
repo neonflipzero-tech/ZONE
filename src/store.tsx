@@ -128,7 +128,8 @@ export const BADGES = [
   { id: 'WEEKEND_WARRIOR', name: { en: 'Weekend Warrior', id: 'Pejuang Akhir Pekan' }, desc: { en: 'Complete a mission on the weekend', id: 'Selesaikan misi di akhir pekan' }, icon: 'Swords' },
   { id: 'LEVEL_10', name: { en: 'Veteran', id: 'Veteran' }, desc: { en: 'Reach Level 10', id: 'Capai Level 10' }, icon: 'Shield' },
   { id: 'LEVEL_25', name: { en: 'Master', id: 'Master' }, desc: { en: 'Reach Level 25', id: 'Capai Level 25' }, icon: 'Star' },
-  { id: 'LEVEL_50', name: { en: 'Mythic', id: 'Mitos' }, desc: { en: 'Reach Level 50', id: 'Capai Level 50' }, icon: 'Trophy' },
+  { id: 'LEVEL_50', name: { en: 'Mythic', id: 'Mitos' }, desc: { en: 'Reach Level 50', id: 'Capai Level 50' }, icon: 'Crown' },
+  { id: 'ELITE_ZONE', name: { en: 'Elite Zone', id: 'Elite Zone' }, desc: { en: 'The chosen one of the Zone', id: 'Yang terpilih dari Zone' }, icon: 'Crown' },
 ];
 
 export const TITLES = [
@@ -142,6 +143,7 @@ export const TITLES = [
   { id: 'Rival Crusher', name: { en: 'Rival Crusher', id: 'Penghancur Rival' }, desc: { en: 'Surpassed your rival', id: 'Melampaui rivalmu' }, specialColor: 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]' },
   { id: 'OG', name: { en: 'OG', id: 'OG' }, desc: { en: 'First 100 users', id: '100 pengguna pertama' }, specialColor: 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 text-transparent bg-clip-text drop-shadow-[0_0_8px_rgba(255,165,0,0.8)]' },
   { id: 'Supporter', name: { en: 'Supporter', id: 'Pendukung' }, desc: { en: 'Shared the app 5 times', id: 'Membagikan aplikasi 5 kali' }, specialColor: 'bg-gradient-to-r from-cyan-400 to-blue-500 text-transparent bg-clip-text drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]' },
+  { id: 'Elite Zone', name: { en: 'Elite Zone', id: 'Elite Zone' }, desc: { en: 'The chosen one of the Zone', id: 'Yang terpilih dari Zone' }, specialColor: 'bg-gradient-to-r from-[#FFD700] via-[#FF0000] to-[#FFD700] text-transparent bg-clip-text drop-shadow-[0_0_12px_rgba(255,0,0,0.8)] font-black' },
 ];
 
 export function getRankForLevel(level: number) {
@@ -183,20 +185,21 @@ export function calculateOVR(state: UserState) {
   let ovr = Math.floor((physical + discipline + mental + ambition + intellect + social) / 6);
 
   // Hardcode OVR 100 for zaiki
-  if (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') {
+  const isZaiki = state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase().includes('zaiki');
+  if (isZaiki) {
     ovr = 100;
   }
 
   return {
     ovr,
     stats: {
-      physical: (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') ? 100 : physical,
-      discipline: (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') ? 100 : discipline,
-      mental: (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') ? 100 : mental,
-      ambition: (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') ? 100 : ambition,
-      intellect: (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') ? 100 : intellect,
-      social: (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') ? 100 : social,
-      other: (state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase() === 'zaiki') ? 100 : other
+      physical: isZaiki ? 100 : physical,
+      discipline: isZaiki ? 100 : discipline,
+      mental: isZaiki ? 100 : mental,
+      ambition: isZaiki ? 100 : ambition,
+      intellect: isZaiki ? 100 : intellect,
+      social: isZaiki ? 100 : social,
+      other: isZaiki ? 100 : other
     }
   };
 }
@@ -711,26 +714,39 @@ function useAppStateInternal() {
 
   useEffect(() => {
     if (state && (state.username.toLowerCase().includes('zaiki') || (activeUserEmail && activeUserEmail.toLowerCase().includes('zaiki')))) {
-      const needsUpdate = state.level < 50 || (state.zoneCoins || 0) < 1000;
+      const needsUpdate = state.level < 50 || (state.zoneCoins || 0) < 10000 || !state.isPremium || !state.titles.includes('Elite Zone') || !state.unlockedFrames.includes('frame-elite') || !state.badges.includes('ELITE_ZONE');
       if (needsUpdate) {
         setState(prev => {
           if (!prev) return prev;
           const newFrames = [...(prev.unlockedFrames || [])];
-          if (!newFrames.includes('frame-mythic')) newFrames.push('frame-mythic');
+          const eliteFrames = ['frame-mythic', 'frame-elite', 'frame-royal', 'frame-dragon'];
+          eliteFrames.forEach(f => {
+            if (!newFrames.includes(f)) newFrames.push(f);
+          });
           
+          const newTitles = [...(prev.titles || [])];
+          if (!newTitles.includes('Elite Zone')) newTitles.push('Elite Zone');
+
+          const newBadges = [...(prev.badges || [])];
+          if (!newBadges.includes('ELITE_ZONE')) newBadges.push('ELITE_ZONE');
+
           return {
             ...prev,
-            level: Math.max(prev.level, 50),
-            xp: prev.level < 50 ? 0 : prev.xp,
-            highestRankAchieved: prev.level < 50 ? 'Mythic' : prev.highestRankAchieved,
+            level: 50,
+            xp: 0,
+            highestRankAchieved: 'Mythic',
             unlockedFrames: newFrames,
-            equippedFrame: prev.level < 50 ? 'frame-mythic' : prev.equippedFrame,
-            zoneCoins: Math.max(prev.zoneCoins || 0, 1000)
+            equippedFrame: 'frame-elite',
+            titles: newTitles,
+            equippedTitle: 'Elite Zone',
+            badges: newBadges,
+            zoneCoins: Math.max(prev.zoneCoins || 0, 10000),
+            isPremium: true
           };
         });
       }
     }
-  }, [state?.level, state?.username, activeUserEmail]);
+  }, [state?.level, state?.username, activeUserEmail, state?.isPremium, state?.titles?.length, state?.unlockedFrames?.length, state?.badges?.length]);
 
   const login = (email: string, username: string) => {
     const saved = localStorage.getItem(`lockin_user_${email}`);
@@ -845,19 +861,22 @@ function useAppStateInternal() {
     } else {
       if (bossState.lastEncounterDate !== null && bossState.lastEncounterDate !== currentWeek) {
         // User missed Monday entirely
+        const penalty = Math.floor((state.zoneCoins || 0) * 0.3);
         bossState = {
           ...bossState,
           isActive: false,
           status: 'escaped',
           lastEncounterDate: currentWeek
         };
-        updates.zoneCoins = Math.max(0, (state.zoneCoins || 0) - 50);
+        updates.zoneCoins = Math.max(0, (state.zoneCoins || 0) - penalty);
         updates.notifications = [
           {
             id: `boss-escape-${Date.now()}-${Math.random()}`,
             title: state.language === 'id' ? 'Bos Mingguan Kabur!' : 'Weekly Boss Escaped!',
-            description: state.language === 'id' ? 'Kamu melewatkan bos mingguan dan dia mencuri 50 Zone Coins milikmu!' : 'You missed the weekly boss and it stole 50 of your Zone Coins!',
-            icon: 'Skull',
+            description: state.language === 'id' 
+              ? `Kamu melewatkan bos mingguan dan dia mencuri 30% (${penalty}) Zone Coins milikmu!` 
+              : `You missed the weekly boss and it stole 30% (${penalty}) of your Zone Coins!`,
+            icon: 'Info',
             read: false
           },
           ...(state.notifications || [])
@@ -865,18 +884,21 @@ function useAppStateInternal() {
         bossChanged = true;
       } else if (bossState.lastEncounterDate === currentWeek && (bossState.isActive || bossState.status === 'pending_choice')) {
         // User saw the boss on Monday but didn't defeat it
+        const penalty = Math.floor((state.zoneCoins || 0) * 0.3);
         bossState = {
           ...bossState,
           isActive: false,
           status: 'escaped'
         };
-        updates.zoneCoins = Math.max(0, (state.zoneCoins || 0) - 50);
+        updates.zoneCoins = Math.max(0, (state.zoneCoins || 0) - penalty);
         updates.notifications = [
           {
             id: `boss-escape-${Date.now()}-${Math.random()}`,
             title: state.language === 'id' ? 'Bos Mingguan Kabur!' : 'Weekly Boss Escaped!',
-            description: state.language === 'id' ? 'Bos mingguan berhasil kabur dan mencuri 50 Zone Coins milikmu!' : 'The weekly boss escaped and stole 50 of your Zone Coins!',
-            icon: 'Skull',
+            description: state.language === 'id' 
+              ? `Bos mingguan berhasil kabur dan mencuri 30% (${penalty}) Zone Coins milikmu!` 
+              : `The weekly boss escaped and stole 30% (${penalty}) of your Zone Coins!`,
+            icon: 'Info',
             read: false
           },
           ...(state.notifications || [])
@@ -1046,7 +1068,7 @@ function useAppStateInternal() {
       let newZoneCoins = (prev.zoneCoins || 0) + zcReward;
       let newLevel = prev.level;
       let newBadges = [...prev.badges];
-      let newUnlockedFrames = prev.unlockedFrames ? [...prev.unlockedFrames] : ['frame-default', 'frame-rgb'];
+      let newUnlockedFrames = prev.unlockedFrames ? [...prev.unlockedFrames] : ['frame-default'];
       let newTitles = prev.titles ? [...prev.titles] : ['Newbie'];
       let newPathProgress = { ...prev.pathProgress };
       let newUnlockedItemsQueue = prev.unlockedItemsQueue ? [...prev.unlockedItemsQueue] : [];
@@ -1059,9 +1081,12 @@ function useAppStateInternal() {
           };
           let pXp = currentProgress.xp + xpReward;
           let pLevel = currentProgress.level;
-          if (pXp >= pLevel * 100) {
+          if (pXp >= pLevel * 100 && pLevel < 50) {
             pXp = pXp - pLevel * 100;
             pLevel += 1;
+          }
+          if (pLevel >= 50) {
+            pXp = Math.min(pXp, pLevel * 100 - 1);
           }
           newPathProgress[relatedPath] = {
             ...currentProgress,
@@ -1071,7 +1096,7 @@ function useAppStateInternal() {
         }
       }
 
-      while (newXp >= newLevel * 100) {
+      while (newXp >= newLevel * 100 && newLevel < 50) {
         newXp = newXp - newLevel * 100;
         newLevel += 1;
         leveledUp = true;
@@ -1082,6 +1107,9 @@ function useAppStateInternal() {
           newUnlockedFrames.push(frameName);
           newUnlockedItemsQueue.push({ type: 'frame', id: frameName });
         }
+      }
+      if (newLevel >= 50) {
+        newXp = Math.min(newXp, newLevel * 100 - 1);
       }
 
       const weeklyMissions = newMissions.filter(m => m.type === 'WEEKLY');
@@ -1148,6 +1176,11 @@ function useAppStateInternal() {
       if (currentHour >= 12 && currentHour < 17) addBadge('AFTERNOON_HUSTLE');
       
       if (newStreak >= 3) addBadge('STREAK_3');
+      
+      if (newStreak >= 7 && !newUnlockedFrames.includes('frame-rgb')) {
+        newUnlockedFrames.push('frame-rgb');
+        newUnlockedItemsQueue.push({ type: 'frame', id: 'frame-rgb' });
+      }
       if (newStreak >= 7) addBadge('STREAK_7');
       if (newStreak >= 30) addBadge('STREAK_30');
       if (newLevel >= 10) addBadge('LEVEL_10');
@@ -1268,6 +1301,7 @@ function useAppStateInternal() {
   };
 
   const addNotification = (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
+    sounds.playNotification();
     setState(prev => {
       if (!prev) return prev;
       const newNotification: Notification = {
@@ -1348,7 +1382,7 @@ function useAppStateInternal() {
       let leveledUp = false;
       let newUnlockedFrames = [...(prev.unlockedFrames || [])];
 
-      while (newXp >= newLevel * 100) {
+      while (newXp >= newLevel * 100 && newLevel < 50) {
         newXp = newXp - newLevel * 100;
         newLevel += 1;
         leveledUp = true;
@@ -1359,6 +1393,10 @@ function useAppStateInternal() {
           newUnlockedFrames.push(frameName);
           newUnlockedItemsQueue.push({ type: 'frame', id: frameName });
         }
+      }
+
+      if (newLevel >= 50) {
+        newXp = Math.min(newXp, newLevel * 100 - 1);
       }
 
       return {

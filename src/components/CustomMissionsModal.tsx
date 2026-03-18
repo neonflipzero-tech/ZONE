@@ -11,11 +11,18 @@ interface CustomMissionsModalProps {
   state: UserState;
   addCustomMission: (type: MissionType, text: string) => void;
   removeCustomMission: (type: MissionType, text: string) => void;
+  initialTab?: MissionType;
 }
 
-export default function CustomMissionsModal({ isOpen, onClose, state, addCustomMission, removeCustomMission }: CustomMissionsModalProps) {
-  const [activeTab, setActiveTab] = useState<MissionType>('REGULAR');
-  const [newMissionText, setNewMissionText] = useState('');
+export default function CustomMissionsModal({ isOpen, onClose, state, addCustomMission, removeCustomMission, initialTab }: CustomMissionsModalProps) {
+  const [activeTab, setActiveTab] = React.useState<MissionType>(initialTab || 'REGULAR');
+  const [newMissionText, setNewMissionText] = React.useState('');
+
+  React.useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
   const [showPremiumPrompt, setShowPremiumPrompt] = useState(false);
 
   if (!isOpen) return null;

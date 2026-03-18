@@ -17,8 +17,11 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
     'home.tab.routine': { en: 'ROUTINE', id: 'RUTINITAS' },
     'home.recent_unlocks': { en: 'Recent Unlocks', id: 'Pencapaian Baru' },
     'home.timer.keep_going': { en: 'Keep going!', id: 'Terus berjuang!' },
+    'home.timer.paused': { en: 'Paused', id: 'Berhenti sejenak' },
     'home.timer.start': { en: 'Start Timer', id: 'Mulai Timer' },
     'home.timer.stop': { en: 'Stop', id: 'Berhenti' },
+    'home.timer.reset': { en: 'Reset', id: 'Atur Ulang' },
+    'home.timer.resume': { en: 'Resume', id: 'Lanjutkan' },
     'home.mission.start_complete': { en: 'Start & Complete', id: 'Mulai & Selesaikan' },
     'home.streak_freeze.used': { en: 'Streak Freeze used! Your streak is safe.', id: 'Streak Freeze digunakan! Streak kamu aman.' },
     'home.streak_freeze.title': { en: 'Use Streak Freeze?', id: 'Gunakan Streak Freeze?' },
@@ -30,7 +33,7 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
     'home.add_custom_missions': { en: 'Add custom {tab} missions to start earning XP.', id: 'Tambahkan misi kustom {tab} untuk mulai mendapatkan XP.' },
     'home.add_missions': { en: 'Add Missions', id: 'Tambah Misi' },
     'home.locked_mission': { en: 'Locked (Complete previous)', id: 'Terkunci (Selesaikan misi sebelumnya)' },
-    'home.cant_do_it': { en: "I can't do it", id: 'Saya tidak bisa melakukannya' },
+    'home.cant_do_it': { en: "I can't do it", id: 'Ganti Misi' },
     'home.cancel': { en: 'Cancel', id: 'Batal' },
 
     // JourneyScreen.tsx

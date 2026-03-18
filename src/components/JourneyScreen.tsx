@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { UserState, getRankForLevel, RANKS, useAppState } from '../store';
-import { Shield, Lock, Star, Check, User, Share2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Shield, Lock, Star, Check, User, Share2, Zap, Crown } from 'lucide-react';
+import { useEffect, useRef, useState, useLayoutEffect } from 'react';
+import { sounds } from '../utils/sounds';
 import ProfileFrame from './ProfileFrame';
 import { shareContent, shareElementAsImage } from '../utils/share';
 import { t } from '../utils/translations';
@@ -22,80 +23,69 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
   const currentRank = getRankForLevel(state.level);
   const isRankUp = prevRank.name !== currentRank.name && state.animatingLevelUp;
 
-  // Generate levels to show (up to max level 50)
-  const maxLevelToShow = 50;
+  // Generate levels to show (at least up to max level 50, or current level + 5)
+  const maxLevelToShow = Math.min(50, Math.max(50, state.level + 5));
   const levels = Array.from({ length: maxLevelToShow }, (_, i) => i + 1).reverse();
+
+  const hasScrolledRef = useRef(false);
+
+  // 1. Instant jump to bottom before first paint
+  useLayoutEffect(() => {
+    if (scrollRef.current && !state.animatingLevelUp && !hasScrolledRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight + 5000;
+    }
+  }, [state.animatingLevelUp]);
 
   useEffect(() => {
     let timers: NodeJS.Timeout[] = [];
+    
     if (state.animatingLevelUp) {
-      // Scroll to previous level
+      // ... existing level up animation logic ...
       const prevLevelElement = document.getElementById(`level-${state.previousLevel}`);
       if (prevLevelElement) {
         prevLevelElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
 
       const t1 = setTimeout(() => {
-        // 1. Character moves
         setDisplayLevelCharacter(state.level);
-        
-        // Scroll to new level
         const currentLevelElement = document.getElementById(`level-${state.level}`);
         if (currentLevelElement) {
           currentLevelElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         const t2 = setTimeout(() => {
-          // 2. PFP moves
           setDisplayLevelPfp(state.level);
-
           if (isRankUp) {
             const t3 = setTimeout(() => {
               setShowRankUpOverlay(true);
               import('../utils/sounds').then(({ sounds }) => sounds.playLevelUp());
-              
               const t4 = setTimeout(() => {
                 setShowRankUpOverlay(false);
                 updateState({ animatingLevelUp: false, previousLevel: state.level });
-              }, 4000); // Show overlay for 4 seconds
+              }, 4000);
               timers.push(t4);
             }, 1000);
             timers.push(t3);
           } else {
             const t3 = setTimeout(() => {
-              // 3. Sound effect
               import('../utils/sounds').then(({ sounds }) => sounds.playLevelUp());
               updateState({ animatingLevelUp: false, previousLevel: state.level });
-            }, 1000); // Wait for PFP to move
+            }, 1000);
             timers.push(t3);
           }
-        }, 1000); // Wait for character to move
+        }, 1000);
         timers.push(t2);
-      }, 1000); // Initial delay
+      }, 1000);
       timers.push(t1);
-
-      return () => {
-        timers.forEach(clearTimeout);
-      };
     } else {
       setDisplayLevelCharacter(state.level);
       setDisplayLevelPfp(state.level);
       setShowRankUpOverlay(false);
-      
-      // Initial scroll from bottom (level 1) to current level
-      if (scrollRef.current) {
-        // Scroll to the very bottom first (level 1)
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        
-        // Then smoothly scroll up to the current level
-        setTimeout(() => {
-          const currentLevelElement = document.getElementById(`level-${state.level}`);
-          if (currentLevelElement) {
-            currentLevelElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        }, 300);
-      }
     }
+
+    return () => {
+      timers.forEach(clearTimeout);
+    };
   }, [state.animatingLevelUp, state.level, state.previousLevel, updateState, isRankUp]);
 
   return (
@@ -103,6 +93,25 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      onAnimationComplete={() => {
+        // Trigger scroll animation after entrance animation
+        if (!state.animatingLevelUp) {
+          const container = scrollRef.current;
+          if (container) {
+            const targetElement = document.getElementById(`level-${state.level}`);
+            if (targetElement) {
+              const targetRect = targetElement.getBoundingClientRect();
+              const containerRect = container.getBoundingClientRect();
+              const targetScrollTop = container.scrollTop + (targetRect.top - containerRect.top) - (containerRect.height / 2) + (targetRect.height / 2);
+              
+              container.scrollTo({ 
+                top: targetScrollTop, 
+                behavior: 'smooth' 
+              });
+            }
+          }
+        }
+      }}
       className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24 relative"
       ref={scrollRef}
     >
@@ -192,14 +201,14 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
           const progress = currentIndex >= 0 ? currentIndex / (levels.length - 1) : 0;
 
           return (
-            <div className="absolute top-[120px] bottom-[120px] left-1/2 -translate-x-1/2 w-2 z-0 flex flex-col justify-end">
+            <div className="absolute top-[80px] bottom-[80px] left-1/2 -translate-x-1/2 w-2 z-0 flex flex-col justify-end">
               {/* Background Line */}
               <div className="absolute inset-0 bg-white/10 rounded-full" />
               
               {/* Progress Line (Pink) */}
               <motion.div 
                 className="w-full bg-[#ec4899] rounded-full relative z-10"
-                initial={{ height: 0 }}
+                initial={state.animatingLevelUp ? { height: 0 } : { height: `${progress * 100}%` }}
                 animate={{ height: `${progress * 100}%` }}
                 transition={{ duration: 1.5, ease: "easeInOut" }}
                 style={{ boxShadow: '0 0 15px #ec4899, 0 0 30px #ec4899' }}
@@ -218,9 +227,10 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
           const isMilestone = RANKS.some(r => r.minLevel === level);
 
           return (
-            <div 
+            <motion.div 
               key={level} 
               id={`level-${level}`}
+              initial={{ opacity: 1, y: 0 }}
               className="relative w-full flex items-center justify-center my-12 z-10"
             >
               {/* Node */}
@@ -261,12 +271,12 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                 )}
                 
                 <div 
-                  className={`w-16 h-16 flex items-center justify-center relative z-10 transition-all ${
+                  className={`w-16 h-16 flex items-center justify-center relative z-10 transition-all rounded-full ${
                     isPfpHere 
                       ? 'scale-110' 
                       : isCompleted 
-                        ? 'bg-accent border-accent/50 rounded-full border-4 shadow-xl' 
-                        : 'bg-surface rounded-full border-4 shadow-xl'
+                        ? 'bg-accent border-accent/50 border-4 shadow-xl' 
+                        : 'bg-surface border-4 shadow-xl'
                   }`}
                   style={
                     isMilestone && !isCompleted && !isPfpHere 
@@ -280,14 +290,18 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                     <motion.div 
                       layoutId="pfp"
                       transition={{ type: "spring", stiffness: 50, damping: 15 }}
-                      className="w-full h-full flex items-center justify-center"
+                      className="w-full h-full flex items-center justify-center rounded-full overflow-hidden"
                     >
                       <ProfileFrame frame={state.equippedFrame} src={state.profilePicture} size="md" />
                     </motion.div>
                   ) : isCompleted ? (
                     <Check className="w-6 h-6 text-background" />
                   ) : isMilestone ? (
-                    <Shield className="w-6 h-6" style={{ color: `${rankForLevel.hex}80` }} />
+                    rankForLevel.name === 'Mythic' ? (
+                      <Crown className="w-6 h-6" style={{ color: `${rankForLevel.hex}80` }} />
+                    ) : (
+                      <Shield className="w-6 h-6" style={{ color: `${rankForLevel.hex}80` }} />
+                    )
                   ) : (
                     <Lock className="w-5 h-5 text-secondary/50" />
                   )}
@@ -318,7 +332,7 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>
