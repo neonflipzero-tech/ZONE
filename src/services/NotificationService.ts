@@ -17,15 +17,15 @@ export class NotificationService {
     }
   }
 
-  static async requestPermission(): Promise<boolean> {
-    if (typeof window === 'undefined' || !('Notification' in window)) return false;
+  static async requestPermission(): Promise<'granted' | 'denied' | 'default' | 'unsupported'> {
+    if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
     
     try {
       const permission = await Notification.requestPermission();
-      return permission === 'granted';
+      return permission;
     } catch (error) {
       console.error('Error requesting notification permission:', error);
-      return false;
+      return 'denied';
     }
   }
 

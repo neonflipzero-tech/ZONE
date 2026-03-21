@@ -52,10 +52,21 @@ export default function SettingsScreen({
     const newEnabled = !state.notificationsEnabled;
     
     if (newEnabled) {
-      const granted = await NotificationService.requestPermission();
-      if (!granted) {
-        setToastMessage(state.language === 'id' ? 'Izin notifikasi ditolak' : 'Notification permission denied');
+      const permission = await NotificationService.requestPermission();
+      
+      if (permission === 'unsupported') {
+        setToastMessage(state.language === 'id' ? 'Notifikasi tidak didukung di perangkat ini' : 'Notifications not supported on this device');
         setTimeout(() => setToastMessage(null), 3000);
+        return;
+      }
+      
+      if (permission === 'denied') {
+        setToastMessage(state.language === 'id' ? 'Izin notifikasi ditolak. Silakan aktifkan di pengaturan HP.' : 'Notification permission denied. Please enable in phone settings.');
+        setTimeout(() => setToastMessage(null), 3000);
+        return;
+      }
+      
+      if (permission !== 'granted') {
         return;
       }
     }

@@ -240,12 +240,12 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
           </div>
 
           <div className="flex items-center space-x-2 flex-shrink-0">
-            <div className="flex items-center space-x-1.5 bg-surface px-2.5 py-1 rounded-full border border-white/10 shadow-sm">
-              <span className="text-[10px] font-bold text-accent tracking-tight">{state.xp} XP</span>
+            <div className="flex items-center space-x-1.5 bg-zinc-900 px-2.5 py-1 rounded-full border border-white/10 shadow-sm">
+              <span className="text-[10px] font-bold text-rose-500 tracking-tight">{state.xp} XP</span>
             </div>
             <button 
               onClick={() => setIsNotificationCenterOpen(true)}
-              className="p-1.5 bg-surface rounded-full border border-white/10 hover:bg-white/10 transition-colors relative"
+              className="p-1.5 bg-zinc-900 rounded-full border border-white/10 hover:bg-white/10 transition-colors relative"
             >
               <Bell className="w-4 h-4 text-secondary" />
               {unreadNotificationsCount > 0 && (
@@ -309,7 +309,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
           </div>
 
           {/* Tabs */}
-          <div className="flex bg-surface rounded-xl p-1 mb-6 border border-white/5 overflow-x-auto no-scrollbar">
+          <div className="flex bg-zinc-900 rounded-xl p-1 mb-6 border border-white/5 overflow-x-auto no-scrollbar">
             {(() => {
               const baseTabs = state.chosenPath === 'OTHER' 
                 ? ['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] as MissionType[]
@@ -326,8 +326,8 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                 onClick={() => setActiveTab(tab)}
                 className={`flex-1 min-w-[70px] py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-colors ${
                   activeTab === tab 
-                    ? 'bg-gradient-to-r from-accent to-rose-600 text-white shadow-md' 
-                    : 'text-secondary hover:text-primary'
+                    ? 'bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-md' 
+                    : 'text-zinc-400 hover:text-zinc-100'
                 }`}
               >
                 {tab === 'BOSS' ? 'BOSS' : t(`home.tab.${tab.toLowerCase()}`, state.language)}
@@ -349,17 +349,17 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
 
           <div className="space-y-3">
             {activeTab === 'BOSS' ? null : displayedMissions.length === 0 ? (
-              <div className="text-center py-12 px-4 bg-surface/50 rounded-2xl border border-white/5">
-                <Wand2 className="w-12 h-12 text-secondary/30 mx-auto mb-4" />
+              <div className="text-center py-12 px-4 bg-zinc-900/50 rounded-2xl border border-white/5">
+                <Wand2 className="w-12 h-12 text-zinc-500/30 mx-auto mb-4" />
                 <h4 className="text-lg font-bold mb-2">
                   {t('home.no_missions_yet', state.language)}
                 </h4>
-                <p className="text-sm text-secondary mb-6 max-w-[250px] mx-auto">
+                <p className="text-sm text-zinc-400 mb-6 max-w-[250px] mx-auto">
                   {t('home.add_custom_missions', state.language).replace('{tab}', activeTab.toLowerCase())}
                 </p>
                 <button
                   onClick={() => setIsCustomMissionsModalOpen(true)}
-                  className="px-6 py-3 bg-accent text-background rounded-xl font-bold text-sm hover:bg-accent/90 transition-colors"
+                  className="px-6 py-3 bg-rose-500 text-zinc-950 rounded-xl font-bold text-sm hover:bg-rose-600 transition-colors"
                 >
                   {t('home.add_missions', state.language)}
                 </button>

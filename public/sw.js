@@ -1,11 +1,20 @@
 self.addEventListener('push', function(event) {
-  const data = event.data ? event.data.json() : {};
-  const title = data.title || 'Zone Reminder';
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { title: 'Zone Elite', body: event.data.text() };
+  }
+
+  const title = data.title || 'Zone Elite';
   const options = {
     body: data.body || 'Don\'t forget to complete your missions today!',
-    icon: '/icon-192x192.png',
-    badge: '/badge-72x72.png',
-    data: data.url || '/'
+    icon: 'https://picsum.photos/seed/zone/192/192',
+    badge: 'https://picsum.photos/seed/zone/72/72',
+    data: data.url || '/',
+    vibrate: [100, 50, 100],
+    tag: 'zone-mission-reminder',
+    renotify: true
   };
 
   event.waitUntil(
@@ -16,7 +25,19 @@ self.addEventListener('push', function(event) {
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
   event.waitUntil(
-    clients.openWindow(event.notification.data)
+    clients.matchAll({ type: 'window' }).then(windowClients => {
+      // If a window is already open, focus it
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
+        if (client.url === '/' && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // If no window is open, open a new one
+      if (clients.openWindow) {
+        return clients.openWindow(event.notification.data || '/');
+      }
+    })
   );
 });
 
