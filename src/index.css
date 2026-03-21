@@ -10,7 +10,8 @@
   --color-surface-hover: #27272a; /* Zinc 800 */
   --color-primary: #fafafa; /* Zinc 50 */
   --color-secondary: #a1a1aa; /* Zinc 400 */
-  --color-accent: #f43f5e; /* Rose 500 for intense actions */
+  --color-accent: #fafafa; /* Neutral White */
+  --color-stat-orange: #F27D26; /* Vibrant Orange */
   --color-success: #10b981;
 }
 

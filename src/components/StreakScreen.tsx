@@ -39,7 +39,7 @@ export default function StreakScreen({ streak, onContinue }: StreakScreenProps) 
     >
       <div className="absolute inset-0 overflow-hidden pointer-events-none flex items-center justify-center">
         <div 
-          className="w-[100vw] h-[100vw] rounded-full bg-orange-500/10 blur-3xl"
+          className="w-[100vw] h-[100vw] rounded-full bg-accent/10 blur-3xl"
         />
       </div>
 
@@ -50,19 +50,19 @@ export default function StreakScreen({ streak, onContinue }: StreakScreenProps) 
         transition={{ delay: 0.3, type: "spring" }}
         className="relative z-10 flex flex-col items-center p-8 rounded-3xl"
       >
-        <div className="w-32 h-32 rounded-full bg-surface border border-white/10 flex items-center justify-center mb-6 shadow-2xl shadow-orange-500/20 relative">
+        <div className="w-32 h-32 rounded-full bg-surface border border-white/10 flex items-center justify-center mb-6 shadow-2xl shadow-accent/20 relative">
           <div
-            className="absolute inset-0 rounded-full bg-orange-500/20 blur-xl animate-pulse"
+            className="absolute inset-0 rounded-full bg-accent/20 blur-xl animate-pulse"
           />
-          <Flame className="w-16 h-16 text-orange-500 relative z-10" />
+          <Flame className="w-16 h-16 text-accent relative z-10" />
         </div>
         
         <h2 className="text-sm font-mono text-secondary uppercase tracking-[0.3em] mb-2">{t('streak.increased', state.language)}</h2>
         <div className="flex items-center space-x-4 mb-8">
-          <h1 className="text-7xl font-display font-black tracking-tighter text-orange-500 drop-shadow-lg">
+          <h1 className="text-7xl font-display font-black tracking-tighter text-accent drop-shadow-lg">
             {streak}
           </h1>
-          <span className="text-3xl font-bold text-orange-500/50">{t('streak.days', state.language)}</span>
+          <span className="text-3xl font-bold text-accent/50">{t('streak.days', state.language)}</span>
         </div>
 
         <div className="bg-surface/50 backdrop-blur-md border border-white/10 p-6 rounded-2xl max-w-sm mb-12">
@@ -79,7 +79,7 @@ export default function StreakScreen({ streak, onContinue }: StreakScreenProps) 
           </button>
           <button
             onClick={onContinue}
-            className="w-full bg-orange-500 text-background font-bold py-4 rounded-xl hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20"
+            className="w-full bg-accent text-white font-bold py-4 rounded-xl hover:bg-accent/90 transition-colors shadow-lg shadow-accent/20"
           >
             {t('streak.keep_going', state.language)}
           </button>

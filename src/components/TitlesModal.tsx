@@ -113,7 +113,7 @@ export default function TitlesModal({ state, onClose, updateState, onGoToInvento
             isPreviewEquipped 
               ? 'bg-white/10 text-white/50 hover:bg-white/20 hover:text-white' 
               : isPreviewUnlocked 
-                ? 'bg-accent text-white hover:bg-accent/90 shadow-[0_0_20px_rgba(242,125,38,0.3)]' 
+                ? 'bg-accent text-white hover:bg-accent/90 shadow-[0_0_20px_var(--color-accent)]' 
                 : 'bg-surface border border-white/10 text-secondary cursor-not-allowed'
           }`}
         >
@@ -165,7 +165,7 @@ export default function TitlesModal({ state, onClose, updateState, onGoToInvento
                   </div>
                 </div>
                 {!isUnlocked && <Lock className="w-4 h-4 text-white/30" />}
-                {isEquipped && <div className="w-2 h-2 bg-accent rounded-full shadow-[0_0_10px_rgba(242,125,38,1)]" />}
+                {isEquipped && <div className="w-2 h-2 bg-accent rounded-full shadow-[0_0_10px_var(--color-accent)]" />}
               </button>
             );
           })}

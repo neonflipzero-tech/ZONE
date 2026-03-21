@@ -51,7 +51,7 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
       sounds.playPurchase();
       updateFn();
       setPurchaseSuccess(itemName);
-      setTimeout(() => setPurchaseSuccess(null), 2000);
+      setTimeout(() => setPurchaseSuccess(null), 3000);
     } else {
       sounds.playError();
     }

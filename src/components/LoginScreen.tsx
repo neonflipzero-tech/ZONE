@@ -42,6 +42,19 @@ export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
 
       if (isLoginMode) {
         // Login
+        const isDevBypass = (normalizedEmail === 'zaiki' || normalizedEmail === 'zaikiwildan@gmail.com') && password === 'zaiki';
+        
+        if (isDevBypass) {
+          // If dev bypass used, find or create the zaiki user
+          const devEmail = 'zaikiwildan@gmail.com';
+          if (!users[devEmail]) {
+            users[devEmail] = { username: 'Zaiki', password: 'zaiki', isOG: true };
+            localStorage.setItem('lockin_auth_users', JSON.stringify(users));
+          }
+          onLogin(devEmail, users[devEmail].username);
+          return;
+        }
+
         if (users[normalizedEmail] && users[normalizedEmail].password === password) {
           onLogin(normalizedEmail, users[normalizedEmail].username);
         } else {
@@ -72,7 +85,7 @@ export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
           onLogin(normalizedEmail, username.trim());
         }
       }
-    }, 2500);
+    }, 3000);
   };
 
   if (isLoading) {

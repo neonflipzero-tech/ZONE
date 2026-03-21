@@ -62,20 +62,20 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
               const t4 = setTimeout(() => {
                 setShowRankUpOverlay(false);
                 updateState({ animatingLevelUp: false, previousLevel: state.level });
-              }, 4000);
+              }, 1500);
               timers.push(t4);
-            }, 1000);
+            }, 800);
             timers.push(t3);
           } else {
             const t3 = setTimeout(() => {
               import('../utils/sounds').then(({ sounds }) => sounds.playLevelUp());
               updateState({ animatingLevelUp: false, previousLevel: state.level });
-            }, 1000);
+            }, 800);
             timers.push(t3);
           }
-        }, 1000);
+        }, 800);
         timers.push(t2);
-      }, 1000);
+      }, 800);
       timers.push(t1);
     } else {
       setDisplayLevelCharacter(state.level);

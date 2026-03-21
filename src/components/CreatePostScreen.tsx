@@ -78,7 +78,7 @@ export default function CreatePostScreen({ state, onPost, onCancel }: CreatePost
         setTimeout(() => {
           setShowToast(false);
           onPost(newPost);
-        }, 1500);
+        }, 3000);
       };
       img.src = previewUrl;
     } else {
@@ -99,7 +99,7 @@ export default function CreatePostScreen({ state, onPost, onCancel }: CreatePost
       setTimeout(() => {
         setShowToast(false);
         onPost(newPost);
-      }, 1500);
+      }, 3000);
     }
   };
 

@@ -14,7 +14,9 @@ import StreakScreen from './components/StreakScreen';
 import JourneyScreen from './components/JourneyScreen';
 import PfpPromptModal from './components/PfpPromptModal';
 import UnlockNotification from './components/UnlockNotification';
+import ElitePromotionModal from './components/ElitePromotionModal';
 import { Target, Trophy, User, BarChart2, Map } from 'lucide-react';
+import { NotificationService } from './services/NotificationService';
 
 type Tab = 'home' | 'leaderboard' | 'journey' | 'rank' | 'profile';
 
@@ -42,6 +44,16 @@ export default function App() {
   const [isChangingGoal, setIsChangingGoal] = useState(false);
 
   useEffect(() => {
+    NotificationService.init();
+  }, []);
+
+  useEffect(() => {
+    if (state?.notificationsEnabled) {
+      NotificationService.scheduleDailyReminder(state);
+    }
+  }, [state?.notificationsEnabled, state?.notificationTime]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('upgrade') === 'success') {
       updateState({ isPremium: true });
@@ -56,7 +68,7 @@ export default function App() {
     // Simulate initial app load
     const timer = setTimeout(() => {
       setIsAppLoading(false);
-    }, 2000);
+    }, 3000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -146,7 +158,98 @@ export default function App() {
     }
   }, [state?.isLoggedIn, state?.level]);
 
+  // Streak at risk check
+  useEffect(() => {
+    if (state?.isLoggedIn && state?.notificationsEnabled && state?.streak > 0) {
+      const checkStreakRisk = () => {
+        const now = new Date();
+        const hours = now.getHours();
+        
+        // Check if it's after 8 PM (20:00)
+        if (hours >= 20) {
+          const hasCompletedToday = state.missions.some(m => m.completed);
+          const lastWarningDate = localStorage.getItem('lockin_last_streak_warning');
+          const today = now.toDateString();
+          
+          if (!hasCompletedToday && lastWarningDate !== today) {
+            NotificationService.notifyStreakAtRisk(state.streak, state.language);
+            localStorage.setItem('lockin_last_streak_warning', today);
+          }
+        }
+      };
+      
+      const interval = setInterval(checkStreakRisk, 1000 * 60 * 30); // Check every 30 mins
+      checkStreakRisk(); // Initial check
+      return () => clearInterval(interval);
+    }
+  }, [state?.isLoggedIn, state?.notificationsEnabled, state?.streak, state?.missions, state?.language]);
+
+  // Badge and Rank Notification Check
+  const prevBadgesCountRef = useRef(state?.badges?.length || 0);
+  const prevLevelRef = useRef(state?.level || 1);
+  const prevBossStatusRef = useRef(state?.bossState?.status || 'idle');
+
+  useEffect(() => {
+    if (state?.isLoggedIn && state?.notificationsEnabled) {
+      // Badge check
+      if (state.badges.length > prevBadgesCountRef.current) {
+        const newBadge = state.badges[state.badges.length - 1];
+        // Map badge ID to readable name if needed, or just use ID
+        const badgeName = newBadge.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+        NotificationService.notifyBadgeUnlocked(badgeName, state.language);
+      }
+      prevBadgesCountRef.current = state.badges.length;
+
+      // Rank check
+      const prevRank = getRankForLevel(prevLevelRef.current);
+      const currentRank = getRankForLevel(state.level);
+      if (currentRank.name !== prevRank.name && state.level > prevLevelRef.current) {
+        NotificationService.notifyRankAchieved(currentRank.name, state.language);
+      }
+      prevLevelRef.current = state.level;
+
+      // Boss check
+      if (state.bossState) {
+        if (state.bossState.status === 'active' && prevBossStatusRef.current !== 'active') {
+          NotificationService.notifyNewBossAppeared(state.bossState.name, state.language);
+        } else if (state.bossState.status === 'defeated' && prevBossStatusRef.current !== 'defeated') {
+          NotificationService.notifyBossDefeated(state.bossState.name, state.language);
+        }
+        prevBossStatusRef.current = state.bossState.status;
+      }
+    }
+  }, [state?.badges?.length, state?.level, state?.bossState?.status, state?.notificationsEnabled, state?.language]);
+
   const [isLevelUpAnimationComplete, setIsLevelUpAnimationComplete] = useState(true);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [isPromoOpen, setIsPromoOpen] = useState(false);
+  const [isFlashSale, setIsFlashSale] = useState(false);
+
+  // Promotion Trigger Logic
+  useEffect(() => {
+    if (state?.isLoggedIn && !state?.isPremium) {
+      const interval = setInterval(() => {
+        // 60% chance to show promo
+        if (Math.random() < 0.6) {
+          // 1 in 3 chance for flash sale (approx 33.3%)
+          const isRare = Math.random() < 0.333;
+          setIsFlashSale(isRare);
+          setIsPromoOpen(true);
+        }
+      }, 5 * 60 * 1000); // 5 minutes
+
+      return () => clearInterval(interval);
+    }
+  }, [state?.isLoggedIn, state?.isPremium]);
+
+  useEffect(() => {
+    const handleNotification = (event: any) => {
+      setNotification(event.detail);
+      setTimeout(() => setNotification(null), 3000);
+    };
+    window.addEventListener('zone-notification', handleNotification);
+    return () => window.removeEventListener('zone-notification', handleNotification);
+  }, []);
 
   // Update Notification Check
   useEffect(() => {
@@ -212,6 +315,10 @@ export default function App() {
               description: `${rivalData.username} baru naik ke Level ${rivalData.level} — kamu masih Level ${state.level}`,
               icon: 'Swords'
             });
+            // Push Notification
+            if (state.notificationsEnabled) {
+              NotificationService.notifyRivalLevelUp(rivalData.username, rivalData.level, state.level, state.language);
+            }
           } else if (rivalData.level > state.level && !lastRivalLevel) {
              addNotification({
               title: 'Rival Ahead!',
@@ -247,16 +354,17 @@ export default function App() {
     login(email, username);
   };
 
-  const handleSelectPath = (path: PathType) => {
-    updateState({ chosenPath: path, onboardingCompleted: true });
+  const handleSelectPath = (path: PathType, baseStats: Record<string, number>) => {
+    updateState({ chosenPath: path, baseStats, onboardingCompleted: true });
   };
 
   const handleChangeGoal = (path: PathType) => {
     setIsChangingGoal(true);
+    // Standardized loading time: 3 seconds
     setTimeout(() => {
       changePath(path);
       setIsChangingGoal(false);
-    }, 2000);
+    }, 3000);
   };
 
   const handleDismissStreak = () => {
@@ -377,6 +485,17 @@ export default function App() {
         </div>
 
         <AnimatePresence>
+          {isPromoOpen && (
+            <ElitePromotionModal 
+              isOpen={isPromoOpen}
+              onClose={() => setIsPromoOpen(false)}
+              language={state.language}
+              isFlashSale={isFlashSale}
+            />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
           {!state.hasPromptedPfp && !state.profilePicture && (
             <PfpPromptModal 
               language={state.language} 
@@ -388,6 +507,20 @@ export default function App() {
                 }
               }} 
             />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {notification && (
+            <motion.div
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.9 }}
+              className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 bg-surface border border-white/10 rounded-2xl shadow-2xl flex items-center space-x-3 min-w-[280px]"
+            >
+              <div className={`w-2 h-2 rounded-full ${notification.type === 'success' ? 'bg-green-500' : notification.type === 'error' ? 'bg-red-500' : 'bg-blue-500'}`} />
+              <p className="text-sm font-medium text-white">{notification.message}</p>
+            </motion.div>
           )}
         </AnimatePresence>
 

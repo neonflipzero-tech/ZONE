@@ -226,7 +226,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                         <span className="text-[9px] font-mono uppercase tracking-wider text-primary font-bold truncate w-full text-center px-1">
                           {frame.replace('frame-', '')}
                         </span>
-                        {isEquipped && <div className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full shadow-[0_0_10px_rgba(242,125,38,1)]" />}
+                        {isEquipped && <div className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full shadow-[0_0_10px_var(--color-accent)]" />}
                       </button>
                     );
                   })}

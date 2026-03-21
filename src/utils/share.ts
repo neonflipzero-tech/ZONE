@@ -19,7 +19,9 @@ export const shareContent = async (title: string, text: string) => {
       if (error.name === 'NotAllowedError' || error.message?.includes('user gesture')) {
         try {
           await navigator.clipboard.writeText(`${title}\n${text}\n${window.location.origin}`);
-          alert('Copied to clipboard!');
+          window.dispatchEvent(new CustomEvent('zone-notification', { 
+            detail: { message: 'Copied to clipboard!', type: 'success' } 
+          }));
           return true;
         } catch (clipboardError) {
           console.error('Error copying to clipboard:', clipboardError);
@@ -33,7 +35,9 @@ export const shareContent = async (title: string, text: string) => {
   } else {
     try {
       await navigator.clipboard.writeText(`${title}\n${text}\n${window.location.origin}`);
-      alert('Copied to clipboard!');
+      window.dispatchEvent(new CustomEvent('zone-notification', { 
+        detail: { message: 'Copied to clipboard!', type: 'success' } 
+      }));
       return true;
     } catch (error) {
       console.error('Error copying to clipboard:', error);
@@ -95,7 +99,9 @@ export const shareElementAsImage = async (elementId: string, title: string, text
           
           // Also copy text
           await navigator.clipboard.writeText(`${title}\n${text}\n${window.location.origin}`);
-          alert('Gambar berhasil diunduh dan teks disalin!');
+          window.dispatchEvent(new CustomEvent('zone-notification', { 
+            detail: { message: 'Gambar berhasil diunduh dan teks disalin!', type: 'success' } 
+          }));
           return true;
         } catch (downloadError) {
           console.error('Error downloading image:', downloadError);

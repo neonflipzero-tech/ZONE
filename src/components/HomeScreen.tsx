@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, useEffect } from 'react';
 import { UserState, MissionType, getRankForLevel, Mission, useAppState, TITLES } from '../store';
-import { CheckCircle2, Circle, Flame, Trophy, User, Shield, Timer, Wand2, Bell, Zap, Skull, Swords, X, ArrowLeft, Target, Mountain, Star } from 'lucide-react';
+import { CheckCircle2, Circle, Flame, Trophy, User, Shield, Timer, Wand2, Bell, Zap, Skull, Swords, X, ArrowLeft, Target, Mountain, Star, Store } from 'lucide-react';
 import { ZoneCoinIcon } from './ZoneCoinIcon';
 import { t } from '../utils/translations';
 import { sounds } from '../utils/sounds';
@@ -22,17 +22,30 @@ interface HomeScreenProps {
 }
 
 function extractDuration(text: string): number | null {
+  // Use word boundaries and allow hyphens/spaces to avoid false positives
   // Hours: hours, hour, jam, jm, h
-  const hoursMatch = text.match(/(\d+)\s*(hours?|jam|jm|h)/i);
-  if (hoursMatch) return parseInt(hoursMatch[1], 10) * 3600;
+  const hoursMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*(hours?|jam|jm)\b/i);
+  if (hoursMatch) return parseFloat(hoursMatch[1].replace(',', '.')) * 3600;
 
-  // Minutes: minutes, minute, mins, min, menit, mnt, minite, mnt, m
-  const minutesMatch = text.match(/(\d+)\s*(minutes?|mins?|menit|mnt|minite|mnt|m)/i);
-  if (minutesMatch) return parseInt(minutesMatch[1], 10) * 60;
+  // Minutes: minutes, minute, mins, min, menit, mnt
+  const minutesMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*(minutes?|mins?|min|menit|mnt)\b/i);
+  if (minutesMatch) return parseFloat(minutesMatch[1].replace(',', '.')) * 60;
 
-  // Seconds: seconds, second, secs, sec, detik, dtk, s
-  const secondsMatch = text.match(/(\d+)\s*(seconds?|secs?|detik|dtk|s)/i);
-  if (secondsMatch) return parseInt(secondsMatch[1], 10);
+  // Seconds: seconds, second, secs, sec, detik, dtk
+  const secondsMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*(seconds?|second|secs?|sec|detik|dtk)\b/i);
+  if (secondsMatch) return parseFloat(secondsMatch[1].replace(',', '.'));
+
+  // Special handling for single letters to avoid false positives like AM/PM or "10 squats"
+  // Only match if it's clearly a duration (e.g. "10m", "10 m", "10h", "10s") 
+  // and NOT part of AM/PM or other common words
+  const hMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*h\b/i);
+  if (hMatch) return parseFloat(hMatch[1].replace(',', '.')) * 3600;
+
+  const mMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*m\b(?![\s-]*(?:am|pm))/i);
+  if (mMatch) return parseFloat(mMatch[1].replace(',', '.')) * 60;
+
+  const sMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*s\b(?![\s-]*(?:quats|it-ups|its|teps))/i);
+  if (sMatch) return parseFloat(sMatch[1].replace(',', '.'));
   
   return null;
 }
@@ -105,7 +118,8 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
   const handleMissionClick = (mission: Mission) => {
     if (mission.completed) return;
     setSelectedMission(mission);
-    const duration = extractDuration(mission.text);
+    // Only extract duration for STRONGER path as requested
+    const duration = state.chosenPath === 'STRONGER' ? extractDuration(mission.text) : null;
     if (duration) {
       setTimeLeft(duration);
     } else {
@@ -199,68 +213,76 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
       </AnimatePresence>
 
       {/* Header */}
-      <div className={`px-4 ${anyItemActive ? 'pt-10' : 'pt-14'} pb-4 flex justify-between items-center sticky top-0 bg-background/80 backdrop-blur-md z-30 border-b border-white/5`}>
-        <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
-          <div className="relative flex-shrink-0">
-            <ProfileFrame frame={state.equippedFrame} src={state.profilePicture} size="sm" />
-            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border border-background z-10 ${currentRank.bg}`}></div>
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-lg font-display font-black tracking-tight truncate">ZONE</h1>
-            <div className="flex items-center space-x-1 mt-0.5">
-              <Shield className={`w-3 h-3 flex-shrink-0 ${currentRank.color}`} />
-              <p className={`text-[9px] font-mono uppercase tracking-wider truncate ${currentRank.color}`}>{currentRank.name} • Lvl {state.level}</p>
+      <div className={`px-4 ${anyItemActive ? 'pt-10' : 'pt-14'} pb-4 flex flex-col sticky top-0 bg-background/80 backdrop-blur-md z-30 border-b border-white/5`}>
+        <div className="flex justify-between items-start w-full">
+          <div className="flex items-center space-x-3 min-w-0 flex-1">
+            <div className="relative flex-shrink-0">
+              <ProfileFrame frame={state.equippedFrame} src={state.profilePicture} size="sm" />
+              <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border border-background z-10 ${currentRank.bg}`}></div>
             </div>
-            {state.equippedTitle && (() => {
-              const titleDef = TITLES.find(t => t.id === state.equippedTitle);
-              return (
-                <div className={`text-[8px] font-mono uppercase tracking-widest mt-0.5 inline-block truncate max-w-full ${titleDef?.specialColor || 'text-accent/80'}`}>
-                  {titleDef?.name[state.language] || state.equippedTitle}
+            <div className="min-w-0 flex flex-col">
+              <div className="flex items-center space-x-2">
+                <h1 className="text-xl font-display font-black tracking-tight truncate">ZONE</h1>
+                <div className="flex items-center space-x-1 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
+                  <Shield className={`w-2.5 h-2.5 flex-shrink-0 ${currentRank.color}`} />
+                  <p className={`text-[8px] font-mono uppercase tracking-wider truncate ${currentRank.color}`}>{currentRank.name} • Lvl {state.level}</p>
                 </div>
-              );
-            })()}
+              </div>
+              {state.equippedTitle && (() => {
+                const titleDef = TITLES.find(t => t.id === state.equippedTitle);
+                return (
+                  <div className={`text-[8px] font-mono uppercase tracking-widest mt-0.5 inline-block truncate max-w-full ${titleDef?.specialColor || 'text-accent/80'}`}>
+                    {titleDef?.name[state.language] || state.equippedTitle}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 flex-shrink-0">
+            <div className="flex items-center space-x-1.5 bg-surface px-2.5 py-1 rounded-full border border-white/10 shadow-sm">
+              <span className="text-[10px] font-bold text-accent tracking-tight">{state.xp} XP</span>
+            </div>
+            <button 
+              onClick={() => setIsNotificationCenterOpen(true)}
+              className="p-1.5 bg-surface rounded-full border border-white/10 hover:bg-white/10 transition-colors relative"
+            >
+              <Bell className="w-4 h-4 text-secondary" />
+              {unreadNotificationsCount > 0 && (
+                <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full border-2 border-surface"></div>
+              )}
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center space-x-3 flex-shrink-0">
-          <div className="flex flex-col items-end gap-2">
-            {/* Top Row: XP and Notification */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center space-x-1.5 bg-surface px-2.5 py-1 rounded-full border border-white/10 shadow-sm">
-                <span className="text-[10px] font-bold text-accent tracking-tight">{state.xp} XP</span>
-              </div>
-              <button 
-                onClick={() => setIsNotificationCenterOpen(true)}
-                className="p-1.5 bg-surface rounded-full border border-white/10 hover:bg-white/10 transition-colors relative"
-              >
-                <Bell className="w-4 h-4 text-secondary" />
-                {unreadNotificationsCount > 0 && (
-                  <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full border-2 border-surface"></div>
-                )}
-              </button>
+        {/* Long Streak Pill - Now on its own line to accommodate many items */}
+        <div className="mt-3 overflow-x-auto no-scrollbar">
+          <div className={`inline-flex items-center space-x-3 bg-gradient-to-r ${streakBgClass} px-4 py-2 rounded-full border shadow-sm whitespace-nowrap`}>
+            <div className="flex items-center space-x-1.5">
+              <Flame className={`w-4 h-4 ${streakColorClass}`} />
+              <span className={`text-sm font-black ${streakColorClass}`}>{state.streak || 0}</span>
             </div>
-
-            {/* Bottom Row: Streak | Freeze | 2x */}
-            <div className={`flex items-center space-x-2 bg-gradient-to-r ${streakBgClass} px-3 py-1.5 rounded-full border shadow-sm`}>
-              <div className="flex items-center space-x-1">
-                <Flame className={`w-3.5 h-3.5 ${streakColorClass}`} />
-                <span className={`text-xs font-bold ${streakColorClass}`}>{state.streak || 0}</span>
+            
+            {(state.streakFreezes || 0) > 0 && (
+              <div className="flex items-center space-x-1.5 pl-3 border-l border-white/10" title="Streak Freeze">
+                <Shield className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-xs font-black text-blue-400">{state.streakFreezes}</span>
               </div>
-              
-              {(state.streakFreezes || 0) > 0 && (
-                <div className="flex items-center space-x-1 pl-2 border-l border-white/10" title="Streak Freeze">
-                  <Shield className="w-3 h-3 text-blue-400" />
-                  <span className="text-[10px] font-bold text-blue-400">{state.streakFreezes}</span>
-                </div>
-              )}
+            )}
 
-              {anyItemActive && (
-                <div className="flex items-center space-x-1 pl-2 border-l border-white/10" title="2x Boost Active">
-                  <Zap className="w-3 h-3 text-purple-400" />
-                  <span className="text-[10px] font-bold text-purple-400">2x</span>
-                </div>
-              )}
-            </div>
+            {anyItemActive && (
+              <div className="flex items-center space-x-1.5 pl-3 border-l border-white/10" title="2x Boost Active">
+                <Zap className="w-3.5 h-3.5 text-purple-400" />
+                <span className="text-xs font-black text-purple-400">2x</span>
+              </div>
+            )}
+
+            {state.isPremium && (
+              <div className="flex items-center space-x-2 pl-3 border-l border-white/10" title="Elite Boosts Active">
+                <span className="text-[10px] font-black text-emerald-400 tracking-tighter">+50% XP</span>
+                <span className="text-[10px] font-black text-yellow-400 tracking-tighter">+25% ZC</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

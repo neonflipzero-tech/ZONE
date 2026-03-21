@@ -178,7 +178,7 @@ export default function StatDetailModal({ isOpen, onClose, stat, language }: Sta
                     <h4 className="font-bold text-sm text-accent mb-1">
                       {language === 'id' ? 'Tips Peningkatan' : 'Improvement Tips'}
                     </h4>
-                    <p className="text-sm text-orange-100/80 leading-relaxed">
+                    <p className="text-sm text-accent/80 leading-relaxed">
                       {details.tips}
                     </p>
                   </div>

@@ -45,7 +45,7 @@ export default function PfpPromptModal({ language, onComplete }: PfpPromptModalP
         className="fixed inset-0 z-[60] bg-background/90 backdrop-blur-md flex flex-col items-center justify-center px-6"
       >
         <div className="bg-surface border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center max-w-sm w-full shadow-2xl shadow-accent/20">
-          <div className="w-24 h-24 bg-background border-2 border-accent rounded-full flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(242,125,38,0.3)]">
+          <div className="w-24 h-24 bg-background border-2 border-accent rounded-full flex items-center justify-center mb-6 shadow-[0_0_20px_var(--color-accent)]">
             <Camera className="w-10 h-10 text-accent" />
           </div>
           
@@ -59,7 +59,7 @@ export default function PfpPromptModal({ language, onComplete }: PfpPromptModalP
           <div className="flex flex-col gap-3 w-full">
             <button 
               onClick={() => fileInputRef.current?.click()}
-              className="w-full py-3 rounded-xl bg-accent text-white font-bold flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(242,125,38,0.3)] hover:bg-accent/90 transition-colors"
+              className="w-full py-3 rounded-xl bg-accent text-white font-bold flex items-center justify-center gap-2 shadow-[0_0_15px_var(--color-accent)] hover:bg-accent/90 transition-colors"
             >
               <Camera className="w-5 h-5" />
               {t('pfp_prompt.choose', language)}

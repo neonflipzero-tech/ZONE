@@ -106,7 +106,7 @@ export default function ImageCropper({ imageSrc, onCropComplete, onCancel }: Ima
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 py-3 rounded-xl bg-accent text-white font-bold flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(242,125,38,0.3)]"
+            className="flex-1 py-3 rounded-xl bg-accent text-white font-bold flex items-center justify-center gap-2 shadow-[0_0_15px_var(--color-accent)]"
           >
             <Check className="w-5 h-5" /> Save
           </button>

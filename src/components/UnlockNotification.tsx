@@ -38,7 +38,7 @@ export default function UnlockNotification({ item, onDismiss, language }: Unlock
     title = language === 'id' ? 'Lencana Baru Terbuka!' : 'New Badge Unlocked!';
     subtitle = badge ? badge.name[language] : item.id;
     content = (
-      <div className="w-24 h-24 rounded-full bg-accent/20 flex items-center justify-center border border-accent/50 shadow-[0_0_30px_rgba(242,125,38,0.5)]">
+      <div className="w-24 h-24 rounded-full bg-accent/20 flex items-center justify-center border border-accent/50 shadow-[0_0_30px_var(--color-accent)]">
         <Trophy className="w-12 h-12 text-accent" />
       </div>
     );

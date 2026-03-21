@@ -1,8 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserState, getRankForLevel, PathType, calculateOVR, createDefaultState, BADGES, TITLES, useAppState } from '../store';
-import { Trophy, Flame, LogOut, Camera, User, Shield, ChevronDown, ChevronUp, Star, Lock, CheckCircle2, Share2, AlertTriangle, Footprints, Zap, Crown, Moon, Sun, Swords, Settings, X, Heart, Compass, Package, Store, ChevronRight } from 'lucide-react';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
+import { Trophy, Flame, LogOut, Camera, User, Shield, ChevronDown, ChevronUp, Star, Lock, CheckCircle2, Share2, AlertTriangle, Footprints, Zap, Crown, Moon, Sun, Swords, Settings, X, Heart, Compass, Package, Store, ChevronRight, HelpCircle, Target } from 'lucide-react';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { t } from '../utils/translations';
 import { sounds } from '../utils/sounds';
 import ProfileFrame from './ProfileFrame';
@@ -16,6 +16,7 @@ import TitlesModal from './TitlesModal';
 import InventoryModal from './InventoryModal';
 import SettingsScreen from './SettingsScreen';
 import ZoneStoreModal from './ZoneStoreModal';
+import PremiumModal from './PremiumModal';
 import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -47,7 +48,9 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
   const [isTitlesModalOpen, setIsTitlesModalOpen] = useState(false);
   const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
   const [isZoneStoreModalOpen, setIsZoneStoreModalOpen] = useState(false);
+  const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isConsistencyHelpOpen, setIsConsistencyHelpOpen] = useState(false);
   const [rivalData, setRivalData] = useState<any | null>(null);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [showCrushedAnimation, setShowCrushedAnimation] = useState(false);
@@ -161,6 +164,26 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
   const maxMissions = Math.max(...chartData.map(d => d.missions), 1); // Avoid division by zero
 
   const { ovr, stats } = calculateOVR(state);
+
+  const todayISO = new Date().toISOString().split('T')[0];
+  const todayCategoryStats = state.dailyCategoryStats?.[todayISO] || {};
+  
+  const allCategories = [
+    { id: 'STRONGER', name: state.language === 'id' ? 'Fisik' : 'Physical', color: '#ff0000', shadow: '0 0 15px rgba(255, 0, 0, 0.5)' },
+    { id: 'MENTAL_HEALTH', name: state.language === 'id' ? 'Mental' : 'Mental', color: '#0066ff', shadow: '0 0 15px rgba(0, 102, 255, 0.5)' },
+    { id: 'PRODUCTIVE', name: state.language === 'id' ? 'Produktivitas' : 'Productivity', color: '#00ff00', shadow: '0 0 15px rgba(0, 255, 0, 0.5)' },
+    { id: 'EXTROVERT', name: state.language === 'id' ? 'Sosial' : 'Social', color: '#ffff00', shadow: '0 0 15px rgba(255, 255, 0, 0.5)' },
+    { id: 'DISCIPLINE', name: state.language === 'id' ? 'Disiplin' : 'Discipline', color: '#ff00ff', shadow: '0 0 15px rgba(255, 0, 255, 0.5)' },
+  ];
+
+  const focusData = allCategories.map(cat => ({
+    name: cat.name,
+    value: todayCategoryStats[cat.id] || 0,
+    color: cat.color,
+    shadow: cat.shadow
+  })).filter(d => d.value > 0);
+
+  const totalTodayMissions = focusData.reduce((a, b) => a + b.value, 0);
 
   const radarData = [
     { id: 'physical', subject: t('profile.stat.physical', state.language), A: stats.physical, fullMark: 99 },
@@ -400,7 +423,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
           </div>
         </div>
 
-        {/* OVR Stats Radar Chart */}
+        {/* OVR Stats Analysis */}
         <div className="mb-8" ref={ovrStatsRef}>
           <div className="flex justify-between items-center mb-4 px-2">
             <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{t('profile.ovr_stats', state.language)}</h3>
@@ -411,6 +434,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
               <Share2 className="w-4 h-4 text-secondary" />
             </button>
           </div>
+
           <div id="ovr-stats-card" className="bg-surface/50 border border-white/5 rounded-3xl p-6 relative overflow-hidden flex flex-col items-center">
             <div className="absolute inset-0 bg-gradient-to-b from-accent/5 to-transparent pointer-events-none" />
             
@@ -431,14 +455,13 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                     tick={(props: any) => {
                       const { payload, x, y, textAnchor, stroke, radius } = props;
                       const getStatColorHex = (subject: string) => {
-                        // Match by subject name (translated) or ID
                         const lowerSubject = subject.toLowerCase();
-                        if (lowerSubject.includes('fisik') || lowerSubject.includes('physical')) return '#ef4444'; // red-500
-                        if (lowerSubject.includes('disiplin') || lowerSubject.includes('discipline')) return '#3b82f6'; // blue-500
-                        if (lowerSubject.includes('mental')) return '#a855f7'; // purple-500
-                        if (lowerSubject.includes('ambisi') || lowerSubject.includes('ambition')) return '#eab308'; // yellow-500
-                        if (lowerSubject.includes('intelek') || lowerSubject.includes('intellect')) return '#06b6d4'; // cyan-500
-                        if (lowerSubject.includes('sosial') || lowerSubject.includes('social')) return '#22c55e'; // green-500
+                        if (lowerSubject.includes('fisik') || lowerSubject.includes('physical')) return '#ef4444'; // Red
+                        if (lowerSubject.includes('disiplin') || lowerSubject.includes('discipline')) return '#3b82f6'; // Blue
+                        if (lowerSubject.includes('mental')) return '#a855f7'; // Purple
+                        if (lowerSubject.includes('ambisi') || lowerSubject.includes('ambition')) return '#eab308'; // Yellow
+                        if (lowerSubject.includes('intelek') || lowerSubject.includes('intellect')) return '#06b6d4'; // Light Blue
+                        if (lowerSubject.includes('sosial') || lowerSubject.includes('social')) return '#22c55e'; // Green
                         return '#ffffff';
                       };
                       return (
@@ -475,20 +498,14 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             <div className="w-full grid grid-cols-3 gap-2 mt-4" data-html2canvas-ignore>
               {radarData.map((stat) => {
                 const getStatColor = (subject: string) => {
-                  switch(subject) {
-                    case 'Fisik':
-                    case 'Physical': return 'text-red-500';
-                    case 'Disiplin':
-                    case 'Discipline': return 'text-blue-500';
-                    case 'Mental': return 'text-purple-500';
-                    case 'Ambisi':
-                    case 'Ambition': return 'text-yellow-500';
-                    case 'Intelek':
-                    case 'Intellect': return 'text-cyan-500';
-                    case 'Sosial':
-                    case 'Social': return 'text-green-500';
-                    default: return 'text-primary';
-                  }
+                  const s = subject.toLowerCase();
+                  if (s.includes('fisik') || s.includes('physical')) return 'text-red-500';
+                  if (s.includes('disiplin') || s.includes('discipline')) return 'text-blue-500';
+                  if (s.includes('mental')) return 'text-purple-500';
+                  if (s.includes('ambisi') || s.includes('ambition')) return 'text-yellow-500';
+                  if (s.includes('intelek') || s.includes('intellect')) return 'text-cyan-400';
+                  if (s.includes('sosial') || s.includes('social')) return 'text-green-500';
+                  return 'text-primary';
                 };
                 
                 return (
@@ -504,6 +521,140 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
               })}
             </div>
           </div>
+        </div>
+
+        {/* Focus Distribution */}
+        <div className="mb-8 px-2">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">
+              {state.language === 'id' ? 'Distribusi Fokus' : 'Focus Distribution'}
+            </h3>
+            <div className="flex items-center space-x-1 bg-yellow-400/10 px-2 py-0.5 rounded-full border border-yellow-400/20">
+              <Crown className="w-3 h-3 text-yellow-400" />
+              <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-wider">Elite</span>
+            </div>
+          </div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="bg-surface/50 border border-white/5 rounded-3xl p-6 relative overflow-hidden"
+          >
+            {!state.isPremium ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center relative z-10">
+                <div className="w-16 h-16 rounded-2xl bg-yellow-400/10 flex items-center justify-center mb-6 border border-yellow-400/20 shadow-[0_0_20px_rgba(250,204,21,0.1)]">
+                  <Lock className="w-8 h-8 text-yellow-400" />
+                </div>
+                <h4 className="text-xl font-black text-primary mb-2 tracking-tight uppercase italic">
+                  {state.language === 'id' ? 'FITUR ELITE' : 'ELITE FEATURE'}
+                </h4>
+                <p className="text-sm text-secondary mb-8 max-w-[240px] leading-relaxed">
+                  {state.language === 'id' 
+                    ? 'Buka analisis distribusi fokus harian untuk mengoptimalkan pertumbuhanmu.' 
+                    : 'Unlock daily focus distribution analysis to optimize your growth.'}
+                </p>
+                <button 
+                  onClick={() => setIsPremiumModalOpen(true)}
+                  className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-black px-8 py-3 rounded-xl text-sm uppercase tracking-wider shadow-lg hover:scale-105 transition-transform active:scale-95"
+                >
+                  {state.language === 'id' ? 'GABUNG ELITE' : 'JOIN ELITE'}
+                </button>
+                
+                {/* Blurred background preview */}
+                <div className="absolute inset-0 -z-10 opacity-5 blur-xl scale-110 pointer-events-none">
+                  <div className="w-full h-full bg-gradient-to-br from-yellow-400 via-orange-500 to-purple-600 rounded-full" />
+                </div>
+              </div>
+            ) : totalTodayMissions === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                  <Target className="w-6 h-6 text-secondary" />
+                </div>
+                <p className="text-sm text-secondary italic mb-6">
+                  {state.language === 'id' ? 'Selesaikan misi hari ini untuk melihat analisis.' : 'Complete missions today to see analysis.'}
+                </p>
+                
+                {/* Show empty legend even when 0 missions */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3 w-full max-w-md">
+                  {allCategories.map((cat) => (
+                    <div key={cat.id} className="flex items-center space-x-2 opacity-30">
+                      <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: cat.color }} />
+                      <span className="text-[10px] font-mono text-secondary uppercase tracking-tighter">{cat.name} (0%)</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center">
+                <div className="relative w-56 h-56 mb-6">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={focusData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={65}
+                        outerRadius={90}
+                        paddingAngle={5}
+                        dataKey="value"
+                        stroke="none"
+                        isAnimationActive={true}
+                        animationBegin={0}
+                        animationDuration={1500}
+                      >
+                        {focusData.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={entry.color} 
+                            style={{ filter: `drop-shadow(${entry.shadow})` }}
+                          />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  
+                  {/* Center Text */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-3xl font-display font-black text-white leading-none">{totalTodayMissions}</span>
+                    <span className="text-[10px] font-mono text-secondary uppercase tracking-tighter mt-1">
+                      {state.language === 'id' ? 'Misi' : 'Missions'}
+                    </span>
+                    <span className="text-[8px] font-mono text-white/30 uppercase tracking-widest mt-0.5">
+                      {state.language === 'id' ? 'Fokus Utama' : "Today's Focus"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Legend Directly Below Donut */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 w-full mt-2">
+                  {allCategories.map((cat) => {
+                    const value = todayCategoryStats[cat.id] || 0;
+                    const percentage = totalTodayMissions > 0 ? Math.round((value / totalTodayMissions) * 100) : 0;
+                    const isActive = value > 0;
+                    
+                    return (
+                      <div key={cat.id} className={`flex items-center space-x-2 transition-all duration-500 ${isActive ? 'opacity-100 scale-100' : 'opacity-30 scale-95'}`}>
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ 
+                            backgroundColor: cat.color,
+                            boxShadow: isActive ? cat.shadow : 'none'
+                          }}
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold text-white/90 leading-none">{cat.name}</span>
+                          <span className="text-[9px] font-mono text-secondary mt-1">
+                            {percentage}%
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </motion.div>
         </div>
 
         {/* Equipment / Inventory */}
@@ -553,9 +704,26 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
           </button>
         </div>
 
-        {/* Activity Chart */}
-        <div className="mb-8">
-          <h3 className="text-sm font-mono uppercase tracking-widest text-secondary mb-4 px-2">{t('profile.consistency_record', state.language)}</h3>
+        {/* Weekly Chart */}
+        <div className="mb-8" id="weekly-chart-card">
+          <div className="flex justify-between items-center mb-4 px-2">
+            <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{t('profile.consistency_record', state.language)}</h3>
+            <div className="flex items-center space-x-2">
+              <button 
+                onClick={() => setIsConsistencyHelpOpen(true)}
+                className="p-1.5 rounded-full bg-surface border border-white/10 hover:bg-white/10 transition-colors"
+              >
+                <HelpCircle className="w-4 h-4 text-secondary" />
+              </button>
+              <button 
+                onClick={() => shareElementAsImage('weekly-chart-card', t('profile.consistency_record', state.language), 'My Weekly Consistency in Zone')}
+                className="p-1.5 rounded-full bg-surface border border-white/10 hover:bg-white/10 transition-colors"
+              >
+                <Share2 className="w-4 h-4 text-secondary" />
+              </button>
+            </div>
+          </div>
+          
           <div className="bg-surface border border-white/5 rounded-2xl p-5 h-64 flex flex-col justify-end relative">
             <div className="absolute inset-0 p-5 flex flex-col justify-between pointer-events-none">
               {[1, 0.75, 0.5, 0.25, 0].map((tick) => (
@@ -970,6 +1138,67 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
         ovr={ovr}
         updateState={updateState}
       />
+
+      <AnimatePresence>
+        {isConsistencyHelpOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsConsistencyHelpOpen(false)}
+              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-sm bg-surface border border-white/10 rounded-3xl p-6 shadow-2xl"
+            >
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-xl font-display font-black tracking-tight uppercase italic">{t('profile.consistency_record', state.language)}</h3>
+                  <p className="text-[10px] text-secondary font-mono uppercase tracking-widest">Guide & Information</p>
+                </div>
+                <button onClick={() => setIsConsistencyHelpOpen(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+                  <X className="w-5 h-5 text-secondary" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-accent uppercase tracking-wider">Weekly Bar Chart</h4>
+                  <p className="text-sm text-secondary leading-relaxed">
+                    This chart shows your mission completion count for the last 7 days.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-accent uppercase tracking-wider">Goal</h4>
+                  <p className="text-sm text-secondary leading-relaxed">
+                    The height of each bar represents how many missions you completed. Aim for higher bars to maintain your momentum!
+                  </p>
+                </div>
+                
+                <div className="pt-4 border-t border-white/5">
+                  <p className="text-[10px] text-secondary italic text-center">
+                    "Consistency is the key to mastery."
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isPremiumModalOpen && (
+          <PremiumModal 
+            isOpen={isPremiumModalOpen} 
+            onClose={() => setIsPremiumModalOpen(false)} 
+            language={state.language} 
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {isSettingsOpen && (

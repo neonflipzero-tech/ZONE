@@ -74,6 +74,7 @@ export interface UserState {
   animatingLevelUp: boolean;
   previousLevel: number;
   dailyStats: Record<string, number>;
+  dailyCategoryStats: Record<string, Record<string, number>>;
   unlockedFrames: string[];
   equippedFrame: string | null;
   titles: string[];
@@ -96,7 +97,10 @@ export interface UserState {
   doubleCoinPotions: number;
   doubleCoinActiveUntil: string | null;
   isPremium: boolean;
+  baseStats: Record<string, number>;
   bossState?: BossState;
+  notificationsEnabled: boolean;
+  notificationTime: string;
 }
 
 export const RANKS = [
@@ -129,7 +133,7 @@ export const BADGES = [
   { id: 'LEVEL_10', name: { en: 'Veteran', id: 'Veteran' }, desc: { en: 'Reach Level 10', id: 'Capai Level 10' }, icon: 'Shield' },
   { id: 'LEVEL_25', name: { en: 'Master', id: 'Master' }, desc: { en: 'Reach Level 25', id: 'Capai Level 25' }, icon: 'Star' },
   { id: 'LEVEL_50', name: { en: 'Mythic', id: 'Mitos' }, desc: { en: 'Reach Level 50', id: 'Capai Level 50' }, icon: 'Crown' },
-  { id: 'ELITE_ZONE', name: { en: 'Elite Zone', id: 'Elite Zone' }, desc: { en: 'The chosen one of the Zone', id: 'Yang terpilih dari Zone' }, icon: 'Crown' },
+  { id: 'ELITE_ZONE', name: { en: 'Elite Zone', id: 'Elite Zone' }, desc: { en: 'The chosen one of the Zone', id: 'Yang terpilih dari Zone' }, icon: 'Crown', color: 'text-yellow-400' },
 ];
 
 export const TITLES = [
@@ -143,7 +147,7 @@ export const TITLES = [
   { id: 'Rival Crusher', name: { en: 'Rival Crusher', id: 'Penghancur Rival' }, desc: { en: 'Surpassed your rival', id: 'Melampaui rivalmu' }, specialColor: 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]' },
   { id: 'OG', name: { en: 'OG', id: 'OG' }, desc: { en: 'First 100 users', id: '100 pengguna pertama' }, specialColor: 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 text-transparent bg-clip-text drop-shadow-[0_0_8px_rgba(255,165,0,0.8)]' },
   { id: 'Supporter', name: { en: 'Supporter', id: 'Pendukung' }, desc: { en: 'Shared the app 5 times', id: 'Membagikan aplikasi 5 kali' }, specialColor: 'bg-gradient-to-r from-cyan-400 to-blue-500 text-transparent bg-clip-text drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]' },
-  { id: 'Elite Zone', name: { en: 'Elite Zone', id: 'Elite Zone' }, desc: { en: 'The chosen one of the Zone', id: 'Yang terpilih dari Zone' }, specialColor: 'bg-gradient-to-r from-[#FFD700] via-[#FF0000] to-[#FFD700] text-transparent bg-clip-text drop-shadow-[0_0_12px_rgba(255,0,0,0.8)] font-black' },
+  { id: 'Elite Zone', name: { en: 'Elite Zone', id: 'Elite Zone' }, desc: { en: 'The chosen one of the Zone', id: 'Yang terpilih dari Zone' }, specialColor: 'bg-gradient-to-r from-[#FFD700] via-[#FACC15] to-[#EAB308] text-transparent bg-clip-text drop-shadow-[0_0_15px_rgba(234,179,8,0.8)] font-black' },
 ];
 
 export function getRankForLevel(level: number) {
@@ -156,30 +160,33 @@ export function getRankForLevel(level: number) {
 }
 
 export function calculateOVR(state: UserState) {
-  const getPathScore = (path: PathType) => {
+  const getPathScore = (path: PathType, statKey: string) => {
     const p = state.chosenPath === path 
       ? { level: state.level, xp: state.xp } 
       : (state.pathProgress[path] || { level: 1, xp: 0 });
-    return Math.floor(Math.min(99, 40 + (p.level * 1.5) + (p.xp / 100)));
+    const base = state.baseStats?.[statKey] || 0;
+    return Math.floor(Math.min(99, 40 + base + (p.level * 1.5) + (p.xp / 100)));
   };
 
-  const physical = getPathScore('STRONGER');
-  const mental = getPathScore('MENTAL_HEALTH');
-  const intellect = getPathScore('PRODUCTIVE');
-  const social = getPathScore('EXTROVERT');
-  const other = getPathScore('OTHER');
+  const physical = getPathScore('STRONGER', 'physical');
+  const mental = getPathScore('MENTAL_HEALTH', 'mental');
+  const intellect = getPathScore('PRODUCTIVE', 'intellect');
+  const social = getPathScore('EXTROVERT', 'social');
+  const other = getPathScore('OTHER', 'other');
   
   // Discipline: streak
-  const discipline = Math.floor(Math.min(99, 40 + (state.streak * 1.5)));
+  const baseDiscipline = state.baseStats?.['discipline'] || 0;
+  const discipline = Math.floor(Math.min(99, 40 + baseDiscipline + (state.streak * 1.5)));
 
   // Ambition: total levels across all paths + badges
+  const baseAmbition = state.baseStats?.['ambition'] || 0;
   let totalLevels = state.level;
   Object.keys(state.pathProgress).forEach(k => {
     if (k !== state.chosenPath) {
       totalLevels += state.pathProgress[k as PathType]?.level || 1;
     }
   });
-  const ambition = Math.floor(Math.min(99, 40 + (totalLevels * 1.5) + (state.badges.length * 1.5)));
+  const ambition = Math.floor(Math.min(99, 40 + baseAmbition + (totalLevels * 1.5) + (state.badges.length * 1.5)));
 
   // Weighted average (excluding 'other' from main OVR calculation as requested)
   let ovr = Math.floor((physical + discipline + mental + ambition + intellect + social) / 6);
@@ -259,6 +266,7 @@ export const createDefaultState = (username: string): UserState => ({
   animatingLevelUp: false,
   previousLevel: 1,
   dailyStats: {},
+  dailyCategoryStats: {},
   unlockedFrames: ['frame-default'],
   equippedFrame: null,
   titles: ['Newbie'],
@@ -287,6 +295,15 @@ export const createDefaultState = (username: string): UserState => ({
   doubleCoinPotions: 0,
   doubleCoinActiveUntil: null,
   isPremium: false,
+  baseStats: {
+    intellect: 0,
+    physical: 0,
+    social: 0,
+    ambition: 0,
+    discipline: 0,
+    mental: 0,
+    other: 0
+  },
   bossState: {
     isActive: false,
     topic: null,
@@ -295,63 +312,65 @@ export const createDefaultState = (username: string): UserState => ({
     tasks: [],
     lastEncounterDate: null,
     status: 'pending_choice'
-  }
+  },
+  notificationsEnabled: false,
+  notificationTime: '09:00',
 });
 
 const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
   PRODUCTIVE: {
     REGULAR: [
-      "Read a self-help article", "Organize your files for 5 minutes", "Plan your week",
-      "Write down 3 priorities for today", "Clear your email inbox", "Declutter your workspace",
-      "Listen to an educational podcast", "Watch a tutorial on a new tool", "Brainstorm ideas for a project",
-      "Review your monthly goals", "Update your to-do list", "Unsubscribe from 3 useless emails",
-      "Organize your computer desktop", "Read 1 chapter of a non-fiction book", "Plan your meals for tomorrow",
+      "Read a self-help article", "Organize your files for 5 minutes", "Plan your week for 15 minutes",
+      "Write down 3 priorities for today", "Clear your email inbox for 10 minutes", "Declutter your workspace for 5 minutes",
+      "Listen to an educational podcast", "Watch a tutorial on a new tool", "Brainstorm ideas for 10 minutes",
+      "Review your monthly goals for 5 minutes", "Update your to-do list for 5 minutes", "Unsubscribe from 3 useless emails",
+      "Organize your computer desktop for 5 minutes", "Read 1 chapter of a non-fiction book", "Plan your meals for 10 minutes",
       "Write a journal entry about your progress", "Delete unused apps from your phone", "Set a timer for 15 mins and focus on one task",
-      "Review your budget", "Create a morning routine plan",
-      "Write a quick summary of your day", "Delete 5 unnecessary files", "Organize your bookmarks", 
-      "Set a timer for 10 mins and clean", "Write down 3 things to do tomorrow", "Check your calendar for the week", 
+      "Review your budget for 15 minutes", "Spend 10 minutes creating a morning routine",
+      "Write a quick summary of your day", "Delete 5 unnecessary files", "Organize your bookmarks for 5 minutes", 
+      "Set a timer for 10 mins and clean", "Write down 3 things to do tomorrow", "Check your calendar for 5 minutes", 
       "Unsubscribe from 1 promotional text", "Clear your browser cache", "Read 1 article about productivity", 
       "Plan a reward for completing a task",
-      "Update your passwords", "Clear your downloads folder", "Read 1 page of a book", 
-      "Write down 1 idea", "Organize your phone apps", "Delete 10 old photos", 
-      "Set a new wallpaper", "Clean your keyboard", "Wipe your monitor", 
-      "Empty your physical trash bin", "Sort your mail", "Pay a bill", 
-      "Check your bank balance", "Write a thank you note", "Plan your weekend", 
-      "Review your subscriptions", "Cancel 1 unused subscription", "Update your contacts", 
-      "Back up your phone", "Clean your wallet"
+      "Update your passwords for 10 minutes", "Clear your downloads folder for 5 minutes", "Read 1 page of a book", 
+      "Write down 1 idea", "Organize your phone apps for 5 minutes", "Delete 10 old photos", 
+      "Set a new wallpaper", "Clean your keyboard for 2 minutes", "Wipe your monitor for 1 minute", 
+      "Empty your physical trash bin", "Sort your mail for 5 minutes", "Pay a bill", 
+      "Check your bank balance", "Write a thank you note", "Plan your weekend for 10 minutes", 
+      "Review your subscriptions for 5 minutes", "Cancel 1 unused subscription", "Update your contacts for 10 minutes", 
+      "Back up your phone", "Clean your wallet for 5 minutes"
     ],
     DAILY: [
-      "30 minutes study focus", "Clean desk", "Write tomorrow's goal",
+      "30 minutes study focus", "Clean desk for 5 minutes", "Write tomorrow's goal",
       "Wake up at your target time", "Read for 20 minutes", "No phone for the first hour after waking up",
-      "Complete your most important task first", "Drink a glass of water upon waking", "Review your daily schedule",
+      "Complete your most important task first", "Drink a glass of water upon waking", "Review your daily schedule for 5 minutes",
       "Spend 10 minutes learning a language", "Write down one thing you learned today", "Do a 5-minute end-of-day review",
-      "Prepare your clothes for tomorrow", "Limit social media to 30 minutes", "Take a 15-minute screen break",
+      "Spend 5 minutes preparing clothes for tomorrow", "Limit social media to 30 minutes", "Take a 15-minute screen break",
       "Practice typing for 10 minutes", "Listen to an audiobook during commute", "Keep your phone in another room while working",
-      "Track your expenses for the day", "Do a 10-minute brain dump",
-      "Listen to an inspiring talk", "Spend 15 minutes planning", "Do 1 hour of focused work", 
-      "Review your long-term goals", "Write a reflection for the day",
-      "Read 1 article", "Listen to 1 podcast episode", "Watch 1 educational video", 
-      "Write 500 words", "Study for 20 minutes", "Review flashcards", 
+      "Track your expenses for 5 minutes", "Do a 10-minute brain dump",
+      "Listen to an inspiring talk for 15 minutes", "Spend 15 minutes planning", "Do 1 hour of focused work", 
+      "Review your long-term goals for 10 minutes", "Write a reflection for 5 minutes",
+      "Read 1 article (5 mins)", "Listen to 1 podcast episode (20 mins)", "Watch 1 educational video (10 mins)", 
+      "Write 500 words (30 mins)", "Study for 20 minutes", "Review flashcards for 10 minutes", 
       "Practice a musical instrument for 10 mins", "Code for 30 mins", "Draw for 15 mins", 
       "Write down 3 things you accomplished", "Plan tomorrow's meals", "Drink green tea", 
       "Take a 5-minute stretch break", "Do 10 minutes of deep breathing", "Write down your top priority", 
-      "Avoid multitasking for 1 hour", "Use the Pomodoro technique once", "Turn off phone for 30 mins", 
-      "Read a newsletter", "Review your daily budget"
+      "Avoid multitasking for 1 hour", "Do 1 Pomodoro session (25 mins)", "Turn off phone for 30 mins", 
+      "Read a newsletter (5 mins)", "Review your daily budget"
     ],
     WEEKLY: [
-      "Read a book for 120 minutes", "Review weekly goals", "Learn a new skill",
-      "Deep clean your room", "Plan the upcoming week's schedule", "Do a weekly financial review",
+      "Read a book for 120 minutes", "Review weekly goals for 15 minutes", "Learn a new skill for 30 minutes",
+      "Deep clean your room for 60 minutes", "Plan next week for 20 minutes", "Weekly financial review for 30 minutes",
       "Back up your computer files", "Clean out your fridge", "Wash your bed sheets",
-      "Spend 2 hours on a personal project", "Listen to a 1-hour educational lecture", "Organize your digital photos",
-      "Update your resume or portfolio", "Meal prep for the week", "Evaluate last week's productivity",
-      "Organize your physical workspace", "Review your monthly budget", "Plan a personal project", 
-      "Read 2 chapters of a book", "Do a weekly brain dump",
-      "Read 3 chapters of a book", "Complete an online course module", "Write a blog post", 
-      "Update your LinkedIn profile", "Network with 1 person", "Attend a webinar", 
-      "Clean your car", "Do all your laundry", "Iron your clothes", 
-      "Vacuum your room", "Mop the floors", "Clean the bathroom", 
-      "Organize your closet", "Donate old clothes", "Plan a trip", 
-      "Review your monthly goals", "Set goals for next month", "Create a vision board", 
+      "Spend 2 hours on a personal project", "Listen to a 1-hour educational lecture", "Organize your digital photos for 30 minutes",
+      "Update your resume for 60 minutes", "Meal prep for 120 minutes", "Evaluate last week for 15 minutes",
+      "Organize your workspace for 30 minutes", "Review monthly budget for 20 minutes", "Plan a project for 30 minutes", 
+      "Read 2 chapters of a book", "Weekly brain dump for 15 minutes",
+      "Read 3 chapters of a book", "Study course for 60 minutes", "Write a blog post", 
+      "Update LinkedIn for 30 minutes", "Network with 1 person", "Attend a webinar", 
+      "Clean your car for 30 minutes", "Do all your laundry for 60 minutes", "Iron clothes for 20 minutes", 
+      "Vacuum your room for 10 minutes", "Mop the floors for 15 minutes", "Clean the bathroom for 20 minutes", 
+      "Organize your closet for 30 minutes", "Donate old clothes", "Plan a trip for 60 minutes", 
+      "Review your monthly goals", "Set next month's goals for 20 minutes", "Create a vision board for 60 minutes", 
       "Read a biography", "Watch a documentary"
     ],
     ROUTINE: [],
@@ -362,13 +381,13 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Do 10 squats", "Stretch for 5 minutes", "Hold a plank for 30 seconds",
       "Do 15 jumping jacks", "Do 10 lunges per leg", "Do 10 push-ups",
       "Do 20 calf raises", "Do a 1-minute wall sit", "Do 15 crunches",
-      "Do 10 burpees", "Stretch your hamstrings", "Do arm circles for 1 minute",
+      "Do 10 burpees", "Stretch your hamstrings for 2 minutes", "Do arm circles for 1 minute",
       "Do 20 high knees", "Do 15 glute bridges", "Do a 30-second side plank (each side)",
-      "Do 10 tricep dips", "Do 20 mountain climbers", "Stretch your shoulders",
+      "Do 10 tricep dips", "Do 20 mountain climbers", "Stretch your shoulders for 2 minutes",
       "Do 15 bicycle crunches", "Do 10 jump squats",
       "Do 20 jumping jacks", "Do 15 squats", "Hold a plank for 45 seconds", 
-      "Stretch your back", "Do 10 lunges", "Do 15 calf raises", 
-      "Do 10 push-ups", "Do a 30-second wall sit", "Stretch your arms", 
+      "Stretch your back for 2 minutes", "Do 10 lunges", "Do 15 calf raises", 
+      "Do 10 push-ups", "Do a 30-second wall sit", "Stretch your arms for 2 minutes", 
       "Do 20 high knees",
       "Do 10 shoulder taps", "Do 15 inchworms", "Do 20 butt kicks", 
       "Do 10 tuck jumps", "Do 15 dips", "Do 20 sit-ups", 
@@ -379,9 +398,9 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Do 20 box jumps", "Do 15 kettlebell swings"
     ],
     DAILY: [
-      "20 push-ups", "Drink enough water", "Hold a wall sit for 60 seconds",
+      "20 push-ups", "Drink 2 liters of water", "Hold a wall sit for 60 seconds",
       "Walk 10,000 steps", "Eat 2 servings of vegetables", "Eat 1 serving of fruit",
-      "Sleep for 8 hours", "Do a 15-minute workout", "Stretch before bed",
+      "Sleep for 8 hours", "Do a 15-minute workout", "Stretch for 10 minutes before bed",
       "Avoid sugary drinks", "Eat a high-protein breakfast", "Take the stairs instead of the elevator",
       "Do 50 squats throughout the day", "Do a 10-minute core workout", "Avoid processed foods",
       "Drink a glass of water before each meal", "Do a 5-minute mobility routine", "Stand up and walk every hour",
@@ -397,18 +416,18 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Do 50 lunges", "Do 50 jumping jacks"
     ],
     WEEKLY: [
-      "Go for a 5km run", "Meal prep for 3 days", "Try a new workout",
+      "Go for a 5km run", "Meal prep for 3 days", "Try a new workout for 30 minutes",
       "Do a 1-hour strength training session", "Go for a 1-hour hike or walk", "Do a 30-minute yoga session",
-      "Try a new healthy recipe", "Do a HIIT workout", "Go swimming or cycling",
-      "Do a full-body stretching routine", "Track your macros for 3 days", "Do 100 push-ups in one day",
+      "Try a new healthy recipe for 45 minutes", "Do a HIIT workout for 20 minutes", "Go swimming or cycling for 45 minutes",
+      "Full-body stretch for 20 minutes", "Track your macros for 3 days", "Do 100 push-ups in one day",
       "Do 100 squats in one day", "Play a sport for 1 hour", "Do a 45-minute cardio session",
-      "Do a 45-minute strength workout", "Go for a 30-minute run", "Try a new sport", 
+      "Do a 45-minute strength workout", "Go for a 30-minute run", "Try a new sport for 60 minutes", 
       "Meal prep for 5 days", "Do a 1-hour yoga session",
       "Go for a 10km run", "Do a 2-hour strength training", "Go for a 2-hour hike", 
       "Do a 1-hour yoga class", "Try a new sport for 1 hour", "Do a 1-hour Pilates class", 
-      "Go rock climbing", "Go for a 20km bike ride", "Swim for 1 hour", 
+      "Go rock climbing for 120 minutes", "Go for a 20km bike ride", "Swim for 1 hour", 
       "Play basketball for 1 hour", "Play tennis for 1 hour", "Play soccer for 1 hour", 
-      "Do a martial arts class", "Do a dance class", "Do a CrossFit workout", 
+      "Do a martial arts class for 60 minutes", "Do a dance class for 60 minutes", "Do a CrossFit workout for 60 minutes", 
       "Meal prep for 7 days", "Track macros for 7 days", "Do 200 push-ups in one day", 
       "Do 200 squats in one day", "Run a 5k under 30 mins"
     ],
@@ -438,9 +457,9 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
     ],
     DAILY: [
       "Greet one person", "Start one chat", "Maintain eye contact for 10 seconds",
-      "Call a family member", "Text a friend you haven't spoken to recently", "Have a 5-minute conversation with a colleague",
-      "Post something positive on social media", "Listen actively without interrupting", "Ask 3 open-ended questions today",
-      "Express gratitude to someone", "Join a group conversation", "Make plans with a friend",
+      "Call a family member for 15 minutes", "Text a friend you haven't spoken to recently", "Have a 5-minute conversation with a colleague",
+      "Post something positive on social media", "Listen actively for 10 minutes", "Ask 3 open-ended questions today",
+      "Express gratitude to someone", "Join a group conversation for 10 minutes", "Spend 10 minutes making plans",
       "Share your opinion in a meeting or class", "Give 2 genuine compliments", "Reply to 3 stories on social media",
       "Send a voice message to a friend", "Ask someone for feedback", "Share an interesting article with someone",
       "Talk to someone while waiting in line", "Remember and use someone's name",
@@ -455,136 +474,136 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Check in on a sick friend", "Wish someone a happy birthday"
     ],
     WEEKLY: [
-      "Attend a social event", "Call an old friend", "Have a deep conversation",
-      "Go out for coffee with someone", "Host a small get-together", "Join a club or community meetup",
-      "Volunteer for a local cause", "Play a multiplayer game with voice chat", "Go to a public place and talk to 3 people",
-      "Have lunch with a coworker or classmate", "Attend a workshop or class", "Organize a movie night",
-      "Go to a networking event", "Have a video call with a distant friend", "Participate in a group discussion",
-      "Attend a networking event", "Host a dinner or lunch", "Go to a meetup", 
-      "Call a family member for 30 mins", "Volunteer for an event",
-      "Host a game night", "Host a potluck", "Go to a concert", 
-      "Go to a comedy show", "Go to a museum with a friend", "Go to an art gallery", 
-      "Attend a local festival", "Join a sports league", "Take a group class", 
-      "Go to a trivia night", "Go to a karaoke bar", "Organize a picnic", 
-      "Go on a road trip with friends", "Visit a new city with friends", "Attend a conference", 
-      "Go to a trade show", "Volunteer at an animal shelter", "Volunteer at a food bank", 
-      "Join a book club", "Start a conversation with a stranger at a cafe"
+      "Attend a social event for 1 hour", "Call an old friend for 20 minutes", "Have a deep conversation for 30 minutes",
+      "Go out for coffee for 45 minutes", "Host a get-together for 2 hours", "Join a meetup for 1 hour",
+      "Volunteer for 2 hours", "Play with voice chat for 1 hour", "Spend 30 minutes in a public place",
+      "Have lunch with someone for 30 minutes", "Attend a workshop for 1 hour", "Organize a movie night for 15 minutes",
+      "Go to a networking event for 1 hour", "Video call a friend for 30 minutes", "Participate in a discussion for 20 minutes",
+      "Attend a networking event", "Host a dinner for 2 hours", "Go to a meetup for 1 hour", 
+      "Call a family member for 30 mins", "Volunteer for 3 hours",
+      "Host a game night for 2 hours", "Host a potluck for 2 hours", "Go to a concert for 2 hours", 
+      "Go to a comedy show for 1.5 hours", "Visit a museum for 2 hours", "Visit an art gallery for 1 hour", 
+      "Attend a festival for 2 hours", "Join a sports league for 1 hour", "Take a group class for 1 hour", 
+      "Go to a trivia night for 2 hours", "Go to a karaoke bar for 2 hours", "Organize a picnic for 20 minutes", 
+      "Go on a road trip for 4 hours", "Visit a new city for 6 hours", "Attend a conference for 4 hours", 
+      "Go to a trade show for 2 hours", "Volunteer at a shelter for 2 hours", "Volunteer at a food bank for 2 hours", 
+      "Join a book club for 1.5 hours", "Spend 15 minutes at a cafe"
     ],
     ROUTINE: [],
     BOSS: []
   },
-  DISCIPLINE: {
-    REGULAR: [
-      "Make your bed", "Sit with straight posture for 5 minutes", "Drink water first thing",
-      "Put away your clothes", "Wash your dishes immediately", "Clean your workspace",
-      "Turn off notifications for 1 hour", "Do a task you've been procrastinating", "Read 5 pages of a book",
-      "Do 10 push-ups", "Write down your expenses", "Plan your next day",
-      "Organize your digital files for 5 mins", "Unsubscribe from 1 email list", "Empty the trash",
-      "Wipe down your counters", "Do a 2-minute breathing exercise", "Put your phone away while eating",
-      "Write down 1 goal", "Review your daily habits",
-      "Put away your shoes", "Wash your face", "Drink a glass of water", 
-      "Do 5 push-ups", "Read 2 pages of a book", "Sit in silence for 2 minutes", 
-      "Write down 1 task", "Clean your desk for 2 mins", "Turn off your phone for 15 mins", 
-      "Do a quick stretch",
-      "Make your bed immediately", "Brush your teeth for 2 mins", "Floss your teeth", 
-      "Wash your face before bed", "Put your keys in the same spot", "Hang up your coat", 
-      "Put your shoes away", "Wash your coffee mug", "Wipe the table after eating", 
-      "Take out the recycling", "Water your plants", "Feed your pet on time", 
-      "Check your tire pressure", "Fill up your gas tank", "Charge your phone to 100%", 
-      "Update your software", "Restart your computer", "Clear your browser tabs", 
-      "Empty your downloads folder", "Organize your desktop icons"
-    ],
-    DAILY: [
-      "Take a cold shower", "No social media for 120 minutes", "Read 10 pages",
-      "Wake up at the same time", "Sleep at the same time", "Exercise for 20 minutes",
-      "Drink 2 liters of water", "No junk food", "Meditate for 5 minutes",
-      "Write in a journal", "Limit screen time before bed", "Do 1 hour of deep work",
-      "Track your time for the day", "Eat 3 healthy meals", "No snoozing the alarm",
-      "Keep your room tidy", "Read an educational article", "Practice a skill for 15 minutes",
-      "Review your long-term goals", "Plan tomorrow's outfit",
-      "Wake up without snoozing", "No sugar for the day", "Read 15 pages", 
-      "Exercise for 30 minutes", "Meditate for 10 minutes",
-      "Wake up at 6 AM", "Wake up at 5:30 AM", "Sleep by 10 PM", 
-      "Sleep by 10:30 PM", "No screens 2 hours before bed", "No screens 1 hour after waking up", 
-      "Read 20 pages", "Read 30 pages", "Write 500 words", 
-      "Exercise for 45 mins", "Exercise for 1 hour", "Meditate for 15 mins", 
-      "Meditate for 20 mins", "Drink 3 liters of water", "Eat 4 servings of vegetables", 
-      "No processed sugar", "No fast food", "Track every penny spent", 
-      "Plan tomorrow down to the hour", "Review your goals for 5 mins"
-    ],
-    WEEKLY: [
-      "Digital detox for 1 day", "Wake up at 5 AM all week", "Complete all daily tasks",
-      "Read a whole book", "Fast for 16 hours one day", "No sugar for 3 days",
-      "Do a 10km run or walk", "Review your weekly budget", "Deep clean your house",
-      "Plan all meals for the week", "Do a 24-hour dopamine detox", "Learn a complex new concept",
-      "Write a weekly reflection", "Organize your finances", "Fix something broken",
-      "Fast for 24 hours", "Read a book", "No social media for 2 days", 
-      "Deep clean your room", "Review your weekly habits",
-      "Fast for 20 hours", "Fast for 24 hours", "No social media for 3 days", 
-      "No social media for 5 days", "No TV for a week", "No video games for a week", 
-      "Read 2 books", "Run 20km total", "Workout 5 days", 
-      "Workout 6 days", "Meal prep all meals", "Zero unnecessary spending", 
-      "Save 10% of income", "Invest 10% of income", "Deep clean the entire house", 
-      "Wash all windows", "Clean the oven", "Clean the fridge", 
-      "Organize the garage", "Donate 5 items"
-    ],
-    ROUTINE: [],
-    BOSS: []
-  },
+    DISCIPLINE: {
+      REGULAR: [
+        "Make your bed", "Sit with straight posture for 5 minutes", "Drink water first thing",
+        "Put away your clothes", "Wash dishes", "Clean your workspace for 5 minutes",
+        "Turn off notifications for 1 hour", "Do a task for 20 minutes", "Read 5 pages of a book",
+        "Do 10 push-ups", "Write down your expenses", "Plan your next day",
+        "Organize your digital files for 5 mins", "Unsubscribe from 1 email list", "Empty the trash",
+        "Wipe down counters for 2 minutes", "Do a 2-minute breathing exercise", "Put your phone away while eating",
+        "Write down 1 goal", "Review habits for 5 minutes",
+        "Put away your shoes", "Wash your face", "Drink a glass of water", 
+        "Do 5 push-ups", "Read 2 pages of a book", "Sit in silence for 2 minutes", 
+        "Write down 1 task", "Clean your desk for 2 mins", "Turn off your phone for 15 mins", 
+        "Do a quick stretch",
+        "Make your bed immediately", "Brush your teeth for 2 mins", "Floss your teeth for 2 minutes", 
+        "Wash your face before bed", "Put your keys in the same spot", "Hang up your coat", 
+        "Put your shoes away", "Wash your mug", "Wipe the table", 
+        "Take out recycling", "Water your plants", "Feed your pet", 
+        "Check tire pressure", "Fill up gas", "Charge your phone to 100%", 
+        "Update software", "Restart computer", "Clear browser tabs for 2 minutes", 
+        "Empty downloads for 2 minutes", "Organize desktop for 5 minutes"
+      ],
+      DAILY: [
+        "Take a cold shower", "No social media for 120 minutes", "Read 10 pages",
+        "Wake up at the same time", "Sleep at the same time", "Exercise for 20 minutes",
+        "Drink 2 liters of water", "No junk food", "Meditate for 5 minutes",
+        "Write in a journal", "Limit screen time before bed", "Do 1 hour of deep work",
+        "Track time for 5 minutes", "Eat 3 healthy meals", "No snoozing the alarm",
+        "Tidy your room for 10 minutes", "Read an educational article", "Practice a skill for 15 minutes",
+        "Review long-term goals for 10 minutes", "Plan outfit for 5 minutes",
+        "Wake up without snoozing", "No sugar for the day", "Read 15 pages", 
+        "Exercise for 30 minutes", "Meditate for 10 minutes",
+        "Wake up at 6 AM", "Wake up at 5:30 AM", "Sleep by 10 PM", 
+        "Sleep by 10:30 PM", "No screens 2 hours before bed", "No screens 1 hour after waking up", 
+        "Read 20 pages", "Read 30 pages", "Write 500 words", 
+        "Exercise for 45 mins", "Exercise for 1 hour", "Meditate for 15 mins", 
+        "Meditate for 20 mins", "Drink 3 liters of water", "Eat 4 servings of vegetables", 
+        "No processed sugar", "No fast food", "Track every penny spent", 
+        "Plan tomorrow down to the hour", "Review your goals for 5 mins"
+      ],
+      WEEKLY: [
+        "Digital detox for 24 hours", "Wake up at 5 AM all week", "Complete all daily tasks",
+        "Read a whole book", "Fast for 16 hours one day", "No sugar for 3 days",
+        "Do a 10km run or walk", "Review your weekly budget", "Deep clean house for 3 hours",
+        "Plan weekly meals for 30 minutes", "Do a 24-hour dopamine detox", "Learn a new concept for 60 minutes",
+        "Write weekly reflection for 20 minutes", "Organize finances for 60 minutes", "Fix something for 30 minutes",
+        "Fast for 24 hours", "Read a book", "No social media for 2 days", 
+        "Deep clean your room", "Review weekly habits for 15 minutes",
+        "Fast for 20 hours", "Fast for 24 hours", "No social media for 3 days", 
+        "No social media for 5 days", "No TV for a week", "No video games for a week", 
+        "Read 2 books", "Run 20km total", "Workout 5 days", 
+        "Workout 6 days", "Meal prep for 3 hours", "Zero unnecessary spending", 
+        "Save 10% of income", "Invest 10% of income", "Deep clean house for 5 hours", 
+        "Wash windows for 60 minutes", "Clean the oven for 30 minutes", "Clean the fridge for 30 minutes", 
+        "Organize the garage for 2 hours", "Donate 5 items"
+      ],
+      ROUTINE: [],
+      BOSS: []
+    },
   MENTAL_HEALTH: {
     REGULAR: [
-      "Take 5 deep breaths", "Listen to calming music for 5 minutes", "Stretch your neck",
+      "Take 5 deep breaths for 1 minute", "Listen to calming music for 5 minutes", "Stretch your neck for 2 minutes",
       "Drink a glass of water", "Look out the window for 2 minutes", "Write down 1 positive thought",
-      "Do a quick body scan", "Close your eyes for 1 minute", "Smile for 30 seconds",
-      "Say a positive affirmation", "Wash your face", "Step outside for fresh air",
-      "Pet an animal or look at cute pictures", "Unclench your jaw and relax your shoulders", "Write down what's bothering you",
-      "Do a 3-minute guided meditation", "Listen to nature sounds", "Doodle or draw for 5 minutes",
-      "Read a positive quote", "Stretch your arms and back",
-      "Take 10 deep breaths", "Look at the sky for 1 minute", "Write down 1 thing you love", 
-      "Stretch your legs", "Drink herbal tea", "Listen to a calming song", 
-      "Close your eyes for 2 mins", "Say 3 positive affirmations", "Wash your hands mindfully", 
+      "Do a body scan for 5 minutes", "Close your eyes for 1 minute", "Smile for 30 seconds",
+      "Say a positive affirmation", "Wash your face", "Step outside for 5 minutes",
+      "Pet an animal or look at cute pictures", "Unclench your jaw and relax your shoulders", "Write down worries for 5 minutes",
+      "Do a 3-minute guided meditation", "Listen to nature sounds for 10 minutes", "Doodle or draw for 5 minutes",
+      "Read a positive quote", "Stretch arms and back for 3 minutes",
+      "Do 10 deep breaths for 2 minutes", "Look at the sky for 1 minute", "Write down 1 thing you love", 
+      "Stretch your legs for 3 minutes", "Drink herbal tea", "Listen to a calming song", 
+      "Close your eyes for 2 mins", "Say 3 affirmations for 2 minutes", "Wash hands mindfully for 1 minute", 
       "Focus on your breathing for 1 min",
-      "Light a scented candle", "Drink a warm cup of tea", "Take a 5-minute break", 
-      "Look at a beautiful picture", "Listen to a guided meditation", "Do a 5-minute body scan", 
-      "Write down 3 things you love about yourself", "Forgive yourself for a mistake", "Let go of a grudge", 
+      "Light a candle and sit for 5 minutes", "Drink tea for 10 minutes", "Take a 5-minute break", 
+      "Look at a beautiful picture", "Listen to guided meditation for 10 minutes", "Do a 5-minute body scan", 
+      "Write self-love list for 5 minutes", "Reflect and forgive for 5 minutes", "Reflect and let go for 10 minutes", 
       "Say 'no' to something you don't want to do", "Set a boundary", "Ask for what you need", 
-      "Express your feelings", "Cry if you need to", "Laugh out loud", 
-      "Watch a funny video", "Read a comforting poem", "Wrap yourself in a blanket", 
-      "Take a deep breath and sigh", "Massage your temples"
+      "Express feelings for 10 minutes", "Cry if you need to", "Laugh out loud", 
+      "Watch a funny video for 5 minutes", "Read a poem for 5 minutes", "Wrap yourself in a blanket", 
+      "Deep breath and sigh for 1 minute", "Massage your temples for 2 minutes"
     ],
     DAILY: [
-      "10 minutes of meditation", "Write 3 things you are grateful for", "Take a 15-minute walk",
+      "20 minutes of meditation", "Write 3 things you are grateful for", "Take a 15-minute walk",
       "Get 8 hours of sleep", "Spend 15 minutes in the sun", "Limit news consumption",
-      "Do something you enjoy for 30 mins", "Write a journal entry", "Practice self-compassion",
+      "Do something you enjoy for 30 mins", "Write a journal entry", "Practice self-compassion for 10 minutes",
       "Disconnect from work after hours", "Eat a nourishing meal", "Do a 10-minute yoga routine",
       "Talk to a supportive friend", "Read a chapter of a fiction book", "Spend 10 minutes in silence",
-      "Do a mindfulness exercise", "Take a warm bath or shower", "Write down your feelings",
-      "Listen to an uplifting podcast", "Practice progressive muscle relaxation",
-      "Write in a gratitude journal", "Spend 20 minutes in nature", "Do a 15-minute meditation", 
+      "Do a mindfulness exercise for 10 minutes", "Take a warm bath or shower", "Write down your feelings",
+      "Listen to an uplifting podcast", "Practice relaxation for 15 minutes",
+      "Write in gratitude journal for 10 minutes", "Spend 20 minutes in nature", "Do a 15-minute meditation", 
       "Disconnect from screens 1 hour before bed", "Do a relaxing hobby for 20 mins",
-      "Meditate for 20 minutes", "Do a 20-minute yoga nidra", "Write 3 pages in a journal", 
+      "Meditate for 20 minutes", "Do a 20-minute yoga nidra", "Write 3 pages for 30 minutes", 
       "Take a 30-minute walk in nature", "Spend 30 minutes in the sun", "No news for the day", 
       "No social media for the day", "Do 1 hour of a relaxing hobby", "Take a 30-minute nap", 
-      "Listen to a whole album", "Read 2 chapters of fiction", "Take a long, hot shower", 
-      "Do a skincare routine", "Eat a meal mindfully without screens", "Drink 2 liters of water", 
-      "Get 9 hours of sleep", "Write a letter to your future self", "Write a letter to your past self", 
+      "Listen to an album for 45 minutes", "Read 2 chapters of fiction", "Take a long shower for 15 minutes", 
+      "Do a skincare routine for 10 minutes", "Eat mindfully for 20 minutes", "Drink 2 liters of water", 
+      "Get 9 hours of sleep", "Write to future self for 20 minutes", "Write to past self for 20 minutes", 
       "List 5 things you are grateful for", "List 5 things you are proud of"
     ],
     WEEKLY: [
-      "Therapy or deep reflection", "Spend a day in nature", "Unplug for a weekend",
-      "Have a self-care evening", "Do a creative activity for 1 hour", "Go for a long walk without your phone",
-      "Cook a nice meal for yourself", "Watch your favorite movie", "Declutter your mind by writing everything down",
-      "Spend quality time with loved ones", "Try a new relaxing hobby", "Visit a park or beach",
-      "Do a digital detox for 12 hours", "Read a book for pleasure", "Have a spa day at home",
-      "Have a tech-free day", "Go for a nature hike", "Have a long bath", 
-      "Do a creative project", "Spend a day doing nothing",
-      "Go to a therapy session", "Attend a support group", "Spend a whole day offline", 
-      "Spend a whole day in nature", "Go camping", "Go to a spa", 
-      "Get a massage", "Take a day trip", "Visit a botanical garden", 
-      "Visit an art museum", "Do a 2-hour creative project", "Bake something from scratch", 
-      "Cook a complex meal", "Read a whole fiction book", "Watch 2 movies", 
-      "Have a pajama day", "Sleep in without an alarm", "Do a 1-hour meditation", 
-      "Do a 1-hour yoga class", "Write a short story"
+      "Deep reflection for 60 minutes", "Spend 6 hours in nature", "Unplug for 48 hours",
+      "Self-care evening for 3 hours", "Do a creative activity for 1 hour", "Go for a long walk without your phone",
+      "Cook a nice meal for 60 minutes", "Watch a movie for 120 minutes", "Mind declutter for 20 minutes",
+      "Spend 2 hours with loved ones", "Try a new hobby for 60 minutes", "Visit a park for 60 minutes",
+      "Do a digital detox for 12 hours", "Read for pleasure for 60 minutes", "Home spa day for 2 hours",
+      "Tech-free day for 24 hours", "Go for a hike for 2 hours", "Have a long bath for 30 minutes", 
+      "Do a creative project for 60 minutes", "Do nothing for 24 hours",
+      "Therapy session for 60 minutes", "Attend a support group for 1 hour", "Spend 24 hours offline", 
+      "Spend 24 hours in nature", "Go camping for 24 hours", "Go to a spa for 2 hours", 
+      "Get a massage for 60 minutes", "Take a day trip for 8 hours", "Visit a garden for 1 hour", 
+      "Visit an art museum for 2 hours", "Do a 2-hour creative project", "Bake from scratch for 90 minutes", 
+      "Cook a complex meal for 2 hours", "Read a fiction book for 3 hours", "Watch 2 movies for 4 hours", 
+      "Have a pajama day for 24 hours", "Sleep in without an alarm", "Do a 1-hour meditation", 
+      "Do a 1-hour yoga class", "Write a short story for 60 minutes"
     ],
     ROUTINE: [],
     BOSS: []
@@ -1038,10 +1057,15 @@ function useAppStateInternal() {
 
     const analyzeMissionPath = (text: string): PathType => {
       const lower = text.toLowerCase();
-      if (/(push|pull|run|walk|jog|gym|workout|exercise|squat|lari|jalan|otot|fisik|olahraga|renang|sepeda|angkat|sweat)/.test(lower)) return 'STRONGER';
-      if (/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article)/.test(lower)) return 'PRODUCTIVE';
-      if (/(talk|call|meet|friend|family|greet|help|bicara|telepon|teman|keluarga|sapa|bantu|nongkrong|sosial|chat)/.test(lower)) return 'EXTROVERT';
-      if (/(meditate|breathe|journal|calm|relax|sleep|nap|yoga|meditasi|nafas|tenang|tidur|jurnal|doa|pray)/.test(lower)) return 'MENTAL_HEALTH';
+      // Physical / Stronger
+      if (/(push|pull|run|walk|jog|gym|workout|exercise|squat|squad|plank|situp|sit-up|crunch|burpee|jump|lari|jalan|otot|fisik|olahraga|renang|sepeda|angkat|sweat|cardio|training|fitness|bola|basket|futsal|badminton|tenis|yoga|stretching|boxing|muaythai|karate|silat|treadmill|dumbell|barbell|lifting|kardio|sehat|kesehatan|atlet|atletik|maraton|sprint|lompat|tendang|pukul|tangkis|sparring|gowes|gowes|pedal|renang|berenang|kolam|lap|set|rep|reps|kalori|bakar|lemak)/.test(lower)) return 'STRONGER';
+      // Productivity / Productive
+      if (/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article|work|project|tugas|kerja|nulis|write|skripsi|exam|ujian|coding|dev|design|produktivitas|fokus|focus|prioritas|priority|jadwal|schedule|rencana|plan|organisir|organize|rapi|bersih|meja|email|inbox|belanja|masak|makan|persiapan|prep|resume|cv|portofolio|portfolio|investasi|invest|nabung|tabungan|keuangan|budget|anggaran|bisnis|usaha|omzet|sales|marketing|penjualan|klien|client|meeting|rapat|notulensi|notula|catatan|note|notes|ide|idea|kreatif|creative|gambar|lukis|desain|edit|video|audio|musik|instrumen|alat|latihan|practice)/.test(lower)) return 'PRODUCTIVE';
+      // Social / Extrovert
+      if (/(talk|call|meet|friend|family|greet|help|bicara|telepon|teman|keluarga|sapa|bantu|nongkrong|sosial|chat|hangout|date|dinner|lunch|party|community|komunitas|relasi|network|kenalan|kenal|ngobrol|diskusi|debat|presentasi|panggung|tampil|perform|puji|compliment|senyum|smile|kontak|mata|eye|contact|jabat|tangan|peluk|hug|kado|hadiah|gift|donasi|sedekah|amal|zakat|tolong|peduli|care|empati|dengar|listen|curhat|cerita|story|berbagi|share|ajak|invite|gabung|join|kumpul|gathering|reuni|reunion|bukber|halal|bihalal|silaturahmi)/.test(lower)) return 'EXTROVERT';
+      // Mental Health
+      if (/(meditate|breathe|journal|calm|relax|sleep|nap|yoga|meditasi|nafas|tenang|tidur|jurnal|doa|pray|ibadah|sholat|dzikir|healing|mindful|rest|istirahat|self-care|syukur|gratitude|terima|kasih|thanks|puji|syukur|tenang|damai|peace|ikhlas|sabar|patience|maaf|forgive|ampun|tobat|muhasabah|renung|refleksi|reflection|hening|silent|solitude|me-time|hobi|hobby|senang|happy|bahagia|puas|content|lega|bebas|free|lepas|let|go|ikhlas|ikhlas|ikhlas)/.test(lower)) return 'MENTAL_HEALTH';
+      // Default to Discipline
       return 'DISCIPLINE';
     };
 
@@ -1127,10 +1151,15 @@ function useAppStateInternal() {
       let newStreakFreezes = prev.streakFreezes || 0;
       let streakFreezeUsedToday = false;
       
-      let newDailyStats = prev.dailyStats ? { ...prev.dailyStats } : {};
-      newDailyStats[todayISO] = (newDailyStats[todayISO] || 0) + 1;
-      
-      if (prev.lastActiveDate !== today) {
+    let newDailyStats = prev.dailyStats ? { ...prev.dailyStats } : {};
+    newDailyStats[todayISO] = (newDailyStats[todayISO] || 0) + 1;
+
+    let newDailyCategoryStats = prev.dailyCategoryStats ? { ...prev.dailyCategoryStats } : {};
+    if (!newDailyCategoryStats[todayISO]) newDailyCategoryStats[todayISO] = {};
+    const category = analyzeMissionPath(m.text);
+    newDailyCategoryStats[todayISO][category] = (newDailyCategoryStats[todayISO][category] || 0) + 1;
+    
+    if (prev.lastActiveDate !== today) {
         if (prev.lastActiveDate) {
           const lastDate = new Date(prev.lastActiveDate);
           const currentDate = new Date(today);
@@ -1235,6 +1264,7 @@ function useAppStateInternal() {
         previousLevel: leveledUp ? prev.level : prev.previousLevel,
         highestRankAchieved: getRankForLevel(newLevel).name,
         dailyStats: newDailyStats,
+        dailyCategoryStats: newDailyCategoryStats,
         unlockedFrames: newUnlockedFrames,
         titles: newTitles,
         unlockedItemsQueue: newUnlockedItemsQueue,
@@ -1495,8 +1525,6 @@ function useAppStateInternal() {
           ...prev,
           chosenPath: newPath,
           pathProgress: newPathProgress,
-          xp: savedProgress.xp,
-          level: savedProgress.level,
           missions: savedProgress.missions,
           lastMissionDate: savedProgress.lastMissionDate,
           lastWeeklyDate: savedProgress.lastWeeklyDate,
@@ -1535,13 +1563,9 @@ function useAppStateInternal() {
           ...prev,
           chosenPath: newPath,
           pathProgress: newPathProgress,
-          xp: 0,
-          level: 1,
           missions: newMissions,
           lastMissionDate: today,
           lastWeeklyDate: currentWeek,
-          badges: [],
-          highestRankAchieved: 'Bronze',
         };
       }
     });

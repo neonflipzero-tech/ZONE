@@ -278,7 +278,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                 onClick={() => setSelectedActionUser(user)}
                 className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all cursor-pointer hover:scale-[1.02] ${
                   isCurrentUser 
-                    ? 'bg-accent/10 border-accent/50 shadow-[0_0_15px_rgba(242,125,38,0.15)]' 
+                    ? 'bg-accent/10 border-accent/50 shadow-[0_0_15px_var(--color-accent)]' 
                     : 'bg-surface border-white/5 hover:bg-surface-hover'
                 }`}
               >
@@ -471,7 +471,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
 
                 <div className="grid grid-cols-2 gap-3 w-full">
                   <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
-                    <Flame className="w-5 h-5 text-orange-500 mb-1" />
+                    <Flame className="w-5 h-5 text-accent mb-1" />
                     <span className="text-xs text-secondary mb-1">{t('leaderboard.streak', state.language)}</span>
                     <span className="font-mono font-bold text-lg">{selectedUser.streak || 0}</span>
                   </div>

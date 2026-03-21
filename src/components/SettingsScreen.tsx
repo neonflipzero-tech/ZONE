@@ -1,8 +1,9 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, LogOut, AlertTriangle, ChevronDown, ChevronUp, ChevronRight } from 'lucide-react';
+import { ChevronLeft, LogOut, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Bell, Clock } from 'lucide-react';
 import { UserState, PathType } from '../store';
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { sounds } from '../utils/sounds';
+import { NotificationService } from '../services/NotificationService';
 
 import { t } from '../utils/translations';
 
@@ -45,6 +46,32 @@ export default function SettingsScreen({
     toastTimeoutRef.current = setTimeout(() => {
       setToastMessage(null);
     }, 3000);
+  };
+
+  const handleToggleNotifications = async () => {
+    const newEnabled = !state.notificationsEnabled;
+    
+    if (newEnabled) {
+      const granted = await NotificationService.requestPermission();
+      if (!granted) {
+        setToastMessage(state.language === 'id' ? 'Izin notifikasi ditolak' : 'Notification permission denied');
+        setTimeout(() => setToastMessage(null), 3000);
+        return;
+      }
+    }
+    
+    updateState({ notificationsEnabled: newEnabled });
+    if (newEnabled) {
+      NotificationService.scheduleDailyReminder({ ...state, notificationsEnabled: newEnabled });
+    }
+  };
+
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = e.target.value;
+    updateState({ notificationTime: newTime });
+    if (state.notificationsEnabled) {
+      NotificationService.scheduleDailyReminder({ ...state, notificationTime: newTime });
+    }
   };
 
   return (
@@ -129,6 +156,51 @@ export default function SettingsScreen({
                 ID
               </button>
             </div>
+          </div>
+
+          {/* Notifications Setting */}
+          <div className="p-4 flex flex-col space-y-4 border-b border-white/5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
+                  <Bell className="w-5 h-5 text-accent" />
+                </div>
+                <div>
+                  <span className="font-bold block">{t('settings.notifications', state.language)}</span>
+                  <span className="text-xs text-secondary">{t('settings.notifications.desc', state.language)}</span>
+                </div>
+              </div>
+              <button 
+                onClick={handleToggleNotifications}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${state.notificationsEnabled ? 'bg-accent' : 'bg-white/20'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${state.notificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            
+            <AnimatePresence>
+              {state.notificationsEnabled && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center space-x-2 text-secondary">
+                      <Clock className="w-4 h-4" />
+                      <span className="text-sm">{t('settings.notification_time', state.language)}</span>
+                    </div>
+                    <input 
+                      type="time" 
+                      value={state.notificationTime}
+                      onChange={handleTimeChange}
+                      className="bg-background border border-white/10 rounded-lg px-3 py-1 text-sm text-primary focus:outline-none focus:border-accent transition-colors"
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Public Profile Setting */}

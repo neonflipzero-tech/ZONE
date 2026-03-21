@@ -51,7 +51,7 @@ export default function RankScreen({ state }: RankScreenProps) {
             </div>
             <div className="h-2 w-full bg-background rounded-full overflow-hidden border border-white/5">
               <motion.div 
-                className="h-full bg-gradient-to-r from-accent to-orange-500"
+                className="h-full bg-[#F27D26]"
                 initial={{ width: 0 }}
                 animate={{ width: `${xpProgress}%` }}
                 transition={{ duration: 1, ease: "easeOut" }}
