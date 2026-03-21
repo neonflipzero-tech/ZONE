@@ -193,7 +193,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24 relative"
+      className="flex flex-col h-full bg-black overflow-y-auto no-scrollbar pb-24 relative"
     >
       {/* Streak Freeze Notification Banner - Moved below header */}
       <AnimatePresence>
@@ -213,7 +213,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
       </AnimatePresence>
 
       {/* Header */}
-      <div className={`px-4 ${anyItemActive ? 'pt-10' : 'pt-14'} pb-4 flex flex-col sticky top-0 bg-background/80 backdrop-blur-md z-30 border-b border-white/5`}>
+      <div className={`px-4 ${anyItemActive ? 'pt-10' : 'pt-14'} pb-4 flex flex-col sticky top-0 bg-black/80 backdrop-blur-md z-30 border-b border-white/5`}>
         <div className="flex justify-between items-start w-full">
           <div className="flex items-center space-x-3 min-w-0 flex-1">
             <div className="relative flex-shrink-0">
@@ -249,7 +249,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
             >
               <Bell className="w-4 h-4 text-secondary" />
               {unreadNotificationsCount > 0 && (
-                <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full border-2 border-surface"></div>
+                <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full border-2 border-zinc-900"></div>
               )}
             </button>
           </div>
@@ -296,7 +296,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
               {state.chosenPath === 'OTHER' && (
                 <button 
                   onClick={() => setIsCustomMissionsModalOpen(true)}
-                  className="p-1.5 rounded-lg bg-surface border border-white/10 hover:bg-white/10 transition-colors text-accent"
+                  className="p-1.5 rounded-lg bg-zinc-900 border border-white/10 hover:bg-white/10 transition-colors text-accent"
                   title={t('home.manage_custom_missions', state.language)}
                 >
                   <Wand2 className="w-4 h-4" />
@@ -337,7 +337,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
           
           {/* Progress Bar */}
           {activeTab !== 'BOSS' && (
-            <div className="h-1.5 w-full bg-surface rounded-full mb-6 overflow-hidden">
+            <div className="h-1.5 w-full bg-zinc-900 rounded-full mb-6 overflow-hidden">
               <motion.div 
                 className="h-full bg-gradient-to-r from-accent to-orange-500"
                 initial={{ width: 0 }}
@@ -384,10 +384,10 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                     onClick={() => !isLocked && handleMissionClick(mission)}
                     className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all ${
                       mission.completed 
-                        ? 'bg-surface/30 border-white/5 opacity-50' 
+                        ? 'bg-zinc-900/30 border-white/5 opacity-50' 
                         : isLocked
-                          ? 'bg-surface/10 border-white/5 opacity-40 cursor-not-allowed grayscale'
-                          : 'bg-gradient-to-br from-surface to-surface-hover border-white/10 cursor-pointer hover:border-white/30 hover:shadow-lg hover:shadow-accent/5'
+                          ? 'bg-zinc-900/10 border-white/5 opacity-40 cursor-not-allowed grayscale'
+                          : 'bg-gradient-to-br from-zinc-900 to-zinc-800 border-white/10 cursor-pointer hover:border-white/30 hover:shadow-lg hover:shadow-accent/5'
                     }`}
                   >
                     {mission.completed ? (
@@ -424,7 +424,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-50 bg-background flex flex-col px-6 py-12"
+            className="fixed inset-0 z-50 bg-black flex flex-col px-6 py-12"
           >
             <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
               {timeLeft !== null ? (
@@ -477,7 +477,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                         setIsTimerRunning(false);
                         setTimeLeft(extractDuration(selectedMission!.text));
                       }}
-                      className="w-full py-5 rounded-2xl font-bold text-lg bg-surface text-secondary border border-white/10 hover:bg-surface-hover hover:text-primary transition-colors"
+                      className="w-full py-5 rounded-2xl font-bold text-lg bg-zinc-900 text-secondary border border-white/10 hover:bg-zinc-800 hover:text-primary transition-colors"
                     >
                       {t('home.timer.reset', state.language)}
                     </button>
@@ -488,7 +488,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                         onReplaceMission(selectedMission!.id);
                         handleCloseModal();
                       }}
-                      className="w-full py-5 rounded-2xl font-bold text-lg bg-surface text-secondary border border-white/10 hover:bg-surface-hover hover:text-primary transition-colors"
+                      className="w-full py-5 rounded-2xl font-bold text-lg bg-zinc-900 text-secondary border border-white/10 hover:bg-zinc-800 hover:text-primary transition-colors"
                     >
                       {t('home.cant_do_it', state.language)}
                     </button>
@@ -536,7 +536,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                         onReplaceMission(selectedMission.id);
                         handleCloseModal();
                       }}
-                      className="w-full py-5 rounded-2xl font-bold text-lg bg-surface text-secondary border border-white/10 hover:bg-surface-hover hover:text-primary transition-colors"
+                      className="w-full py-5 rounded-2xl font-bold text-lg bg-zinc-900 text-secondary border border-white/10 hover:bg-zinc-800 hover:text-primary transition-colors"
                     >
                       {t('home.cant_do_it', state.language)}
                     </button>

@@ -24,16 +24,16 @@ export default function RankScreen({ state }: RankScreenProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24"
+      className="flex flex-col h-full bg-black overflow-y-auto no-scrollbar pb-24"
     >
       <div className="px-6 pt-12 pb-6">
         <h1 className="text-2xl font-display font-bold tracking-tight mb-8">{t('rank.title', state.language)}</h1>
 
         {/* Current Rank Card */}
-        <div className="bg-surface border border-white/5 rounded-3xl p-8 mb-8 relative overflow-hidden flex flex-col items-center text-center">
+        <div className="bg-zinc-900 border border-white/5 rounded-3xl p-8 mb-8 relative overflow-hidden flex flex-col items-center text-center">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-accent/10 to-transparent pointer-events-none" />
           
-          <div className="w-32 h-32 rounded-full bg-background border-4 border-surface flex items-center justify-center mb-6 relative z-10 shadow-2xl shadow-accent/20">
+          <div className="w-32 h-32 rounded-full bg-black border-4 border-zinc-900 flex items-center justify-center mb-6 relative z-10 shadow-2xl shadow-accent/20">
             {getRankIcon(currentRank.name, `w-16 h-16 ${currentRank.color}`)}
           </div>
           
@@ -51,7 +51,7 @@ export default function RankScreen({ state }: RankScreenProps) {
             </div>
             <div className="h-2 w-full bg-background rounded-full overflow-hidden border border-white/5">
               <motion.div 
-                className="h-full bg-[#F27D26]"
+                className="h-full bg-gradient-to-r from-accent to-orange-500"
                 initial={{ width: 0 }}
                 animate={{ width: `${xpProgress}%` }}
                 transition={{ duration: 1, ease: "easeOut" }}
@@ -62,14 +62,14 @@ export default function RankScreen({ state }: RankScreenProps) {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-4 mb-8">
-          <div className="bg-surface border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center">
+          <div className="bg-zinc-900 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center">
             <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center mb-2">
               <Flame className="w-5 h-5 text-accent" />
             </div>
             <span className="text-2xl font-bold">{state.missions.filter(m => m.completed).length}</span>
             <span className="text-xs text-secondary uppercase tracking-wider">{t('rank.missions_done', state.language)}</span>
           </div>
-          <div className="bg-surface border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center">
+          <div className="bg-zinc-900 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-2">
               <Shield className="w-5 h-5 text-primary" />
             </div>
@@ -91,10 +91,10 @@ export default function RankScreen({ state }: RankScreenProps) {
                   key={rank.name}
                   className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all ${
                     isCurrent 
-                      ? 'bg-gradient-to-r from-surface to-surface-hover border-accent/30 shadow-lg shadow-accent/5' 
+                      ? 'bg-gradient-to-r from-zinc-900 to-zinc-800 border-accent/30 shadow-lg shadow-accent/5' 
                       : isUnlocked
-                        ? 'bg-surface border-white/10'
-                        : 'bg-surface/30 border-white/5 opacity-50 grayscale'
+                        ? 'bg-zinc-900 border-white/10'
+                        : 'bg-zinc-900/30 border-white/5 opacity-50 grayscale'
                   }`}
                 >
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isUnlocked ? rank.bg + '/20' : 'bg-white/5'}`}>

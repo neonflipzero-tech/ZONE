@@ -251,7 +251,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24"
+      className="flex flex-col h-full bg-black overflow-y-auto no-scrollbar pb-24"
     >
       <AnimatePresence>
         {showCrushedAnimation && (
@@ -298,7 +298,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
         
         {/* Player Card Header */}
 
-        <div id="profile-card" className="relative mb-8 rounded-3xl overflow-hidden border border-white/10 bg-surface shadow-2xl">
+        <div id="profile-card" className="relative mb-8 rounded-3xl overflow-hidden border border-white/10 bg-zinc-900 shadow-2xl">
           {/* Background Glow based on rank */}
           <div className="absolute inset-0 opacity-10 bg-gradient-to-br from-accent to-transparent" />
           
@@ -372,7 +372,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
         <div className="mb-8">
           <h3 className="text-sm font-mono uppercase tracking-widest text-secondary mb-4 px-2">{t('profile.discipline_metrics', state.language)}</h3>
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-surface/50 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
+            <div className="bg-zinc-900 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
               <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
                 <Star className="w-5 h-5 text-accent" />
               </div>
@@ -383,7 +383,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 <div className="text-[10px] text-secondary font-mono uppercase tracking-wider">{t('profile.total_xp', state.language)}</div>
               </div>
             </div>
-            <div className="bg-surface/50 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
+            <div className="bg-zinc-900 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
               <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center shrink-0">
                 <Flame className="w-5 h-5 text-rose-500" />
               </div>
@@ -400,7 +400,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 <div className="text-[10px] text-secondary font-mono uppercase tracking-wider">{t('profile.day_streak', state.language)}</div>
               </div>
             </div>
-            <div className="bg-surface/50 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
+            <div className="bg-zinc-900 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
               <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
                 <CheckCircle2 className="w-5 h-5 text-blue-500" />
               </div>
@@ -411,7 +411,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 <div className="text-[10px] text-secondary font-mono uppercase tracking-wider">{t('profile.missions_done', state.language)}</div>
               </div>
             </div>
-            <div className="bg-surface/50 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
+            <div className="bg-zinc-900 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
               <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center shrink-0">
                 <Trophy className="w-5 h-5 text-purple-500" />
               </div>
@@ -435,7 +435,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             </button>
           </div>
 
-          <div id="ovr-stats-card" className="bg-surface/50 border border-white/5 rounded-3xl p-6 relative overflow-hidden flex flex-col items-center">
+          <div id="ovr-stats-card" className="bg-zinc-900 border border-white/5 rounded-3xl p-6 relative overflow-hidden flex flex-col items-center">
             <div className="absolute inset-0 bg-gradient-to-b from-accent/5 to-transparent pointer-events-none" />
             
             <div className="relative w-full aspect-square max-w-[340px]">
@@ -539,7 +539,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-surface/50 border border-white/5 rounded-3xl p-6 relative overflow-hidden"
+            className="bg-zinc-900 border border-white/5 rounded-3xl p-6 relative overflow-hidden"
           >
             {!state.isPremium ? (
               <div className="flex flex-col items-center justify-center py-12 text-center relative z-10">
@@ -724,7 +724,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             </div>
           </div>
           
-          <div className="bg-surface border border-white/5 rounded-2xl p-5 h-64 flex flex-col justify-end relative">
+          <div className="bg-zinc-900 border border-white/5 rounded-2xl p-5 h-64 flex flex-col justify-end relative">
             <div className="absolute inset-0 p-5 flex flex-col justify-between pointer-events-none">
               {[1, 0.75, 0.5, 0.25, 0].map((tick) => (
                 <div key={`tick-${tick}`} className="w-full border-b border-white/5 h-0 relative">

@@ -171,7 +171,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24"
+      className="flex flex-col h-full bg-black overflow-y-auto no-scrollbar pb-24"
     >
       <div className="px-6 pt-12 pb-6">
         <div className="flex items-center justify-between mb-8">
@@ -207,7 +207,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                 </div>
               );
             })()}
-            <div className="h-24 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-gray-300/50 flex flex-col items-center justify-end pb-2">
+            <div className="h-24 w-full bg-gradient-to-t from-zinc-900 to-zinc-800 rounded-t-xl mt-2 border-t-2 border-gray-300/50 flex flex-col items-center justify-end pb-2">
               <span className="text-xs font-mono text-secondary">{t('leaderboard.lvl', state.language).replace('{level}', (allUsers[1]?.level || 0).toString())}</span>
             </div>
           </div>
@@ -234,7 +234,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                 </div>
               );
             })()}
-            <div className="h-32 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-4 border-yellow-400/50 flex flex-col items-center justify-end pb-2">
+            <div className="h-32 w-full bg-gradient-to-t from-zinc-900 to-zinc-800 rounded-t-xl mt-2 border-t-4 border-yellow-400/50 flex flex-col items-center justify-end pb-2">
               <span className="text-sm font-mono font-bold text-yellow-400">{t('leaderboard.lvl', state.language).replace('{level}', (allUsers[0]?.level || 0).toString())}</span>
             </div>
           </div>
@@ -260,7 +260,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                 </div>
               );
             })()}
-            <div className="h-20 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-amber-700/50 flex flex-col items-center justify-end pb-2">
+            <div className="h-20 w-full bg-gradient-to-t from-zinc-900 to-zinc-800 rounded-t-xl mt-2 border-t-2 border-amber-700/50 flex flex-col items-center justify-end pb-2">
               <span className="text-xs font-mono text-secondary">{t('leaderboard.lvl', state.language).replace('{level}', (allUsers[2]?.level || 0).toString())}</span>
             </div>
           </div>
@@ -278,8 +278,8 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                 onClick={() => setSelectedActionUser(user)}
                 className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all cursor-pointer hover:scale-[1.02] ${
                   isCurrentUser 
-                    ? 'bg-accent/10 border-accent/50 shadow-[0_0_15px_var(--color-accent)]' 
-                    : 'bg-surface border-white/5 hover:bg-surface-hover'
+                    ? 'bg-accent/10 border-accent/50 shadow-[0_0_15px_rgba(242,125,38,0.15)]' 
+                    : 'bg-zinc-900 border-white/5 hover:bg-zinc-800'
                 }`}
               >
                 <div className={`w-6 text-center font-mono font-bold text-sm ${isCurrentUser ? 'text-accent' : 'text-secondary'}`}>
@@ -331,7 +331,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
             initial={{ opacity: 0, y: '100%' }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: '100%' }}
-            className="bg-surface border border-white/10 rounded-3xl p-6 w-full max-w-sm relative shadow-2xl"
+            className="bg-zinc-900 border border-white/10 rounded-3xl p-6 w-full max-w-sm relative shadow-2xl"
           >
             <button 
               onClick={() => setSelectedActionUser(null)}
@@ -430,7 +430,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
               <div className="flex flex-col items-center">
                 <div className="relative mb-4">
                   <ProfileFrame frame={selectedUser.equippedFrame} src={selectedUser.profilePicture || null} size="lg" />
-                  <div className={`absolute -bottom-2 -right-2 w-10 h-10 rounded-full flex items-center justify-center border-4 border-surface ${getRankForLevel(selectedUser.level).bg} z-50`}>
+                  <div className={`absolute -bottom-2 -right-2 w-10 h-10 rounded-full flex items-center justify-center border-4 border-zinc-900 ${getRankForLevel(selectedUser.level).bg} z-50`}>
                     {getRankIcon(getRankForLevel(selectedUser.level).name, "w-5 h-5 text-white")}
                   </div>
                 </div>
@@ -471,7 +471,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
 
                 <div className="grid grid-cols-2 gap-3 w-full">
                   <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
-                    <Flame className="w-5 h-5 text-accent mb-1" />
+                    <Flame className="w-5 h-5 text-orange-500 mb-1" />
                     <span className="text-xs text-secondary mb-1">{t('leaderboard.streak', state.language)}</span>
                     <span className="font-mono font-bold text-lg">{selectedUser.streak || 0}</span>
                   </div>
