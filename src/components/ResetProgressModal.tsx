@@ -58,11 +58,11 @@ export default function ResetProgressModal({ isOpen, onClose, onConfirm, languag
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="relative w-full max-w-sm bg-surface border border-red-500/30 rounded-3xl p-6 shadow-2xl shadow-red-500/10"
+          className="relative w-full max-w-sm bg-surface border border-rose-500/30 rounded-3xl p-6 shadow-2xl shadow-rose-500/10"
         >
           <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center">
-              <AlertTriangle className="w-8 h-8 text-red-500" />
+            <div className="w-16 h-16 rounded-full bg-rose-500/10 flex items-center justify-center">
+              <AlertTriangle className="w-8 h-8 text-rose-500" />
             </div>
           </div>
 
@@ -80,7 +80,7 @@ export default function ResetProgressModal({ isOpen, onClose, onConfirm, languag
             )}
 
             {step === 2 && (
-              <p className="text-red-400 text-sm font-bold">
+              <p className="text-rose-400 text-sm font-bold">
                 {language === 'id' 
                   ? 'PERINGATAN TERAKHIR! Aksi ini TIDAK BISA dibatalkan. Semua usahamu akan hilang selamanya. Yakin?' 
                   : 'FINAL WARNING! This action CANNOT be undone. All your hard work will be lost forever. Are you really sure?'}
@@ -88,7 +88,7 @@ export default function ResetProgressModal({ isOpen, onClose, onConfirm, languag
             )}
 
             {step === 3 && (
-              <p className="text-red-500 text-sm font-bold animate-pulse">
+              <p className="text-rose-500 text-sm font-bold animate-pulse">
                 {language === 'id' 
                   ? 'Menghapus data dalam...' 
                   : 'Deleting data in...'}
@@ -100,7 +100,7 @@ export default function ResetProgressModal({ isOpen, onClose, onConfirm, languag
             {step < 3 ? (
               <button
                 onClick={handleNext}
-                className="w-full py-3 rounded-xl bg-red-500/20 text-red-500 font-bold hover:bg-red-500/30 transition-colors"
+                className="w-full py-3 rounded-xl bg-rose-500/20 text-rose-500 font-bold hover:bg-rose-500/30 transition-colors"
               >
                 {language === 'id' ? 'Ya, Lanjutkan' : 'Yes, Continue'}
               </button>
@@ -111,7 +111,7 @@ export default function ResetProgressModal({ isOpen, onClose, onConfirm, languag
                 className={`w-full py-3 rounded-xl font-bold transition-all ${
                   countdown > 0 
                     ? 'bg-surface border border-white/10 text-secondary cursor-not-allowed' 
-                    : 'bg-red-500 text-white hover:bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.5)]'
+                    : 'bg-rose-500 text-white hover:bg-rose-600 shadow-[0_0_15px_rgba(244,63,94,0.5)]'
                 }`}
               >
                 {countdown > 0 

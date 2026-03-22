@@ -13,6 +13,24 @@ export default function PremiumModal({ isOpen, onClose, language }: PremiumModal
   const [error, setError] = useState('');
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly' | 'lifetime'>('monthly');
 
+  const getPrice = (planId: string) => {
+    if (language === 'id') {
+      switch (planId) {
+        case 'monthly': return 'Rp 69.000';
+        case 'yearly': return 'Rp 449.000';
+        case 'lifetime': return 'Rp 749.000';
+        default: return '';
+      }
+    } else {
+      switch (planId) {
+        case 'monthly': return '$4.99';
+        case 'yearly': return '$29.99';
+        case 'lifetime': return '$49.99';
+        default: return '';
+      }
+    }
+  };
+
   if (!isOpen) return null;
 
   const handleUpgrade = async () => {
@@ -33,21 +51,21 @@ export default function PremiumModal({ isOpen, onClose, language }: PremiumModal
     {
       id: 'monthly',
       name: language === 'id' ? 'Bulanan' : 'Monthly',
-      price: '$4.99',
+      price: getPrice('monthly'),
       period: language === 'id' ? '/ bulan' : '/ month',
       desc: language === 'id' ? 'Akses penuh setiap bulan' : 'Full access every month'
     },
     {
       id: 'yearly',
       name: language === 'id' ? 'Tahunan' : 'Yearly',
-      price: '$29.99',
+      price: getPrice('yearly'),
       period: language === 'id' ? '/ tahun' : '/ year',
-      desc: language === 'id' ? 'Hemat 50% per tahun' : 'Save 50% per year'
+      desc: language === 'id' ? 'Hemat 50% dibanding bulanan' : 'Save 50% vs monthly'
     },
     {
       id: 'lifetime',
       name: language === 'id' ? 'Seumur Hidup' : 'Lifetime',
-      price: '$49.99',
+      price: getPrice('lifetime'),
       period: language === 'id' ? 'Sekali bayar' : 'One-time',
       desc: language === 'id' ? 'Akses selamanya' : 'Access forever'
     }
@@ -86,7 +104,7 @@ export default function PremiumModal({ isOpen, onClose, language }: PremiumModal
           initial={{ scale: 0.9, opacity: 0, y: 40 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 40 }}
-          className="relative w-full max-w-md bg-background border border-accent/30 rounded-[2.5rem] overflow-hidden shadow-[0_0_50px_rgba(242,125,38,0.15)] max-h-[95vh] flex flex-col"
+          className="relative w-full max-w-md bg-background border border-accent/30 rounded-[2.5rem] overflow-hidden shadow-[0_0_50px_rgba(245,158,11,0.15)] max-h-[95vh] flex flex-col"
         >
           {/* Animated background glow */}
           <div className="absolute top-0 left-0 right-0 h-48 bg-gradient-to-br from-accent/30 via-purple-500/20 to-transparent pointer-events-none" />
@@ -111,7 +129,7 @@ export default function PremiumModal({ isOpen, onClose, language }: PremiumModal
                 repeat: Infinity,
                 ease: "easeInOut"
               }}
-              className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent via-orange-400 to-purple-600 p-0.5 mb-4 shadow-[0_0_30px_rgba(242,125,38,0.3)] shrink-0"
+              className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent via-amber-400 to-purple-600 p-0.5 mb-4 shadow-[0_0_30px_rgba(245,158,11,0.3)] shrink-0"
             >
               <div className="w-full h-full bg-background rounded-2xl flex items-center justify-center">
                 <Crown className="w-8 h-8 text-accent" />
@@ -129,12 +147,12 @@ export default function PremiumModal({ isOpen, onClose, language }: PremiumModal
             </div>
 
             {/* Plan Selection */}
-            <div className="w-full grid grid-cols-1 gap-2 mb-6 shrink-0">
+            <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 shrink-0">
               {plans.map((plan) => (
                 <button
                   key={plan.id}
                   onClick={() => setSelectedPlan(plan.id as any)}
-                  className={`relative p-3 rounded-2xl border-2 transition-all text-left flex flex-col ${
+                  className={`relative p-4 rounded-2xl border-2 transition-all text-left flex flex-col ${
                     selectedPlan === plan.id
                       ? 'bg-accent/10 border-accent shadow-[0_0_20px_rgba(242,125,38,0.2)]'
                       : 'bg-white/[0.03] border-white/5 hover:border-white/10'
@@ -145,21 +163,16 @@ export default function PremiumModal({ isOpen, onClose, language }: PremiumModal
                       <Check className="w-3 h-3 text-white" />
                     </div>
                   )}
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-[9px] uppercase tracking-widest font-black ${
-                      selectedPlan === plan.id ? 'text-accent' : 'text-secondary'
-                    }`}>
-                      {plan.name}
-                    </span>
-                    {plan.id === 'yearly' && (
-                      <span className="bg-green-500 text-[8px] text-white px-1.5 py-0.5 rounded-full font-black uppercase">BEST VALUE</span>
-                    )}
+                  <span className={`text-[10px] uppercase tracking-widest font-black mb-1 ${
+                    selectedPlan === plan.id ? 'text-accent' : 'text-secondary'
+                  }`}>
+                    {plan.name}
+                  </span>
+                  <div className="flex items-baseline space-x-1 mb-1">
+                    <span className="text-xl font-black text-primary tracking-tighter">{plan.price}</span>
+                    <span className="text-[10px] text-secondary font-medium">{plan.period}</span>
                   </div>
-                  <div className="flex items-baseline space-x-1">
-                    <span className="text-lg font-black text-primary tracking-tighter">{plan.price}</span>
-                    <span className="text-[9px] text-secondary font-medium">{plan.period}</span>
-                    <span className="text-[9px] text-secondary/40 font-medium ml-auto">{plan.desc}</span>
-                  </div>
+                  <span className="text-[9px] text-secondary/60 font-medium leading-tight">{plan.desc}</span>
                 </button>
               ))}
             </div>
@@ -187,17 +200,17 @@ export default function PremiumModal({ isOpen, onClose, language }: PremiumModal
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full p-4 mb-6 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-start space-x-3 text-left shrink-0"
+                className="w-full p-4 mb-6 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-start space-x-3 text-left shrink-0"
               >
-                <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-                <p className="text-xs font-medium text-red-400 leading-normal">{error}</p>
+                <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+                <p className="text-xs font-medium text-rose-400 leading-normal">{error}</p>
               </motion.div>
             )}
 
             <button
               onClick={handleUpgrade}
               disabled={loading}
-              className="group relative w-full py-4 rounded-2xl font-black text-lg bg-gradient-to-r from-accent via-orange-500 to-purple-600 text-white shadow-[0_10px_30px_rgba(242,125,38,0.3)] hover:shadow-[0_15px_40px_rgba(242,125,38,0.5)] transition-all flex items-center justify-center space-x-3 disabled:opacity-70 disabled:cursor-not-allowed overflow-hidden shrink-0"
+              className="group relative w-full py-4 rounded-2xl font-black text-lg bg-gradient-to-r from-accent via-amber-500 to-purple-600 text-white shadow-[0_10px_30px_rgba(245,158,11,0.3)] hover:shadow-[0_15px_40px_rgba(245,158,11,0.5)] transition-all flex items-center justify-center space-x-3 disabled:opacity-70 disabled:cursor-not-allowed overflow-hidden shrink-0"
             >
               <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out" />
               {loading ? (

@@ -48,6 +48,22 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!state?.isLoggedIn || state?.isPremium) return;
+
+    const interval = setInterval(() => {
+      // 60% chance to show promotion
+      if (Math.random() < 0.6) {
+        // 1 in 3 chance for flash sale (rare)
+        const isFlash = Math.random() < 0.33;
+        setIsFlashSale(isFlash);
+        setIsPromoOpen(true);
+      }
+    }, 5 * 60 * 1000); // Every 5 minutes
+
+    return () => clearInterval(interval);
+  }, [state?.isLoggedIn, state?.isPremium]);
+
+  useEffect(() => {
     if (state?.notificationsEnabled) {
       NotificationService.scheduleDailyReminder(state);
     }
@@ -516,48 +532,48 @@ export default function App() {
               initial={{ opacity: 0, y: 50, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.9 }}
-              className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl flex items-center space-x-3 min-w-[280px]"
+              className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 bg-surface border border-white/10 rounded-2xl shadow-2xl flex items-center space-x-3 min-w-[280px]"
             >
-              <div className={`w-2 h-2 rounded-full ${notification.type === 'success' ? 'bg-green-500' : notification.type === 'error' ? 'bg-red-500' : 'bg-blue-500'}`} />
+              <div className={`w-2 h-2 rounded-full ${notification.type === 'success' ? 'bg-green-500' : notification.type === 'error' ? 'bg-rose-500' : 'bg-blue-500'}`} />
               <p className="text-sm font-medium text-white">{notification.message}</p>
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* Bottom Navigation */}
-        <div className="fixed bottom-0 left-0 right-0 bg-zinc-950/90 backdrop-blur-xl border-t border-white/5 pb-safe z-50">
+        <div className="fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-xl border-t border-white/5 pb-safe z-50">
           <div className="flex justify-around items-center h-16 max-w-md mx-auto px-2">
             <button 
               onClick={() => setActiveTab('home')}
-              className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'home' ? 'text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'}`}
+              className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'home' ? 'text-primary' : 'text-secondary hover:text-primary/70'}`}
             >
               <Target className="w-6 h-6 mb-1" />
               <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Misi' : 'Missions'}</span>
             </button>
             <button 
               onClick={() => setActiveTab('leaderboard')}
-              className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'leaderboard' ? 'text-rose-500' : 'text-zinc-500 hover:text-rose-500/70'}`}
+              className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'leaderboard' ? 'text-rose-500' : 'text-secondary hover:text-rose-500/70'}`}
             >
               <BarChart2 className="w-6 h-6 mb-1" />
               <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Peringkat' : 'Global'}</span>
             </button>
             <button 
               onClick={() => setActiveTab('journey')}
-              className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'journey' ? 'text-orange-500' : 'text-zinc-500 hover:text-orange-500/70'}`}
+              className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'journey' ? 'text-amber-500' : 'text-secondary hover:text-amber-500/70'}`}
             >
               <Map className="w-6 h-6 mb-1" />
               <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Perjalanan' : 'Journey'}</span>
             </button>
             <button 
               onClick={() => setActiveTab('rank')}
-              className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'rank' ? 'text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'}`}
+              className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'rank' ? 'text-primary' : 'text-secondary hover:text-primary/70'}`}
             >
               <Trophy className="w-6 h-6 mb-1" />
               <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Pangkat' : 'Rank'}</span>
             </button>
             <button 
               onClick={() => setActiveTab('profile')}
-              className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'profile' ? 'text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'}`}
+              className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'profile' ? 'text-primary' : 'text-secondary hover:text-primary/70'}`}
             >
               <User className="w-6 h-6 mb-1" />
               <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Profil' : 'Profile'}</span>
@@ -569,9 +585,9 @@ export default function App() {
   }
 
   return (
-    <div className="w-full h-screen bg-black text-primary flex justify-center overflow-hidden">
+    <div className="w-full h-screen bg-background text-primary flex justify-center overflow-hidden">
       {/* Mobile container constraint for web view */}
-      <div className="w-full max-w-md h-full relative flex flex-col shadow-2xl bg-black border-x border-white/5">
+      <div className="w-full max-w-md h-full relative flex flex-col shadow-2xl bg-background border-x border-white/5">
         <AnimatePresence>
           {content}
         </AnimatePresence>

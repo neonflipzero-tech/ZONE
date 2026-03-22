@@ -33,8 +33,8 @@ export default function ZoneCoinInfoModal({ isOpen, onClose, state }: Props) {
           className="relative w-full max-w-sm bg-surface border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col"
         >
           <div className="flex justify-between items-start mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
-              <ZoneCoinIcon className="w-7 h-7 text-yellow-400" />
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center border border-amber-500/30">
+              <ZoneCoinIcon className="w-7 h-7 text-amber-400" />
             </div>
             <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 transition-colors">
               <X className="w-5 h-5 text-secondary" />
@@ -57,15 +57,15 @@ export default function ZoneCoinInfoModal({ isOpen, onClose, state }: Props) {
               <ul className="space-y-2 text-xs text-secondary">
                 <li className="flex justify-between items-center">
                   <span>{isId ? 'Misi Harian' : 'Daily Missions'}</span>
-                  <span className="font-bold text-yellow-400">+20</span>
+                  <span className="font-bold text-amber-400">+20</span>
                 </li>
                 <li className="flex justify-between items-center">
                   <span>{isId ? 'Misi Mingguan' : 'Weekly Missions'}</span>
-                  <span className="font-bold text-yellow-400">+50</span>
+                  <span className="font-bold text-amber-400">+50</span>
                 </li>
                 <li className="flex justify-between items-center">
                   <span>{isId ? 'Misi Rutin/Lainnya' : 'Routine/Other Missions'}</span>
-                  <span className="font-bold text-yellow-400">+10</span>
+                  <span className="font-bold text-amber-400">+10</span>
                 </li>
               </ul>
             </div>

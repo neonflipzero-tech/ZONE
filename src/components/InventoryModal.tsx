@@ -122,10 +122,10 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
-          className="fixed inset-0 z-[100] bg-black flex flex-col overflow-hidden"
+          className="fixed inset-0 z-[100] bg-background flex flex-col overflow-hidden"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-white/5 bg-zinc-900/50 backdrop-blur-md z-10">
+          <div className="flex items-center justify-between p-4 border-b border-white/5 bg-surface/50 backdrop-blur-md z-10">
             <button
               onClick={onClose}
               className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-center"
@@ -140,7 +140,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
           </div>
 
           {/* Preview Area */}
-          <div className="flex-shrink-0 flex flex-col items-center justify-center py-6 px-6 bg-gradient-to-b from-zinc-900 to-black border-b border-white/5">
+          <div className="flex-shrink-0 flex flex-col items-center justify-center py-6 px-6 bg-gradient-to-b from-surface/80 to-background border-b border-white/5">
             <div className="relative">
               <ProfileFrame frame={state.equippedFrame || 'frame-default'} src={state.profilePicture} size="lg" />
             </div>
@@ -217,7 +217,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                           updateState({ equippedFrame: frame === 'frame-default' ? null : frame });
                         }}
                         className={`relative aspect-square rounded-2xl p-2 transition-all flex flex-col items-center justify-center gap-2 ${
-                          isEquipped ? 'bg-accent/10 border border-accent/50' : 'bg-zinc-900 border border-white/5 hover:border-white/20'
+                          isEquipped ? 'bg-accent/10 border border-accent/50' : 'bg-surface border border-white/5 hover:border-white/20'
                         }`}
                       >
                         <div className="scale-75 origin-center pointer-events-none">
@@ -226,7 +226,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                         <span className="text-[9px] font-mono uppercase tracking-wider text-primary font-bold truncate w-full text-center px-1">
                           {frame.replace('frame-', '')}
                         </span>
-                        {isEquipped && <div className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full shadow-[0_0_10px_rgba(242,125,38,1)]" />}
+                        {isEquipped && <div className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full shadow-[0_0_10px_var(--color-accent)]" />}
                       </button>
                     );
                   })}
@@ -247,7 +247,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                           updateState({ equippedTitle: titleDef.id });
                         }}
                         className={`p-4 rounded-xl flex items-center justify-between transition-all ${
-                          isEquipped ? 'bg-accent/10 border border-accent/50' : 'bg-zinc-900 border border-white/5 hover:border-white/20'
+                          isEquipped ? 'bg-accent/10 border border-accent/50' : 'bg-surface border border-white/5 hover:border-white/20'
                         }`}
                       >
                         <div className={`text-sm font-bold inline-block ${titleDef.specialColor || 'text-primary'}`}>
@@ -270,7 +270,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
               <div className="flex flex-col gap-3 max-w-md mx-auto">
                 {((state.doubleXpPotions || 0) === 0 && (state.streakFreezes || 0) === 0 && (state.doubleCoinPotions || 0) === 0) ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-16 h-16 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center mb-4">
+                    <div className="w-16 h-16 rounded-full bg-surface/50 border border-white/5 flex items-center justify-center mb-4">
                       <Package className="w-8 h-8 text-secondary" />
                     </div>
                     <p className="text-secondary font-medium">
@@ -284,7 +284,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                   <>
                     {/* 2x XP Potion */}
                     {(state.doubleXpPotions || 0) > 0 && (
-                      <div className="p-4 rounded-2xl bg-zinc-900 border border-white/10 flex flex-col">
+                      <div className="p-4 rounded-2xl bg-surface/50 border border-white/10 flex flex-col">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center space-x-3">
                             <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
@@ -331,7 +331,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
 
                     {/* Streak Freeze */}
                     {(state.streakFreezes || 0) > 0 && (
-                      <div className="p-4 rounded-2xl bg-zinc-900 border border-white/10 flex flex-col">
+                      <div className="p-4 rounded-2xl bg-surface/50 border border-white/10 flex flex-col">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center space-x-3">
                             <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
@@ -356,11 +356,11 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
 
                     {/* 2x Coin Potion */}
                     {(state.doubleCoinPotions || 0) > 0 && (
-                      <div className="p-4 rounded-2xl bg-zinc-900 border border-white/10 flex flex-col">
+                      <div className="p-4 rounded-2xl bg-surface/50 border border-white/10 flex flex-col">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
-                              <ZoneCoinIcon className="w-6 h-6 text-yellow-400" />
+                            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center border border-white/30">
+                              <ZoneCoinIcon className="w-6 h-6 text-white" />
                             </div>
                             <div>
                               <h4 className="font-bold text-primary">2x Coin Potion</h4>
@@ -388,7 +388,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                           disabled={(state.doubleCoinPotions || 0) === 0 || (state.doubleCoinActiveUntil ? new Date(state.doubleCoinActiveUntil) > new Date() : false)}
                           className={`w-full py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${
                             (state.doubleCoinPotions || 0) > 0 && !(state.doubleCoinActiveUntil ? new Date(state.doubleCoinActiveUntil) > new Date() : false)
-                              ? 'bg-yellow-500 text-white hover:bg-yellow-600' 
+                              ? 'bg-white text-black hover:bg-gray-200' 
                               : 'bg-white/5 text-white/30 cursor-not-allowed'
                           }`}
                         >

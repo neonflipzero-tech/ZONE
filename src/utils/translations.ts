@@ -23,6 +23,7 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
     'home.timer.reset': { en: 'Reset', id: 'Atur Ulang' },
     'home.timer.resume': { en: 'Resume', id: 'Lanjutkan' },
     'home.mission.start_complete': { en: 'Start & Complete', id: 'Mulai & Selesaikan' },
+    'home.mission.complete_manually': { en: 'Complete Manually', id: 'Selesaikan Manual' },
     'home.streak_freeze.used': { en: 'Streak Freeze used! Your streak is safe.', id: 'Streak Freeze digunakan! Streak kamu aman.' },
     'home.streak_freeze.title': { en: 'Use Streak Freeze?', id: 'Gunakan Streak Freeze?' },
     'home.streak_freeze.desc': { en: 'Are you sure you want to use a streak freeze? This will protect your current streak from being lost.', id: 'Apakah kamu yakin ingin menggunakan streak freeze? Ini akan melindungi streak kamu agar tidak hilang.' },

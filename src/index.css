@@ -5,20 +5,17 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   
-  --color-background: #09090b; /* Zinc 950 */
-  --color-surface: #18181b; /* Zinc 900 */
-  --color-surface-hover: #27272a; /* Zinc 800 */
-  --color-primary: #fafafa; /* Zinc 50 */
+  --color-background: #000000; /* Pure Black */
+  --color-surface: #09090b; /* Zinc 950 */
+  --color-surface-hover: #18181b; /* Zinc 900 */
+  --color-primary: #ffffff; /* Pure White */
   --color-secondary: #a1a1aa; /* Zinc 400 */
-  --color-accent: #fafafa; /* Neutral White */
-  --color-stat-orange: #F27D26; /* Vibrant Orange */
+  --color-accent: #ff6b00; /* Vibrant Orange */
   --color-success: #10b981;
 }
 
 body {
   background-color: var(--color-background);
-  background-image: radial-gradient(circle at top right, rgba(244, 63, 94, 0.03), transparent 40%),
-                    radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.03), transparent 40%);
   color: var(--color-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;

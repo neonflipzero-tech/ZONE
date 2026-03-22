@@ -42,9 +42,9 @@ export default function TitlesModal({ state, onClose, updateState, onGoToInvento
   const progress = getProgress(previewTitle);
 
   return (
-    <div className="fixed inset-0 z-[100] bg-background flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[100] bg-black flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-white/5 bg-surface/50 backdrop-blur-md z-10">
+      <div className="flex items-center justify-between p-4 border-b border-white/5 bg-zinc-950/50 backdrop-blur-md z-10">
         <button
           onClick={onClose}
           className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-center"
@@ -88,7 +88,7 @@ export default function TitlesModal({ state, onClose, updateState, onGoToInvento
                 <span>{state.language === 'id' ? 'Progres' : 'Progress'}</span>
                 <span>{progress.current} / {progress.max}</span>
               </div>
-              <div className="w-full h-1.5 bg-background rounded-full overflow-hidden border border-white/5">
+              <div className="w-full h-1.5 bg-black rounded-full overflow-hidden border border-white/5">
                 <div 
                   className="h-full bg-accent transition-all"
                   style={{ width: `${(progress.current / progress.max) * 100}%` }}
@@ -114,7 +114,7 @@ export default function TitlesModal({ state, onClose, updateState, onGoToInvento
               ? 'bg-white/10 text-white/50 hover:bg-white/20 hover:text-white' 
               : isPreviewUnlocked 
                 ? 'bg-accent text-white hover:bg-accent/90 shadow-[0_0_20px_var(--color-accent)]' 
-                : 'bg-surface border border-white/10 text-secondary cursor-not-allowed'
+                : 'bg-zinc-950 border border-white/10 text-secondary cursor-not-allowed'
           }`}
         >
           {isPreviewEquipped ? (
@@ -150,8 +150,8 @@ export default function TitlesModal({ state, onClose, updateState, onGoToInvento
                   isUnlocked 
                     ? isEquipped
                       ? 'bg-accent/10 border-accent/50'
-                      : 'bg-surface border-white/5 hover:border-white/20' 
-                    : 'bg-surface/30 border-white/5 opacity-50 grayscale'
+                      : 'bg-zinc-950 border-white/5 hover:border-white/20' 
+                    : 'bg-zinc-950/30 border-white/5 opacity-50 grayscale'
                 }`}
               >
                 <div>

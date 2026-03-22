@@ -42,10 +42,10 @@ export default function PfpPromptModal({ language, onComplete }: PfpPromptModalP
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[60] bg-background/90 backdrop-blur-md flex flex-col items-center justify-center px-6"
+        className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center px-6"
       >
-        <div className="bg-surface border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center max-w-sm w-full shadow-2xl shadow-accent/20">
-          <div className="w-24 h-24 bg-background border-2 border-accent rounded-full flex items-center justify-center mb-6 shadow-[0_0_20px_var(--color-accent)]">
+        <div className="bg-zinc-950 border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center max-w-sm w-full shadow-2xl shadow-accent/20">
+          <div className="w-24 h-24 bg-black border-2 border-accent rounded-full flex items-center justify-center mb-6 shadow-[0_0_20px_var(--color-accent)]">
             <Camera className="w-10 h-10 text-accent" />
           </div>
           

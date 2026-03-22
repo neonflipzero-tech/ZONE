@@ -313,22 +313,22 @@ export default function OnboardingScreen({ onSelectPath, language }: OnboardingS
                 <div className="relative w-full aspect-square max-w-[340px]">
                   {/* OVR Number in Center */}
                   <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                    <div className="flex flex-col items-center justify-center bg-[#0a0a0a] w-16 h-16 rounded-full border border-white/10 shadow-lg shadow-accent/20">
+                    <div className="flex flex-col items-center justify-center bg-[#0a0a0a] w-16 h-16 rounded-full border border-white/10 shadow-lg shadow-amber-500/20">
                       <span className="text-[10px] font-mono text-secondary leading-none">OVR</span>
-                      <span className="text-2xl font-display font-black text-accent leading-none mt-1">{ovr}</span>
+                      <span className="text-2xl font-display font-black text-[#FFBF00] leading-none mt-1">{ovr}</span>
                     </div>
                   </div>
 
                   <ResponsiveContainer width="100%" height="100%">
                     <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarData}>
-                      <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                      <PolarGrid gridType="polygon" stroke="rgba(245, 158, 11, 0.3)" />
                       <PolarAngleAxis 
                         dataKey="subject" 
                         tick={(props: any) => {
                           const { payload, x, y, textAnchor, stroke, radius } = props;
                           const getStatColorHex = (subject: string) => {
                             const lowerSubject = subject.toLowerCase();
-                            if (lowerSubject.includes('fisik') || lowerSubject.includes('physical')) return '#ef4444'; 
+                            if (lowerSubject.includes('fisik') || lowerSubject.includes('physical')) return '#f43f5e'; 
                             if (lowerSubject.includes('disiplin') || lowerSubject.includes('discipline')) return '#3b82f6'; 
                             if (lowerSubject.includes('mental')) return '#a855f7'; 
                             if (lowerSubject.includes('ambisi') || lowerSubject.includes('ambition')) return '#eab308'; 
@@ -358,9 +358,9 @@ export default function OnboardingScreen({ onSelectPath, language }: OnboardingS
                       <Radar
                         name="OVR"
                         dataKey="A"
-                        stroke="#F27D26"
+                        stroke="#f97316"
                         strokeWidth={2}
-                        fill="#F27D26"
+                        fill="#f97316"
                         fillOpacity={0.4}
                       />
                     </RadarChart>
@@ -371,10 +371,10 @@ export default function OnboardingScreen({ onSelectPath, language }: OnboardingS
                   {radarData.map((stat) => {
                     const getStatColor = (subject: string) => {
                       const lowerSubject = subject.toLowerCase();
-                      if (lowerSubject.includes('fisik') || lowerSubject.includes('physical')) return 'text-red-500';
+                      if (lowerSubject.includes('fisik') || lowerSubject.includes('physical')) return 'text-rose-500';
                       if (lowerSubject.includes('disiplin') || lowerSubject.includes('discipline')) return 'text-blue-500';
                       if (lowerSubject.includes('mental')) return 'text-purple-500';
-                      if (lowerSubject.includes('ambisi') || lowerSubject.includes('ambition')) return 'text-yellow-500';
+                      if (lowerSubject.includes('ambisi') || lowerSubject.includes('ambition')) return 'text-amber-500';
                       if (lowerSubject.includes('intelek') || lowerSubject.includes('intellect')) return 'text-cyan-500';
                       if (lowerSubject.includes('sosial') || lowerSubject.includes('social')) return 'text-green-500';
                       return 'text-primary';

@@ -188,10 +188,10 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
             </h2>
             <button 
               onClick={() => setIsCoinInfoModalOpen(true)}
-              className="flex items-center space-x-1.5 bg-yellow-500/10 px-3 py-1.5 rounded-full border border-yellow-500/20 hover:scale-105 transition-transform cursor-pointer"
+              className="flex items-center space-x-1.5 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20 hover:scale-105 transition-transform cursor-pointer"
             >
-              <ZoneCoinIcon className="w-4 h-4 text-yellow-400" />
-              <span className="text-sm font-bold text-yellow-400">{state.zoneCoins || 0}</span>
+              <ZoneCoinIcon className="w-4 h-4 text-amber-400" />
+              <span className="text-sm font-bold text-amber-400">{state.zoneCoins || 0}</span>
             </button>
           </div>
 
@@ -492,8 +492,8 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
                 <div className="p-4 rounded-2xl bg-surface/50 border border-white/10 flex flex-col">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
-                        <ZoneCoinIcon className="w-6 h-6 text-yellow-400" />
+                      <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center border border-amber-500/30">
+                        <ZoneCoinIcon className="w-6 h-6 text-amber-400" />
                       </div>
                       <div>
                         <h4 className="font-bold text-primary">2x Coin Potion</h4>

@@ -19,7 +19,7 @@ export default function BadgesModal({ badges, language, onClose, badgeIcons }: B
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-surface border border-white/10 rounded-3xl p-6 w-full max-w-md relative z-10 max-h-[80vh] flex flex-col"
+        className="bg-zinc-950 border border-white/10 rounded-3xl p-6 w-full max-w-md relative z-10 max-h-[80vh] flex flex-col"
       >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-display font-bold text-primary flex items-center">
@@ -43,7 +43,7 @@ export default function BadgesModal({ badges, language, onClose, badgeIcons }: B
                   className={`border rounded-xl p-4 flex flex-col items-center justify-center text-center transition-all ${
                     isUnlocked 
                       ? 'bg-gradient-to-b from-surface to-surface-hover border-accent/30 shadow-lg shadow-accent/5' 
-                      : 'bg-surface/30 border-white/5 opacity-50 grayscale'
+                      : 'bg-zinc-950/30 border-white/5 opacity-50 grayscale'
                   }`}
                 >
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${isUnlocked ? 'bg-accent/20' : 'bg-white/5'}`}>

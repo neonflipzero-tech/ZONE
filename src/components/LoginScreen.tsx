@@ -115,7 +115,7 @@ export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
           <motion.div
             animate={{ scale: [0.7, 1.2, 0.7] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="w-3 h-3 bg-white rounded-full shadow-[0_0_20px_rgba(255,255,255,1)]"
+            className="w-3 h-3 bg-white rounded-full shadow-[0_0_20px_rgba(255,255,255,0.5)]"
           />
         </div>
 
@@ -141,7 +141,7 @@ export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col items-center justify-center h-full px-6 bg-background"
+      className="flex flex-col items-center justify-center h-full px-6 bg-black"
     >
       <div className="flex-1 flex flex-col items-center justify-center w-full">
         <motion.div
@@ -150,8 +150,8 @@ export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
           transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }}
           className="mb-12 text-center"
         >
-          <h1 className="text-7xl font-display font-black tracking-tighter mb-2 bg-gradient-to-r from-white via-primary to-secondary bg-clip-text text-transparent">ZONE</h1>
-          <p className="text-secondary text-sm tracking-widest uppercase font-medium">{t('login.subtitle', language)}</p>
+          <h1 className="text-7xl font-display font-black tracking-tighter mb-2 text-white">ZONE</h1>
+          <p className="text-gray-400 text-sm tracking-widest uppercase font-medium">{t('login.subtitle', language)}</p>
         </motion.div>
 
         <motion.div 
@@ -169,7 +169,7 @@ export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
                 setEmail(e.target.value);
                 setError('');
               }}
-              className="w-full bg-surface border border-white/10 rounded-xl px-4 py-4 text-primary placeholder:text-secondary focus:outline-none focus:border-accent transition-colors"
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-4 text-white placeholder:text-zinc-500 focus:outline-none focus:border-white transition-colors"
             />
             
             <AnimatePresence>
@@ -185,7 +185,7 @@ export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
                     setUsername(e.target.value);
                     setError('');
                   }}
-                  className="w-full bg-surface border border-white/10 rounded-xl px-4 py-4 text-primary placeholder:text-secondary focus:outline-none focus:border-accent transition-colors"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-4 text-white placeholder:text-zinc-500 focus:outline-none focus:border-white transition-colors"
                 />
               )}
             </AnimatePresence>
@@ -199,27 +199,27 @@ export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
                   setPassword(e.target.value);
                   setError('');
                 }}
-                className="w-full bg-surface border border-white/10 rounded-xl px-4 py-4 pr-12 text-primary placeholder:text-secondary focus:outline-none focus:border-accent transition-colors"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-4 pr-12 text-white placeholder:text-zinc-500 focus:outline-none focus:border-white transition-colors"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-secondary hover:text-primary transition-colors"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
             
-            {error && <p className="text-accent text-sm px-2">{error}</p>}
+            {error && <p className="text-rose-500 text-sm px-2">{error}</p>}
           </div>
 
           <button
             onClick={handleSubmit}
             disabled={isLoading}
-            className="w-full bg-primary text-background font-bold py-4 rounded-xl flex items-center justify-center space-x-2 hover:bg-gray-200 transition-colors disabled:opacity-70 mt-2"
+            className="w-full bg-white text-black font-bold py-4 rounded-xl flex items-center justify-center space-x-2 hover:opacity-90 transition-all disabled:opacity-70 mt-2"
           >
             {isLoading ? (
-              <div className="w-5 h-5 border-2 border-background border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
             ) : (
               <span>{isLoginMode ? t('login.enter', language) : t('login.join', language)}</span>
             )}
@@ -231,7 +231,7 @@ export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
                 setIsLoginMode(!isLoginMode);
                 setError('');
               }}
-              className="text-sm text-secondary hover:text-primary transition-colors block w-full"
+              className="text-sm text-gray-400 hover:text-white transition-colors block w-full"
             >
               {isLoginMode ? t('login.no_account', language) : t('login.has_account', language)}
             </button>
@@ -243,7 +243,7 @@ export default function LoginScreen({ onLogin, language }: LoginScreenProps) {
                   window.location.reload();
                 }
               }}
-              className="text-[10px] text-secondary/30 hover:text-accent transition-colors uppercase tracking-widest"
+              className="text-[10px] text-zinc-600 hover:text-white transition-colors uppercase tracking-widest"
             >
               {language === 'id' ? 'Reset Data Aplikasi' : 'Reset App Data'}
             </button>

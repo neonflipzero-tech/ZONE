@@ -251,7 +251,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col h-full bg-black overflow-y-auto no-scrollbar pb-24"
+      className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24"
     >
       <AnimatePresence>
         {showCrushedAnimation && (
@@ -266,9 +266,9 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 animate={{ rotate: [0, -10, 10, -10, 10, 0], scale: [1, 1.2, 1] }}
                 transition={{ duration: 0.5, repeat: Infinity }}
               >
-                <Swords className="w-32 h-32 text-red-500 mx-auto mb-6" />
+                <Swords className="w-32 h-32 text-rose-500 mx-auto mb-6" />
               </motion.div>
-              <h1 className="text-6xl font-black font-display text-red-500 tracking-tighter mb-2" style={{ textShadow: '0 0 20px rgba(239, 68, 68, 0.5)' }}>
+              <h1 className="text-6xl font-black font-display text-rose-500 tracking-tighter mb-2" style={{ textShadow: '0 0 20px rgba(244, 63, 94, 0.5)' }}>
                 RIVAL CRUSHED
               </h1>
               <p className="text-xl text-white font-mono">+500 XP BONUS</p>
@@ -298,7 +298,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
         
         {/* Player Card Header */}
 
-        <div id="profile-card" className="relative mb-8 rounded-3xl overflow-hidden border border-white/10 bg-zinc-900 shadow-2xl">
+        <div id="profile-card" className="relative mb-8 rounded-3xl overflow-hidden border border-white/10 bg-surface shadow-2xl">
           {/* Background Glow based on rank */}
           <div className="absolute inset-0 opacity-10 bg-gradient-to-br from-accent to-transparent" />
           
@@ -345,7 +345,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                   className="flex items-center space-x-1 bg-white/10 px-2 py-0.5 rounded-md border border-white/20 hover:bg-white/20 transition-colors cursor-pointer"
                 >
                   <span className="text-[10px] font-mono text-secondary">OVR</span>
-                  <span className="font-display font-black text-accent">{ovr}</span>
+                  <span className="font-display font-black text-[#FFBF00]">{ovr}</span>
                 </button>
                 <span className="font-mono text-sm font-bold text-secondary">LVL {state.level}</span>
               </div>
@@ -354,7 +354,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             {/* XP Bar */}
             <div className="w-full h-3 bg-background/50 rounded-full overflow-hidden border border-white/5 relative">
               <motion.div 
-                className="absolute top-0 left-0 h-full bg-gradient-to-r from-accent to-orange-500"
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-accent to-amber-500"
                 initial={{ width: 0 }}
                 animate={{ width: `${state.level >= 50 ? 100 : (state.xp / (state.level * 100)) * 100}%` }}
                 transition={{ duration: 1, ease: "easeOut" }}
@@ -372,7 +372,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
         <div className="mb-8">
           <h3 className="text-sm font-mono uppercase tracking-widest text-secondary mb-4 px-2">{t('profile.discipline_metrics', state.language)}</h3>
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-zinc-900 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
+            <div className="bg-surface/50 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
               <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
                 <Star className="w-5 h-5 text-accent" />
               </div>
@@ -383,7 +383,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 <div className="text-[10px] text-secondary font-mono uppercase tracking-wider">{t('profile.total_xp', state.language)}</div>
               </div>
             </div>
-            <div className="bg-zinc-900 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
+            <div className="bg-surface/50 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
               <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center shrink-0">
                 <Flame className="w-5 h-5 text-rose-500" />
               </div>
@@ -400,7 +400,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 <div className="text-[10px] text-secondary font-mono uppercase tracking-wider">{t('profile.day_streak', state.language)}</div>
               </div>
             </div>
-            <div className="bg-zinc-900 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
+            <div className="bg-surface/50 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
               <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
                 <CheckCircle2 className="w-5 h-5 text-blue-500" />
               </div>
@@ -411,7 +411,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 <div className="text-[10px] text-secondary font-mono uppercase tracking-wider">{t('profile.missions_done', state.language)}</div>
               </div>
             </div>
-            <div className="bg-zinc-900 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
+            <div className="bg-surface/50 border border-white/5 rounded-2xl p-4 flex items-center space-x-4">
               <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center shrink-0">
                 <Trophy className="w-5 h-5 text-purple-500" />
               </div>
@@ -435,32 +435,32 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             </button>
           </div>
 
-          <div id="ovr-stats-card" className="bg-zinc-900 border border-white/5 rounded-3xl p-6 relative overflow-hidden flex flex-col items-center">
+          <div id="ovr-stats-card" className="bg-surface/50 border border-white/5 rounded-3xl p-6 relative overflow-hidden flex flex-col items-center">
             <div className="absolute inset-0 bg-gradient-to-b from-accent/5 to-transparent pointer-events-none" />
             
             <div className="relative w-full aspect-square max-w-[340px]">
               {/* OVR Number in Center */}
               <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                <div className="flex flex-col items-center justify-center bg-[#0a0a0a] w-16 h-16 rounded-full border border-white/10 shadow-lg shadow-accent/20">
+                <div className="flex flex-col items-center justify-center bg-[#0a0a0a] w-16 h-16 rounded-full border border-white/10 shadow-lg shadow-amber-500/20">
                   <span className="text-[10px] font-mono text-secondary leading-none">OVR</span>
-                  <span className="text-2xl font-display font-black text-accent leading-none mt-1">{ovr}</span>
+                  <span className="text-2xl font-display font-black text-[#FFBF00] leading-none mt-1">{ovr}</span>
                 </div>
               </div>
 
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarData}>
-                  <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                  <PolarGrid gridType="polygon" stroke="rgba(245, 158, 11, 0.3)" />
                   <PolarAngleAxis 
                     dataKey="subject" 
                     tick={(props: any) => {
                       const { payload, x, y, textAnchor, stroke, radius } = props;
                       const getStatColorHex = (subject: string) => {
                         const lowerSubject = subject.toLowerCase();
-                        if (lowerSubject.includes('fisik') || lowerSubject.includes('physical')) return '#ef4444'; // Red
+                        if (lowerSubject.includes('fisik') || lowerSubject.includes('physical')) return '#f43f5e'; // Rose
                         if (lowerSubject.includes('disiplin') || lowerSubject.includes('discipline')) return '#3b82f6'; // Blue
-                        if (lowerSubject.includes('mental')) return '#a855f7'; // Purple
-                        if (lowerSubject.includes('ambisi') || lowerSubject.includes('ambition')) return '#eab308'; // Yellow
-                        if (lowerSubject.includes('intelek') || lowerSubject.includes('intellect')) return '#06b6d4'; // Light Blue
+                        if (lowerSubject.includes('mental')) return '#d946ef'; // Fuchsia
+                        if (lowerSubject.includes('ambisi') || lowerSubject.includes('ambition')) return '#f59e0b'; // Amber 500
+                        if (lowerSubject.includes('intelek') || lowerSubject.includes('intellect')) return '#22d3ee'; // Cyan 400
                         if (lowerSubject.includes('sosial') || lowerSubject.includes('social')) return '#22c55e'; // Green
                         return '#ffffff';
                       };
@@ -486,9 +486,9 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                   <Radar
                     name="OVR"
                     dataKey="A"
-                    stroke="#F27D26"
+                    stroke="#FFBF00"
                     strokeWidth={2}
-                    fill="#F27D26"
+                    fill="#FFBF00"
                     fillOpacity={0.4}
                   />
                 </RadarChart>
@@ -499,10 +499,10 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
               {radarData.map((stat) => {
                 const getStatColor = (subject: string) => {
                   const s = subject.toLowerCase();
-                  if (s.includes('fisik') || s.includes('physical')) return 'text-red-500';
+                  if (s.includes('fisik') || s.includes('physical')) return 'text-rose-500';
                   if (s.includes('disiplin') || s.includes('discipline')) return 'text-blue-500';
-                  if (s.includes('mental')) return 'text-purple-500';
-                  if (s.includes('ambisi') || s.includes('ambition')) return 'text-yellow-500';
+                  if (s.includes('mental')) return 'text-fuchsia-500';
+                      if (s.includes('ambisi') || s.includes('ambition')) return 'text-amber-500';
                   if (s.includes('intelek') || s.includes('intellect')) return 'text-cyan-400';
                   if (s.includes('sosial') || s.includes('social')) return 'text-green-500';
                   return 'text-primary';
@@ -529,9 +529,9 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">
               {state.language === 'id' ? 'Distribusi Fokus' : 'Focus Distribution'}
             </h3>
-            <div className="flex items-center space-x-1 bg-yellow-400/10 px-2 py-0.5 rounded-full border border-yellow-400/20">
-              <Crown className="w-3 h-3 text-yellow-400" />
-              <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-wider">Elite</span>
+            <div className="flex items-center space-x-1 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
+              <Crown className="w-3 h-3 text-amber-400" />
+              <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Elite</span>
             </div>
           </div>
 
@@ -539,12 +539,12 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-zinc-900 border border-white/5 rounded-3xl p-6 relative overflow-hidden"
+            className="bg-surface/50 border border-white/5 rounded-3xl p-6 relative overflow-hidden"
           >
             {!state.isPremium ? (
               <div className="flex flex-col items-center justify-center py-12 text-center relative z-10">
-                <div className="w-16 h-16 rounded-2xl bg-yellow-400/10 flex items-center justify-center mb-6 border border-yellow-400/20 shadow-[0_0_20px_rgba(250,204,21,0.1)]">
-                  <Lock className="w-8 h-8 text-yellow-400" />
+                <div className="w-16 h-16 rounded-2xl bg-amber-400/10 flex items-center justify-center mb-6 border border-amber-400/20 shadow-[0_0_20px_rgba(251,191,36,0.1)]">
+                  <Lock className="w-8 h-8 text-amber-400" />
                 </div>
                 <h4 className="text-xl font-black text-primary mb-2 tracking-tight uppercase italic">
                   {state.language === 'id' ? 'FITUR ELITE' : 'ELITE FEATURE'}
@@ -556,14 +556,14 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 </p>
                 <button 
                   onClick={() => setIsPremiumModalOpen(true)}
-                  className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-black px-8 py-3 rounded-xl text-sm uppercase tracking-wider shadow-lg hover:scale-105 transition-transform active:scale-95"
+                  className="bg-gradient-to-r from-amber-400 to-rose-500 text-black font-black px-8 py-3 rounded-xl text-sm uppercase tracking-wider shadow-lg hover:scale-105 transition-transform active:scale-95"
                 >
                   {state.language === 'id' ? 'GABUNG ELITE' : 'JOIN ELITE'}
                 </button>
                 
                 {/* Blurred background preview */}
                 <div className="absolute inset-0 -z-10 opacity-5 blur-xl scale-110 pointer-events-none">
-                  <div className="w-full h-full bg-gradient-to-br from-yellow-400 via-orange-500 to-purple-600 rounded-full" />
+                  <div className="w-full h-full bg-gradient-to-br from-amber-400 via-amber-500 to-rose-600 rounded-full" />
                 </div>
               </div>
             ) : totalTodayMissions === 0 ? (
@@ -724,7 +724,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             </div>
           </div>
           
-          <div className="bg-zinc-900 border border-white/5 rounded-2xl p-5 h-64 flex flex-col justify-end relative">
+          <div className="bg-surface border border-white/5 rounded-2xl p-5 h-64 flex flex-col justify-end relative">
             <div className="absolute inset-0 p-5 flex flex-col justify-between pointer-events-none">
               {[1, 0.75, 0.5, 0.25, 0].map((tick) => (
                 <div key={`tick-${tick}`} className="w-full border-b border-white/5 h-0 relative">
@@ -744,7 +744,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                         initial={{ height: 0 }}
                         animate={{ height }}
                         transition={{ duration: 0.5, delay: i * 0.1 }}
-                        className="w-2 bg-gradient-to-t from-orange-500/20 to-accent rounded-t-full relative group-hover:from-orange-500/40 group-hover:to-accent/80 transition-all"
+                        className="w-2 bg-gradient-to-t from-amber-500/20 to-accent rounded-t-full relative group-hover:from-amber-500/40 group-hover:to-accent/80 transition-all"
                       >
                         <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface border border-white/10 px-2 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                           {data.missions} {t('profile.missions', state.language)}
@@ -814,20 +814,20 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
         {state.rivalId && rivalData && (
           <div className="mt-8 mb-8">
             <div className="flex justify-between items-center mb-4 px-2">
-              <h3 className="text-sm font-mono uppercase tracking-widest text-red-500 flex items-center">
+              <h3 className="text-sm font-mono uppercase tracking-widest text-rose-500 flex items-center">
                 <Swords className="w-4 h-4 mr-2" />
                 {t('profile.active_rival', state.language)}
               </h3>
               <button 
                 onClick={() => updateState({ rivalId: null })}
-                className="text-xs text-secondary hover:text-red-500 transition-colors"
+                className="text-xs text-secondary hover:text-rose-500 transition-colors"
               >
                 {t('profile.remove_rival', state.language)}
               </button>
             </div>
             
-            <div className="bg-surface/50 border border-red-500/20 rounded-3xl p-6 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent pointer-events-none" />
+            <div className="bg-surface/50 border border-rose-500/20 rounded-3xl p-6 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent pointer-events-none" />
               
               {/* Status Banner */}
               {(() => {
@@ -835,13 +835,13 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 let bannerColor = '';
                 let bannerText = '';
                 if (rivalOvr > ovr) {
-                  bannerColor = 'bg-red-500/20 text-red-500 border-red-500/30';
+                  bannerColor = 'bg-rose-500/20 text-rose-500 border-rose-500/30';
                   bannerText = '⚠️ RIVAL IS AHEAD — CATCH UP!';
                 } else if (ovr > rivalOvr) {
                   bannerColor = 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30';
                   bannerText = '🔥 YOU\'RE WINNING — STAY ON TOP!';
                 } else {
-                  bannerColor = 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30';
+                  bannerColor = 'bg-amber-500/20 text-amber-500 border-amber-500/30';
                   bannerText = '⚡ DEAD EVEN — MAKE YOUR MOVE!';
                 }
                 return (
@@ -856,13 +856,13 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 <div className="flex flex-col items-center flex-1">
                   <ProfileFrame frame={state.equippedFrame} src={state.profilePicture} size="sm" />
                   <span className="text-xs font-bold mt-2 truncate max-w-[80px] text-accent">{state.username}</span>
-                  <span className="text-[10px] text-accent font-mono mt-1">OVR {ovr}</span>
+                  <span className="text-[10px] text-[#FFBF00] font-mono mt-1">OVR {ovr}</span>
                 </div>
                 
                 {/* VS */}
                 <div className="flex flex-col items-center justify-center px-4">
-                  <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center border border-red-500/30">
-                    <span className="text-xs font-black text-red-500 italic">VS</span>
+                  <div className="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center border border-rose-500/30">
+                    <span className="text-xs font-black text-rose-500 italic">VS</span>
                   </div>
                 </div>
 
@@ -935,7 +935,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 <div className="flex-1 h-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                      <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                      <PolarGrid gridType="polygon" stroke="rgba(245, 158, 11, 0.3)" />
                       <PolarAngleAxis dataKey="subject" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 8 }} />
                       <Radar name="You" dataKey="A" stroke="#F27D26" fill="#F27D26" fillOpacity={0.4} />
                     </RadarChart>
@@ -950,7 +950,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                         B: rivalOvrData[d.id as keyof typeof rivalOvrData] || 0
                       };
                     })}>
-                      <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                      <PolarGrid gridType="polygon" stroke="rgba(245, 158, 11, 0.3)" />
                       <PolarAngleAxis dataKey="subject" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 8 }} />
                       <Radar name="Rival" dataKey="B" stroke="#D946EF" fill="#D946EF" fillOpacity={0.4} />
                     </RadarChart>
@@ -1025,7 +1025,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                     </div>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm text-secondary">OVR</span>
-                      <span className="font-mono font-bold text-accent">{selectedUser.ovr || calculateOVR({ ...selectedUser, dailyStats: {}, badges: [], missionsCompleted: selectedUser.missionsCompleted || 0, streak: selectedUser.streak || 0, unlockedFrames: [] } as any).ovr}</span>
+                      <span className="font-mono font-bold text-[#FFBF00]">{selectedUser.ovr || calculateOVR({ ...selectedUser, dailyStats: {}, badges: [], missionsCompleted: selectedUser.missionsCompleted || 0, streak: selectedUser.streak || 0, unlockedFrames: [] } as any).ovr}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-secondary">Total XP</span>
@@ -1037,7 +1037,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
 
                   <div className="grid grid-cols-2 gap-3 w-full">
                     <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
-                      <Flame className="w-5 h-5 text-orange-500 mb-1" />
+                      <Flame className="w-5 h-5 text-amber-500 mb-1" />
                       <span className="text-xs text-secondary mb-1">Streak</span>
                       <span className="font-mono font-bold text-lg">{selectedUser.streak || 0}</span>
                     </div>
@@ -1047,7 +1047,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                       <span className="font-mono font-bold text-lg">{selectedUser.missionsCompleted || 0}</span>
                     </div>
                     <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
-                      <Star className="w-5 h-5 text-yellow-400 mb-1" />
+                      <Star className="w-5 h-5 text-amber-400 mb-1" />
                       <span className="text-xs text-secondary mb-1">Badges</span>
                       <span className="font-mono font-bold text-lg">{selectedUser.badgesCount ?? selectedUser.badges?.length ?? 0}</span>
                     </div>

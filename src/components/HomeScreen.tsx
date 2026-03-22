@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, useEffect } from 'react';
+import confetti from 'canvas-confetti';
 import { UserState, MissionType, getRankForLevel, Mission, useAppState, TITLES } from '../store';
 import { CheckCircle2, Circle, Flame, Trophy, User, Shield, Timer, Wand2, Bell, Zap, Skull, Swords, X, ArrowLeft, Target, Mountain, Star, Store } from 'lucide-react';
 import { ZoneCoinIcon } from './ZoneCoinIcon';
@@ -23,7 +24,7 @@ interface HomeScreenProps {
 
 function extractDuration(text: string): number | null {
   // Use word boundaries and allow hyphens/spaces to avoid false positives
-  // Hours: hours, hour, jam, jm, h
+  // Hours: hours, hour, jam, jm
   const hoursMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*(hours?|jam|jm)\b/i);
   if (hoursMatch) return parseFloat(hoursMatch[1].replace(',', '.')) * 3600;
 
@@ -35,18 +36,6 @@ function extractDuration(text: string): number | null {
   const secondsMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*(seconds?|second|secs?|sec|detik|dtk)\b/i);
   if (secondsMatch) return parseFloat(secondsMatch[1].replace(',', '.'));
 
-  // Special handling for single letters to avoid false positives like AM/PM or "10 squats"
-  // Only match if it's clearly a duration (e.g. "10m", "10 m", "10h", "10s") 
-  // and NOT part of AM/PM or other common words
-  const hMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*h\b/i);
-  if (hMatch) return parseFloat(hMatch[1].replace(',', '.')) * 3600;
-
-  const mMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*m\b(?![\s-]*(?:am|pm))/i);
-  if (mMatch) return parseFloat(mMatch[1].replace(',', '.')) * 60;
-
-  const sMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*s\b(?![\s-]*(?:quats|it-ups|its|teps))/i);
-  if (sMatch) return parseFloat(sMatch[1].replace(',', '.'));
-  
   return null;
 }
 
@@ -62,12 +51,38 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
   const [showVictoryAnimation, setShowVictoryAnimation] = useState(false);
   const [showStreakFreezeDialog, setShowStreakFreezeDialog] = useState(false);
   const [pendingMissionId, setPendingMissionId] = useState<string | null>(null);
+  const [showCompletionOverlay, setShowCompletionOverlay] = useState(false);
+  const [completionRewards, setCompletionRewards] = useState<{ type: 'badge' | 'level' | 'none', value?: string | number }[]>([]);
+  const [preCompletionStats, setPreCompletionStats] = useState<{ level: number, badgesCount: number } | null>(null);
   const { updateState } = useAppState();
 
+  // Detect rewards after state updates from mission completion
+  useEffect(() => {
+    if (preCompletionStats) {
+      const rewards: { type: 'badge' | 'level' | 'none', value?: string | number }[] = [];
+      
+      if (state.level > preCompletionStats.level) {
+        rewards.push({ type: 'level', value: state.level });
+      }
+      
+      if (state.badges.length > preCompletionStats.badgesCount) {
+        const newBadge = state.badges[state.badges.length - 1];
+        rewards.push({ type: 'badge', value: newBadge });
+      }
+
+      if (rewards.length > 0) {
+        setCompletionRewards(rewards);
+      }
+      
+      setPreCompletionStats(null);
+      setShowCompletionOverlay(true);
+    }
+  }, [state.level, state.badges.length]);
+
   const hasCompletedQuestToday = state.lastActiveDate === new Date().toDateString();
-  const streakColorClass = hasCompletedQuestToday ? "text-orange-500" : "text-gray-400";
+  const streakColorClass = hasCompletedQuestToday ? "text-amber-500" : "text-gray-400";
   const streakBgClass = hasCompletedQuestToday 
-    ? "from-orange-500/10 to-rose-500/10 border-orange-500/20 shadow-orange-500/10" 
+    ? "from-amber-500/10 to-rose-500/10 border-amber-500/20 shadow-amber-500/10" 
     : "from-gray-500/10 to-gray-600/10 border-gray-500/20 shadow-gray-500/10";
 
   useEffect(() => {
@@ -92,15 +107,42 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
       setPendingMissionId(missionId);
       setShowStreakFreezeDialog(true);
     } else {
+      // Capture state before completion to detect rewards in useEffect
+      setPreCompletionStats({
+        level: state.level,
+        badgesCount: state.badges.length
+      });
+
       onCompleteMission(missionId);
       handleCloseModal();
+      
+      // Trigger fireworks
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#f97316', '#fbbf24', '#ffffff']
+      });
     }
   };
 
   const confirmStreakFreeze = (useFreeze: boolean) => {
     if (pendingMissionId) {
+      setPreCompletionStats({
+        level: state.level,
+        badgesCount: state.badges.length
+      });
+
       onCompleteMission(pendingMissionId, { useFreeze });
       setPendingMissionId(null);
+      
+      // Trigger fireworks
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#f97316', '#fbbf24', '#ffffff']
+      });
     }
     setShowStreakFreezeDialog(false);
     handleCloseModal();
@@ -118,9 +160,11 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
   const handleMissionClick = (mission: Mission) => {
     if (mission.completed) return;
     setSelectedMission(mission);
-    // Only extract duration for STRONGER path as requested
-    const duration = state.chosenPath === 'STRONGER' ? extractDuration(mission.text) : null;
-    if (duration) {
+    
+    const duration = extractDuration(mission.text);
+    // Only show timer if duration is found AND hasTimer is either true or undefined (for backward compatibility)
+    // If hasTimer is explicitly false, don't show timer
+    if (duration && mission.hasTimer !== false) {
       setTimeLeft(duration);
     } else {
       setTimeLeft(null);
@@ -193,7 +237,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col h-full bg-black overflow-y-auto no-scrollbar pb-24 relative"
+      className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24 relative"
     >
       {/* Streak Freeze Notification Banner - Moved below header */}
       <AnimatePresence>
@@ -212,77 +256,171 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
         )}
       </AnimatePresence>
 
-      {/* Header */}
-      <div className={`px-4 ${anyItemActive ? 'pt-10' : 'pt-14'} pb-4 flex flex-col sticky top-0 bg-black/80 backdrop-blur-md z-30 border-b border-white/5`}>
-        <div className="flex justify-between items-start w-full">
-          <div className="flex items-center space-x-3 min-w-0 flex-1">
-            <div className="relative flex-shrink-0">
-              <ProfileFrame frame={state.equippedFrame} src={state.profilePicture} size="sm" />
-              <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border border-background z-10 ${currentRank.bg}`}></div>
-            </div>
-            <div className="min-w-0 flex flex-col">
-              <div className="flex items-center space-x-2">
-                <h1 className="text-xl font-display font-black tracking-tight truncate">ZONE</h1>
-                <div className="flex items-center space-x-1 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
-                  <Shield className={`w-2.5 h-2.5 flex-shrink-0 ${currentRank.color}`} />
-                  <p className={`text-[8px] font-mono uppercase tracking-wider truncate ${currentRank.color}`}>{currentRank.name} • Lvl {state.level}</p>
-                </div>
-              </div>
-              {state.equippedTitle && (() => {
-                const titleDef = TITLES.find(t => t.id === state.equippedTitle);
-                return (
-                  <div className={`text-[8px] font-mono uppercase tracking-widest mt-0.5 inline-block truncate max-w-full ${titleDef?.specialColor || 'text-accent/80'}`}>
-                    {titleDef?.name[state.language] || state.equippedTitle}
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2 flex-shrink-0">
-            <div className="flex items-center space-x-1.5 bg-zinc-900 px-2.5 py-1 rounded-full border border-white/10 shadow-sm">
-              <span className="text-[10px] font-bold text-rose-500 tracking-tight">{state.xp} XP</span>
-            </div>
-            <button 
-              onClick={() => setIsNotificationCenterOpen(true)}
-              className="p-1.5 bg-zinc-900 rounded-full border border-white/10 hover:bg-white/10 transition-colors relative"
+      {/* Mission Completion Overlay */}
+      <AnimatePresence>
+        {showCompletionOverlay && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center"
+          >
+            <motion.div
+              initial={{ scale: 0, rotate: -20 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", damping: 12 }}
+              className="mb-8"
             >
-              <Bell className="w-4 h-4 text-secondary" />
-              {unreadNotificationsCount > 0 && (
-                <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full border-2 border-zinc-900"></div>
-              )}
-            </button>
+              <div className="w-32 h-32 rounded-3xl bg-green-500/20 flex items-center justify-center border border-green-500/30 shadow-[0_0_30px_rgba(34,197,94,0.2)]">
+                <CheckCircle2 className="w-16 h-16 text-green-500" />
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="max-w-xs w-full"
+            >
+              <h3 className="text-3xl font-black text-primary font-display tracking-tight uppercase mb-2">
+                {state.language === 'id' ? 'MISI SELESAI!' : 'MISSION COMPLETE!'}
+              </h3>
+              <p className="text-secondary mb-8">
+                {state.language === 'id' 
+                  ? 'Kamu selangkah lebih dekat menuju versi terbaikmu.' 
+                  : 'You are one step closer to your best self.'}
+              </p>
+
+              {/* Rewards Section */}
+              <AnimatePresence>
+                {completionRewards.length > 0 && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-4 mb-8"
+                  >
+                    <div className="text-[10px] font-mono text-secondary uppercase tracking-[0.2em] mb-2">
+                      {state.language === 'id' ? 'HADIAH DIDAPAT' : 'REWARDS EARNED'}
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      {completionRewards.map((reward, idx) => (
+                        <motion.div
+                          key={`reward-${idx}`}
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: 0.3 + idx * 0.1, type: "spring" }}
+                          className="bg-surface border border-white/10 rounded-2xl p-4 flex flex-col items-center min-w-[100px]"
+                        >
+                          {reward.type === 'level' ? (
+                            <>
+                              <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center mb-2">
+                                <Zap className="w-5 h-5 text-accent" />
+                              </div>
+                              <div className="text-xs font-mono text-secondary uppercase">Level Up</div>
+                              <div className="text-xl font-display font-black text-primary">LVL {reward.value}</div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center mb-2">
+                                <Trophy className="w-5 h-5 text-purple-400" />
+                              </div>
+                              <div className="text-xs font-mono text-secondary uppercase">Badge</div>
+                              <div className="text-sm font-bold text-primary truncate max-w-[80px]">
+                                {String(reward.value).replace(/_/g, ' ')}
+                              </div>
+                            </>
+                          )}
+                        </motion.div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              <button
+                onClick={() => {
+                  setShowCompletionOverlay(false);
+                  setCompletionRewards([]);
+                }}
+                className="w-full py-4 bg-orange-500 text-white rounded-2xl font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-orange-500/20"
+              >
+                {state.language === 'id' ? 'Lanjutkan' : 'Continue'}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header */}
+      <div className={`px-4 ${anyItemActive ? 'pt-10' : 'pt-14'} pb-4 flex justify-between items-center sticky top-0 bg-background/80 backdrop-blur-md z-30 border-b border-white/5`}>
+        <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
+          <div className="relative flex-shrink-0">
+            <ProfileFrame frame={state.equippedFrame} src={state.profilePicture} size="sm" />
+            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border border-background z-10 ${currentRank.bg}`}></div>
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-lg font-display font-black tracking-tight truncate">ZONE</h1>
+            <div className="flex items-center space-x-1 mt-0.5">
+              <Shield className={`w-3 h-3 flex-shrink-0 ${currentRank.color}`} />
+              <p className={`text-[9px] font-mono uppercase tracking-wider truncate ${currentRank.color}`}>{currentRank.name} • Lvl {state.level}</p>
+            </div>
+            {state.equippedTitle && (() => {
+              const titleDef = TITLES.find(t => t.id === state.equippedTitle);
+              return (
+                <div className={`text-[8px] font-mono uppercase tracking-widest mt-0.5 inline-block truncate max-w-full ${titleDef?.specialColor || 'text-accent/80'}`}>
+                  {titleDef?.name[state.language] || state.equippedTitle}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
-        {/* Long Streak Pill - Now on its own line to accommodate many items */}
-        <div className="mt-3 overflow-x-auto no-scrollbar">
-          <div className={`inline-flex items-center space-x-3 bg-gradient-to-r ${streakBgClass} px-4 py-2 rounded-full border shadow-sm whitespace-nowrap`}>
-            <div className="flex items-center space-x-1.5">
-              <Flame className={`w-4 h-4 ${streakColorClass}`} />
-              <span className={`text-sm font-black ${streakColorClass}`}>{state.streak || 0}</span>
+        <div className="flex items-center space-x-3 flex-shrink-0">
+          <div className="flex flex-col items-end gap-2">
+            {/* Top Row: XP and Notification */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center space-x-1.5 bg-surface px-2.5 py-1 rounded-full border border-white/10 shadow-sm">
+                <span className="text-[10px] font-bold text-accent tracking-tight">{state.xp} XP</span>
+              </div>
+              <button 
+                onClick={() => setIsNotificationCenterOpen(true)}
+                className="p-1.5 bg-surface rounded-full border border-white/10 hover:bg-white/10 transition-colors relative"
+              >
+                <Bell className="w-4 h-4 text-secondary" />
+                {unreadNotificationsCount > 0 && (
+                  <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-surface"></div>
+                )}
+              </button>
             </div>
-            
-            {(state.streakFreezes || 0) > 0 && (
-              <div className="flex items-center space-x-1.5 pl-3 border-l border-white/10" title="Streak Freeze">
-                <Shield className="w-3.5 h-3.5 text-blue-400" />
-                <span className="text-xs font-black text-blue-400">{state.streakFreezes}</span>
-              </div>
-            )}
 
-            {anyItemActive && (
-              <div className="flex items-center space-x-1.5 pl-3 border-l border-white/10" title="2x Boost Active">
-                <Zap className="w-3.5 h-3.5 text-purple-400" />
-                <span className="text-xs font-black text-purple-400">2x</span>
+            {/* Bottom Row: Streak | Freeze | 2x */}
+            <div className={`flex items-center space-x-2 bg-gradient-to-r ${streakBgClass} px-3 py-1.5 rounded-full border shadow-sm`}>
+              <div className="flex items-center space-x-1">
+                <Flame className={`w-3.5 h-3.5 ${streakColorClass}`} />
+                <span className={`text-xs font-bold ${streakColorClass}`}>{state.streak || 0}</span>
               </div>
-            )}
+              
+              {(state.streakFreezes || 0) > 0 && (
+                <div className="flex items-center space-x-1 pl-2 border-l border-white/10" title="Streak Freeze">
+                  <Shield className="w-3 h-3 text-blue-400" />
+                  <span className="text-[10px] font-bold text-blue-400">{state.streakFreezes}</span>
+                </div>
+              )}
 
-            {state.isPremium && (
-              <div className="flex items-center space-x-2 pl-3 border-l border-white/10" title="Elite Boosts Active">
-                <span className="text-[10px] font-black text-emerald-400 tracking-tighter">+50% XP</span>
-                <span className="text-[10px] font-black text-yellow-400 tracking-tighter">+25% ZC</span>
-              </div>
-            )}
+              {anyItemActive && (
+                <div className="flex items-center space-x-1 pl-2 border-l border-white/10" title="2x Boost Active">
+                  <Zap className="w-3 h-3 text-purple-400" />
+                  <span className="text-[10px] font-bold text-purple-400">2x</span>
+                </div>
+              )}
+
+              {state.isPremium && (
+                <div className="flex items-center space-x-1 pl-2 border-l border-white/10" title="Elite Boosts Active">
+                  <span className="text-[8px] font-black text-emerald-400">+50% XP</span>
+                  <span className="text-[8px] font-black text-amber-400">+25% ZC</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -296,7 +434,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
               {state.chosenPath === 'OTHER' && (
                 <button 
                   onClick={() => setIsCustomMissionsModalOpen(true)}
-                  className="p-1.5 rounded-lg bg-zinc-900 border border-white/10 hover:bg-white/10 transition-colors text-accent"
+                  className="p-1.5 rounded-lg bg-surface border border-white/10 hover:bg-white/10 transition-colors text-accent"
                   title={t('home.manage_custom_missions', state.language)}
                 >
                   <Wand2 className="w-4 h-4" />
@@ -309,7 +447,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
           </div>
 
           {/* Tabs */}
-          <div className="flex bg-zinc-900 rounded-xl p-1 mb-6 border border-white/5 overflow-x-auto no-scrollbar">
+          <div className="flex bg-surface rounded-xl p-1 mb-6 border border-white/5 overflow-x-auto no-scrollbar">
             {(() => {
               const baseTabs = state.chosenPath === 'OTHER' 
                 ? ['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] as MissionType[]
@@ -326,8 +464,8 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                 onClick={() => setActiveTab(tab)}
                 className={`flex-1 min-w-[70px] py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-colors ${
                   activeTab === tab 
-                    ? 'bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-md' 
-                    : 'text-zinc-400 hover:text-zinc-100'
+                    ? 'bg-gradient-to-r from-accent to-rose-600 text-white shadow-md' 
+                    : 'text-secondary hover:text-primary'
                 }`}
               >
                 {tab === 'BOSS' ? 'BOSS' : t(`home.tab.${tab.toLowerCase()}`, state.language)}
@@ -337,9 +475,9 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
           
           {/* Progress Bar */}
           {activeTab !== 'BOSS' && (
-            <div className="h-1.5 w-full bg-zinc-900 rounded-full mb-6 overflow-hidden">
+            <div className="h-1.5 w-full bg-surface rounded-full mb-6 overflow-hidden">
               <motion.div 
-                className="h-full bg-gradient-to-r from-accent to-orange-500"
+                className="h-full bg-gradient-to-r from-accent to-amber-500"
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercentage}%` }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
@@ -349,17 +487,17 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
 
           <div className="space-y-3">
             {activeTab === 'BOSS' ? null : displayedMissions.length === 0 ? (
-              <div className="text-center py-12 px-4 bg-zinc-900/50 rounded-2xl border border-white/5">
-                <Wand2 className="w-12 h-12 text-zinc-500/30 mx-auto mb-4" />
+              <div className="text-center py-12 px-4 bg-surface/50 rounded-2xl border border-white/5">
+                <Wand2 className="w-12 h-12 text-secondary/30 mx-auto mb-4" />
                 <h4 className="text-lg font-bold mb-2">
                   {t('home.no_missions_yet', state.language)}
                 </h4>
-                <p className="text-sm text-zinc-400 mb-6 max-w-[250px] mx-auto">
+                <p className="text-sm text-secondary mb-6 max-w-[250px] mx-auto">
                   {t('home.add_custom_missions', state.language).replace('{tab}', activeTab.toLowerCase())}
                 </p>
                 <button
                   onClick={() => setIsCustomMissionsModalOpen(true)}
-                  className="px-6 py-3 bg-rose-500 text-zinc-950 rounded-xl font-bold text-sm hover:bg-rose-600 transition-colors"
+                  className="px-6 py-3 bg-accent text-background rounded-xl font-bold text-sm hover:bg-accent/90 transition-colors"
                 >
                   {t('home.add_missions', state.language)}
                 </button>
@@ -384,10 +522,10 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                     onClick={() => !isLocked && handleMissionClick(mission)}
                     className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all ${
                       mission.completed 
-                        ? 'bg-zinc-900/30 border-white/5 opacity-50' 
+                        ? 'bg-surface/30 border-white/5 opacity-50' 
                         : isLocked
-                          ? 'bg-zinc-900/10 border-white/5 opacity-40 cursor-not-allowed grayscale'
-                          : 'bg-gradient-to-br from-zinc-900 to-zinc-800 border-white/10 cursor-pointer hover:border-white/30 hover:shadow-lg hover:shadow-accent/5'
+                          ? 'bg-surface/10 border-white/5 opacity-40 cursor-not-allowed grayscale'
+                          : 'bg-gradient-to-br from-surface to-surface-hover border-white/10 cursor-pointer hover:border-white/30 hover:shadow-lg hover:shadow-accent/5'
                     }`}
                   >
                     {mission.completed ? (
@@ -424,7 +562,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-50 bg-black flex flex-col px-6 py-12"
+            className="fixed inset-0 z-50 bg-background flex flex-col px-6 py-12"
           >
             <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
               {timeLeft !== null ? (
@@ -454,7 +592,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                           sounds.playClick();
                           setIsTimerRunning(false);
                         }}
-                        className="w-full py-5 rounded-2xl font-bold text-lg border-2 border-red-500/50 text-red-500 hover:bg-red-500/10 transition-colors"
+                        className="w-full py-5 rounded-2xl font-bold text-lg border-2 border-rose-500/50 text-rose-500 hover:bg-rose-500/10 transition-colors"
                       >
                         {t('home.timer.stop', state.language)}
                       </button>
@@ -477,7 +615,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                         setIsTimerRunning(false);
                         setTimeLeft(extractDuration(selectedMission!.text));
                       }}
-                      className="w-full py-5 rounded-2xl font-bold text-lg bg-zinc-900 text-secondary border border-white/10 hover:bg-zinc-800 hover:text-primary transition-colors"
+                      className="w-full py-5 rounded-2xl font-bold text-lg bg-surface text-secondary border border-white/10 hover:bg-surface-hover hover:text-primary transition-colors"
                     >
                       {t('home.timer.reset', state.language)}
                     </button>
@@ -488,7 +626,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                         onReplaceMission(selectedMission!.id);
                         handleCloseModal();
                       }}
-                      className="w-full py-5 rounded-2xl font-bold text-lg bg-zinc-900 text-secondary border border-white/10 hover:bg-zinc-800 hover:text-primary transition-colors"
+                      className="w-full py-5 rounded-2xl font-bold text-lg bg-surface text-secondary border border-white/10 hover:bg-surface-hover hover:text-primary transition-colors"
                     >
                       {t('home.cant_do_it', state.language)}
                     </button>
@@ -536,7 +674,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                         onReplaceMission(selectedMission.id);
                         handleCloseModal();
                       }}
-                      className="w-full py-5 rounded-2xl font-bold text-lg bg-zinc-900 text-secondary border border-white/10 hover:bg-zinc-800 hover:text-primary transition-colors"
+                      className="w-full py-5 rounded-2xl font-bold text-lg bg-surface text-secondary border border-white/10 hover:bg-surface-hover hover:text-primary transition-colors"
                     >
                       {t('home.cant_do_it', state.language)}
                     </button>

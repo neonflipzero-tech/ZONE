@@ -49,9 +49,9 @@ export default function RankScreen({ state }: RankScreenProps) {
               <span>{isMaxLevel ? 'MAX' : `${state.xp} XP`}</span>
               <span>{isMaxLevel ? 'MAX' : `${state.level * 100} XP`}</span>
             </div>
-            <div className="h-2 w-full bg-background rounded-full overflow-hidden border border-white/5">
+            <div className="h-2 w-full bg-black rounded-full overflow-hidden border border-white/5">
               <motion.div 
-                className="h-full bg-gradient-to-r from-accent to-orange-500"
+                className="h-full bg-gradient-to-r from-accent to-rose-600"
                 initial={{ width: 0 }}
                 animate={{ width: `${xpProgress}%` }}
                 transition={{ duration: 1, ease: "easeOut" }}

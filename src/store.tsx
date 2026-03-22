@@ -9,6 +9,28 @@ export interface Mission {
   text: string;
   completed: boolean;
   type: MissionType;
+  hasTimer?: boolean;
+}
+
+export function scaleMissionText(text: string, level: number): string {
+  // Scaling factor: increases every 5 levels
+  // Level 1-5: 1.0x
+  // Level 6-10: 1.5x
+  // Level 11-15: 2.0x, etc.
+  const levelFactor = 1 + Math.floor((level - 1) / 5) * 0.5;
+  
+  return text.replace(/(\d+(?:[.,]\d+)?)/g, (match) => {
+    const val = parseFloat(match.replace(',', '.'));
+    
+    // Don't scale if it's clearly a small count or a single item
+    if (val <= 1) return match;
+    
+    // Don't scale if it looks like a year or a very large number already
+    if (val > 1000) return match;
+
+    const scaled = Math.round(val * levelFactor);
+    return scaled.toString();
+  });
 }
 
 export interface PathProgress {
@@ -106,12 +128,12 @@ export interface UserState {
 export const RANKS = [
   { name: 'Bronze', minLevel: 1, color: 'text-amber-700', bg: 'bg-amber-700', hex: '#b45309' },
   { name: 'Silver', minLevel: 3, color: 'text-gray-300', bg: 'bg-gray-300', hex: '#d1d5db' },
-  { name: 'Gold', minLevel: 6, color: 'text-yellow-400', bg: 'bg-yellow-400', hex: '#facc15' },
+  { name: 'Gold', minLevel: 6, color: 'text-amber-400', bg: 'bg-amber-400', hex: '#fbbf24' },
   { name: 'Platinum', minLevel: 10, color: 'text-cyan-400', bg: 'bg-cyan-400', hex: '#22d3ee' },
   { name: 'Diamond', minLevel: 15, color: 'text-blue-500', bg: 'bg-blue-500', hex: '#3b82f6' },
   { name: 'Master', minLevel: 21, color: 'text-purple-500', bg: 'bg-purple-500', hex: '#a855f7' },
-  { name: 'Grandmaster', minLevel: 28, color: 'text-red-500', bg: 'bg-red-500', hex: '#ef4444' },
-  { name: 'Challenger', minLevel: 36, color: 'text-yellow-200', bg: 'bg-yellow-200', hex: '#fef08a' },
+  { name: 'Grandmaster', minLevel: 28, color: 'text-amber-300', bg: 'bg-amber-300', hex: '#fcd34d' },
+  { name: 'Challenger', minLevel: 36, color: 'text-rose-500', bg: 'bg-rose-500', hex: '#f43f5e' },
   { name: 'Legend', minLevel: 43, color: 'text-emerald-400', bg: 'bg-emerald-400', hex: '#34d399' },
   { name: 'Mythic', minLevel: 50, color: 'text-fuchsia-500', bg: 'bg-fuchsia-500', hex: '#d946ef' },
 ];
@@ -133,21 +155,21 @@ export const BADGES = [
   { id: 'LEVEL_10', name: { en: 'Veteran', id: 'Veteran' }, desc: { en: 'Reach Level 10', id: 'Capai Level 10' }, icon: 'Shield' },
   { id: 'LEVEL_25', name: { en: 'Master', id: 'Master' }, desc: { en: 'Reach Level 25', id: 'Capai Level 25' }, icon: 'Star' },
   { id: 'LEVEL_50', name: { en: 'Mythic', id: 'Mitos' }, desc: { en: 'Reach Level 50', id: 'Capai Level 50' }, icon: 'Crown' },
-  { id: 'ELITE_ZONE', name: { en: 'Elite Zone', id: 'Elite Zone' }, desc: { en: 'The chosen one of the Zone', id: 'Yang terpilih dari Zone' }, icon: 'Crown', color: 'text-yellow-400' },
+  { id: 'ELITE_ZONE', name: { en: 'Elite Zone', id: 'Elite Zone' }, desc: { en: 'The chosen one of the Zone', id: 'Yang terpilih dari Zone' }, icon: 'Crown', color: 'text-amber-400' },
 ];
 
 export const TITLES = [
   { id: 'Newbie', name: { en: 'Newbie', id: 'Pemula' }, desc: { en: 'Just started the journey', id: 'Baru memulai perjalanan' }, specialColor: 'text-gray-300' },
-  { id: 'The Early Bird', name: { en: 'The Early Bird', id: 'Burung Pagi' }, desc: { en: 'Active in the morning', id: 'Aktif di pagi hari' }, specialColor: 'text-yellow-300 drop-shadow-[0_0_8px_rgba(253,224,71,0.5)]' },
+  { id: 'The Early Bird', name: { en: 'The Early Bird', id: 'Burung Pagi' }, desc: { en: 'Active in the morning', id: 'Aktif di pagi hari' }, specialColor: 'text-amber-300 drop-shadow-[0_0_8px_rgba(252,211,77,0.5)]' },
   { id: 'Night Owl', name: { en: 'Night Owl', id: 'Burung Hantu' }, desc: { en: 'Active at night', id: 'Aktif di malam hari' }, specialColor: 'text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]' },
-  { id: 'Unstoppable', name: { en: 'Unstoppable', id: 'Tak Terhentikan' }, desc: { en: 'Reached a 5-day streak', id: 'Mencapai 5 hari beruntun' }, specialColor: 'text-orange-400 drop-shadow-[0_0_8px_rgba(251,146,60,0.5)]' },
-  { id: 'Legend', name: { en: 'Legend', id: 'Legenda' }, desc: { en: 'Reached a 30-day streak', id: 'Mencapai 30 hari beruntun' }, specialColor: 'text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]' },
+  { id: 'Unstoppable', name: { en: 'Unstoppable', id: 'Tak Terhentikan' }, desc: { en: 'Reached a 5-day streak', id: 'Mencapai 5 hari beruntun' }, specialColor: 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]' },
+  { id: 'Legend', name: { en: 'Legend', id: 'Legenda' }, desc: { en: 'Reached a 30-day streak', id: 'Mencapai 30 hari beruntun' }, specialColor: 'text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]' },
   { id: 'Veteran', name: { en: 'Veteran', id: 'Veteran' }, desc: { en: 'Reached Level 10', id: 'Mencapai Level 10' }, specialColor: 'text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]' },
   { id: 'Master', name: { en: 'Master', id: 'Master' }, desc: { en: 'Reached Level 50', id: 'Mencapai Level 50' }, specialColor: 'text-fuchsia-500 drop-shadow-[0_0_8px_rgba(217,70,239,0.5)]' },
-  { id: 'Rival Crusher', name: { en: 'Rival Crusher', id: 'Penghancur Rival' }, desc: { en: 'Surpassed your rival', id: 'Melampaui rivalmu' }, specialColor: 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]' },
-  { id: 'OG', name: { en: 'OG', id: 'OG' }, desc: { en: 'First 100 users', id: '100 pengguna pertama' }, specialColor: 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 text-transparent bg-clip-text drop-shadow-[0_0_8px_rgba(255,165,0,0.8)]' },
+  { id: 'Rival Crusher', name: { en: 'Rival Crusher', id: 'Penghancur Rival' }, desc: { en: 'Surpassed your rival', id: 'Melampaui rivalmu' }, specialColor: 'text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]' },
+  { id: 'OG', name: { en: 'OG', id: 'OG' }, desc: { en: 'First 100 users', id: '100 pengguna pertama' }, specialColor: 'bg-gradient-to-r from-amber-400 via-amber-500 to-rose-500 text-transparent bg-clip-text drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]' },
   { id: 'Supporter', name: { en: 'Supporter', id: 'Pendukung' }, desc: { en: 'Shared the app 5 times', id: 'Membagikan aplikasi 5 kali' }, specialColor: 'bg-gradient-to-r from-cyan-400 to-blue-500 text-transparent bg-clip-text drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]' },
-  { id: 'Elite Zone', name: { en: 'Elite Zone', id: 'Elite Zone' }, desc: { en: 'The chosen one of the Zone', id: 'Yang terpilih dari Zone' }, specialColor: 'bg-gradient-to-r from-[#FFD700] via-[#FACC15] to-[#EAB308] text-transparent bg-clip-text drop-shadow-[0_0_15px_rgba(234,179,8,0.8)] font-black' },
+  { id: 'Elite Zone', name: { en: 'Elite Zone', id: 'Elite Zone' }, desc: { en: 'The chosen one of the Zone', id: 'Yang terpilih dari Zone' }, specialColor: 'bg-gradient-to-r from-amber-400 via-amber-500 to-rose-500 text-transparent bg-clip-text drop-shadow-[0_0_15px_rgba(245,158,11,0.8)] font-black' },
 ];
 
 export function getRankForLevel(level: number) {
@@ -807,6 +829,20 @@ function useAppStateInternal() {
     setState((prev) => prev ? { ...prev, ...updates } : null);
   };
 
+  const analyzeMissionPath = (text: string): PathType => {
+    const lower = text.toLowerCase();
+    // Physical / Stronger
+    if (/(push|pull|run|walk|jog|gym|workout|exercise|squat|squad|plank|situp|sit-up|crunch|burpee|jump|lari|jalan|otot|fisik|olahraga|renang|sepeda|angkat|sweat|cardio|training|fitness|bola|basket|futsal|badminton|tenis|yoga|stretching|boxing|muaythai|karate|silat|treadmill|dumbell|barbell|lifting|kardio|sehat|kesehatan|atlet|atletik|maraton|sprint|lompat|tendang|pukul|tangkis|sparring|gowes|gowes|pedal|renang|berenang|kolam|lap|set|rep|reps|kalori|bakar|lemak)/.test(lower)) return 'STRONGER';
+    // Productivity / Productive
+    if (/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article|work|project|tugas|kerja|nulis|write|skripsi|exam|ujian|coding|dev|design|produktivitas|fokus|focus|prioritas|priority|jadwal|schedule|rencana|plan|organisir|organize|rapi|bersih|meja|email|inbox|belanja|masak|makan|persiapan|prep|resume|cv|portofolio|portfolio|investasi|invest|nabung|tabungan|keuangan|budget|anggaran|bisnis|usaha|omzet|sales|marketing|penjualan|klien|client|meeting|rapat|notulensi|notula|catatan|note|notes|ide|idea|kreatif|creative|gambar|lukis|desain|edit|video|audio|musik|instrumen|alat|latihan|practice)/.test(lower)) return 'PRODUCTIVE';
+    // Social / Extrovert
+    if (/(talk|call|meet|friend|family|greet|help|bicara|telepon|teman|keluarga|sapa|bantu|nongkrong|sosial|chat|hangout|date|dinner|lunch|party|community|komunitas|relasi|network|kenalan|kenal|ngobrol|diskusi|debat|presentasi|panggung|tampil|perform|puji|compliment|senyum|smile|kontak|mata|eye|contact|jabat|tangan|peluk|hug|kado|hadiah|gift|donasi|sedekah|amal|zakat|tolong|peduli|care|empati|dengar|listen|curhat|cerita|story|berbagi|share|ajak|invite|gabung|join|kumpul|gathering|reuni|reunion|bukber|halal|bihalal|silaturahmi)/.test(lower)) return 'EXTROVERT';
+    // Mental Health
+    if (/(meditate|breathe|journal|calm|relax|sleep|nap|yoga|meditasi|nafas|tenang|tidur|jurnal|doa|pray|ibadah|sholat|dzikir|healing|mindful|rest|istirahat|self-care|syukur|gratitude|terima|kasih|thanks|puji|syukur|tenang|damai|peace|ikhlas|sabar|patience|maaf|forgive|ampun|tobat|muhasabah|renung|refleksi|reflection|hening|silent|solitude|me-time|hobi|hobby|senang|happy|bahagia|puas|content|lega|bebas|free|lepas|let|go|ikhlas|ikhlas|ikhlas)/.test(lower)) return 'MENTAL_HEALTH';
+    // Default to Discipline
+    return 'DISCIPLINE';
+  };
+
   const generateMissions = (path: PathType) => {
     if (!state) return;
     const today = new Date().toDateString();
@@ -1010,11 +1046,30 @@ function useAppStateInternal() {
           if (toAddCount > 0) {
             const shuffled = [...unassigned].sort(() => 0.5 - Math.random());
             for (let i = 0; i < toAddCount; i++) {
+              const originalText = shuffled[i];
+              const scaledText = scaleMissionText(originalText, state.level);
+              
+              // Only enable timer for specific keywords to avoid false positives
+              const timerKeywords = ['focus', 'hold', 'plank', 'meditate', 'wait', 'timer', 'duration', 'minutes', 'hours', 'seconds', 'menit', 'jam', 'detik'];
+              let hasTimer = timerKeywords.some(k => originalText.toLowerCase().includes(k)) && 
+                               !originalText.toLowerCase().includes('squats') && 
+                               !originalText.toLowerCase().includes('push-ups') &&
+                               !originalText.toLowerCase().includes('jumping jacks');
+
+              // Disable timer for most mental health missions unless it's a specific meditation/breathing exercise
+              if (type === 'REGULAR' && analyzeMissionPath(originalText) === 'MENTAL_HEALTH') {
+                const strictlyTimerNeeded = ['meditate', 'breathe', 'meditasi', 'nafas'].some(k => originalText.toLowerCase().includes(k));
+                if (!strictlyTimerNeeded) {
+                  hasTimer = false;
+                }
+              }
+
               currentMissions.push({
                 id: `${Date.now()}-${type}-${Math.random()}`,
-                text: shuffled[i],
+                text: scaledText,
                 completed: false,
                 type,
+                hasTimer
               });
             }
             missionsChanged = true;
@@ -1054,20 +1109,6 @@ function useAppStateInternal() {
     const useFreeze = options?.useFreeze ?? true;
     const isRegular = mission.type === 'REGULAR';
     let leveledUp = false;
-
-    const analyzeMissionPath = (text: string): PathType => {
-      const lower = text.toLowerCase();
-      // Physical / Stronger
-      if (/(push|pull|run|walk|jog|gym|workout|exercise|squat|squad|plank|situp|sit-up|crunch|burpee|jump|lari|jalan|otot|fisik|olahraga|renang|sepeda|angkat|sweat|cardio|training|fitness|bola|basket|futsal|badminton|tenis|yoga|stretching|boxing|muaythai|karate|silat|treadmill|dumbell|barbell|lifting|kardio|sehat|kesehatan|atlet|atletik|maraton|sprint|lompat|tendang|pukul|tangkis|sparring|gowes|gowes|pedal|renang|berenang|kolam|lap|set|rep|reps|kalori|bakar|lemak)/.test(lower)) return 'STRONGER';
-      // Productivity / Productive
-      if (/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article|work|project|tugas|kerja|nulis|write|skripsi|exam|ujian|coding|dev|design|produktivitas|fokus|focus|prioritas|priority|jadwal|schedule|rencana|plan|organisir|organize|rapi|bersih|meja|email|inbox|belanja|masak|makan|persiapan|prep|resume|cv|portofolio|portfolio|investasi|invest|nabung|tabungan|keuangan|budget|anggaran|bisnis|usaha|omzet|sales|marketing|penjualan|klien|client|meeting|rapat|notulensi|notula|catatan|note|notes|ide|idea|kreatif|creative|gambar|lukis|desain|edit|video|audio|musik|instrumen|alat|latihan|practice)/.test(lower)) return 'PRODUCTIVE';
-      // Social / Extrovert
-      if (/(talk|call|meet|friend|family|greet|help|bicara|telepon|teman|keluarga|sapa|bantu|nongkrong|sosial|chat|hangout|date|dinner|lunch|party|community|komunitas|relasi|network|kenalan|kenal|ngobrol|diskusi|debat|presentasi|panggung|tampil|perform|puji|compliment|senyum|smile|kontak|mata|eye|contact|jabat|tangan|peluk|hug|kado|hadiah|gift|donasi|sedekah|amal|zakat|tolong|peduli|care|empati|dengar|listen|curhat|cerita|story|berbagi|share|ajak|invite|gabung|join|kumpul|gathering|reuni|reunion|bukber|halal|bihalal|silaturahmi)/.test(lower)) return 'EXTROVERT';
-      // Mental Health
-      if (/(meditate|breathe|journal|calm|relax|sleep|nap|yoga|meditasi|nafas|tenang|tidur|jurnal|doa|pray|ibadah|sholat|dzikir|healing|mindful|rest|istirahat|self-care|syukur|gratitude|terima|kasih|thanks|puji|syukur|tenang|damai|peace|ikhlas|sabar|patience|maaf|forgive|ampun|tobat|muhasabah|renung|refleksi|reflection|hening|silent|solitude|me-time|hobi|hobby|senang|happy|bahagia|puas|content|lega|bebas|free|lepas|let|go|ikhlas|ikhlas|ikhlas)/.test(lower)) return 'MENTAL_HEALTH';
-      // Default to Discipline
-      return 'DISCIPLINE';
-    };
 
     setState((prev) => {
       if (!prev) return prev;
@@ -1299,13 +1340,22 @@ function useAppStateInternal() {
             
             if (unassigned.length > 0) {
               let randomText = unassigned[Math.floor(Math.random() * unassigned.length)];
+              const scaledText = scaleMissionText(randomText, s.level);
+              
+              const timerKeywords = ['focus', 'hold', 'plank', 'meditate', 'wait', 'timer', 'duration', 'minutes', 'hours', 'seconds', 'menit', 'jam', 'detik'];
+              const hasTimer = timerKeywords.some(k => randomText.toLowerCase().includes(k)) && 
+                               !randomText.toLowerCase().includes('squats') && 
+                               !randomText.toLowerCase().includes('push-ups') &&
+                               !randomText.toLowerCase().includes('jumping jacks');
+
               return {
                 ...s,
                 missions: [...filtered, {
                   id: `${Date.now()}-${Math.random()}`,
-                  text: randomText,
+                  text: scaledText,
                   completed: false,
-                  type: 'REGULAR'
+                  type: 'REGULAR',
+                  hasTimer
                 }]
               };
             }

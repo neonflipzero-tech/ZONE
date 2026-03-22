@@ -112,10 +112,10 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
           }
         }
       }}
-      className="flex flex-col h-full bg-black overflow-y-auto no-scrollbar pb-24 relative"
+      className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24 relative"
       ref={scrollRef}
     >
-      <div className="px-6 pt-12 pb-6 sticky top-0 bg-black/80 backdrop-blur-md z-20 flex justify-between items-center">
+      <div className="px-6 pt-12 pb-6 sticky top-0 bg-background/80 backdrop-blur-md z-20 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-display font-bold tracking-tight">
             {t('journey.title', state.language)}
@@ -132,7 +132,7 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
               setShowRankUpOverlay(false);
               updateState({ animatingLevelUp: false, previousLevel: state.level });
             }}
-            className="bg-zinc-900 border border-white/10 px-4 py-2 rounded-full text-xs font-bold text-primary hover:bg-zinc-800 transition-colors"
+            className="bg-surface border border-white/10 px-4 py-2 rounded-full text-xs font-bold text-primary hover:bg-surface-hover transition-colors"
           >
             {t('journey.skip', state.language)}
           </button>
@@ -146,7 +146,7 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.2 }}
             transition={{ duration: 0.5, type: "spring" }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-xl"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-xl"
           >
             <div id="rank-up-card" className="text-center flex flex-col items-center p-8 rounded-3xl relative">
               <div
@@ -263,7 +263,7 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                       <img 
                         src={`https://api.dicebear.com/7.x/bottts/svg?seed=${state.username}&backgroundColor=transparent`} 
                         alt="Character" 
-                        className="w-24 h-24 drop-shadow-2xl filter drop-shadow-[0_10px_10px_rgba(242,125,38,0.5)]" 
+                        className="w-24 h-24 drop-shadow-2xl filter drop-shadow-[0_10px_10px_rgba(244,63,94,0.5)]" 
                       />
                       <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-12 h-3 bg-black/40 rounded-full blur-sm -z-10" />
                     </div>
@@ -276,7 +276,7 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
                       ? 'scale-110' 
                       : isCompleted 
                         ? 'bg-accent border-accent/50 border-4 shadow-xl' 
-                        : 'bg-zinc-900 border-4 shadow-xl'
+                        : 'bg-surface border-4 shadow-xl'
                   }`}
                   style={
                     isMilestone && !isCompleted && !isPfpHere 

@@ -52,21 +52,10 @@ export default function SettingsScreen({
     const newEnabled = !state.notificationsEnabled;
     
     if (newEnabled) {
-      const permission = await NotificationService.requestPermission();
-      
-      if (permission === 'unsupported') {
-        setToastMessage(state.language === 'id' ? 'Notifikasi tidak didukung di perangkat ini' : 'Notifications not supported on this device');
+      const granted = await NotificationService.requestPermission();
+      if (!granted) {
+        setToastMessage(state.language === 'id' ? 'Izin notifikasi ditolak' : 'Notification permission denied');
         setTimeout(() => setToastMessage(null), 3000);
-        return;
-      }
-      
-      if (permission === 'denied') {
-        setToastMessage(state.language === 'id' ? 'Izin notifikasi ditolak. Silakan aktifkan di pengaturan HP.' : 'Notification permission denied. Please enable in phone settings.');
-        setTimeout(() => setToastMessage(null), 3000);
-        return;
-      }
-      
-      if (permission !== 'granted') {
         return;
       }
     }
@@ -248,7 +237,7 @@ export default function SettingsScreen({
 
           <button 
             onClick={() => setIsResetModalOpen(true)}
-            className="w-full p-4 flex items-center justify-between text-red-500 hover:bg-red-500/10 transition-colors border-b border-white/5"
+            className="w-full p-4 flex items-center justify-between text-rose-500 hover:bg-rose-500/10 transition-colors border-b border-white/5"
           >
             <span className="font-bold">{t('settings.reset_progress', state.language)}</span>
             <AlertTriangle className="w-5 h-5" />

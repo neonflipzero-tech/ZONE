@@ -141,10 +141,10 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr, 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
-          className="fixed inset-0 z-[100] bg-background flex flex-col overflow-hidden"
+          className="fixed inset-0 z-[100] bg-black flex flex-col overflow-hidden"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-white/5 bg-surface/50 backdrop-blur-md z-10">
+          <div className="flex items-center justify-between p-4 border-b border-white/5 bg-zinc-950/50 backdrop-blur-md z-10">
             <button
               onClick={onClose}
               className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-center"
@@ -184,7 +184,7 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr, 
                     <span>{t('frames.progress', state.language)}</span>
                     <span>{getFrameProgress(previewFrame)!.current} / {getFrameProgress(previewFrame)!.max}</span>
                   </div>
-                  <div className="w-full h-1.5 bg-background rounded-full overflow-hidden border border-white/5">
+                  <div className="w-full h-1.5 bg-black rounded-full overflow-hidden border border-white/5">
                     <div 
                       className="h-full bg-accent transition-all"
                       style={{ width: `${(getFrameProgress(previewFrame)!.current / getFrameProgress(previewFrame)!.max) * 100}%` }}
@@ -210,7 +210,7 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr, 
                   ? 'bg-white/10 text-white/50 hover:bg-white/20 hover:text-white' 
                   : isPreviewUnlocked 
                     ? 'bg-accent text-white hover:bg-accent/90 shadow-[0_0_20px_var(--color-accent)]' 
-                    : 'bg-surface border border-white/10 text-secondary cursor-not-allowed'
+                    : 'bg-zinc-950 border border-white/10 text-secondary cursor-not-allowed'
               }`}
             >
               {isPreviewEquipped ? (
@@ -244,8 +244,8 @@ export default function FramesModal({ isOpen, onClose, state, updateState, ovr, 
                     className={`relative aspect-square rounded-2xl p-2 transition-all flex flex-col items-center justify-center gap-2 ${
                       isSelected ? 'bg-white/10 border-2 border-white/30 scale-105 z-10' : 
                       isEquipped ? 'bg-accent/10 border border-accent/50' : 
-                      isUnlocked ? 'bg-surface border border-white/5 hover:border-white/20' : 
-                      'bg-surface/30 border border-white/5 opacity-50'
+                      isUnlocked ? 'bg-zinc-950 border border-white/5 hover:border-white/20' : 
+                      'bg-zinc-950/30 border border-white/5 opacity-50'
                     }`}
                   >
                     <div className="scale-75 origin-center pointer-events-none">

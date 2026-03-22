@@ -105,7 +105,7 @@ export default function StatDetailModal({ isOpen, onClose, stat, language }: Sta
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-surface border border-white/10 rounded-3xl overflow-hidden flex flex-col max-h-[85vh]"
+            className="w-full max-w-md bg-zinc-950 border border-white/10 rounded-3xl overflow-hidden flex flex-col max-h-[85vh]"
           >
             {/* Header */}
             <div className="p-6 pb-4 border-b border-white/5 flex justify-between items-center bg-white/5">
@@ -139,7 +139,7 @@ export default function StatDetailModal({ isOpen, onClose, stat, language }: Sta
                     {language === 'id' ? 'Progres 7 Hari Terakhir' : 'Last 7 Days Progress'}
                   </h4>
                 </div>
-                <div className="h-32 w-full bg-background/50 rounded-2xl p-4 border border-white/5">
+                <div className="h-32 w-full bg-black/50 rounded-2xl p-4 border border-white/5">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={trendData}>
                       <YAxis domain={['dataMin - 5', 'dataMax + 5']} hide />

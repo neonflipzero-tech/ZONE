@@ -106,7 +106,7 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
             <label className="text-sm font-bold text-secondary">
               {state.language === 'id' ? 'Misi Baru' : 'New Mission'}
             </label>
-            <span className={`text-xs font-bold ${currentMissions.length >= 10 && !state.isPremium ? 'text-red-400' : 'text-white/30'}`}>
+            <span className={`text-xs font-bold ${currentMissions.length >= 10 && !state.isPremium ? 'text-rose-400' : 'text-white/30'}`}>
               {currentMissions.length} {state.isPremium ? '' : '/ 10'}
             </span>
           </div>
@@ -138,7 +138,7 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
                   <span className="text-sm pr-4">{mission}</span>
                   <button 
                     onClick={() => removeCustomMission(activeTab, mission)}
-                    className="p-2 rounded-lg text-red-500/70 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                    className="p-2 rounded-lg text-rose-500/70 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

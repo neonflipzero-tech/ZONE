@@ -66,8 +66,8 @@ export default function FeedScreen({ posts, onLike, language }: FeedScreenProps)
                   onClick={() => handleLike(post.id)}
                   className="flex flex-col items-center group"
                 >
-                  <div className={`p-3 rounded-full bg-black/20 backdrop-blur-md border border-white/10 transition-colors ${likedPosts.has(post.id) ? 'bg-orange-500/20 border-orange-500/50' : 'group-hover:bg-white/10'}`}>
-                    <Heart className={`w-7 h-7 ${likedPosts.has(post.id) ? 'text-orange-500 fill-orange-500' : 'text-white'}`} />
+                  <div className={`p-3 rounded-full bg-black/20 backdrop-blur-md border border-white/10 transition-colors ${likedPosts.has(post.id) ? 'bg-rose-500/20 border-rose-500/50' : 'group-hover:bg-white/10'}`}>
+                    <Heart className={`w-7 h-7 ${likedPosts.has(post.id) ? 'text-rose-500 fill-rose-500' : 'text-white'}`} />
                   </div>
                   <span className="text-white text-xs font-bold mt-1 drop-shadow-md">{post.likes}</span>
                 </button>
