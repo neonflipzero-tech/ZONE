@@ -129,7 +129,7 @@ export default function PremiumModal({ isOpen, onClose, language }: PremiumModal
                 repeat: Infinity,
                 ease: "easeInOut"
               }}
-              className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent via-amber-400 to-purple-600 p-0.5 mb-4 shadow-[0_0_30px_rgba(245,158,11,0.3)] shrink-0"
+              className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent via-rose-400 to-purple-600 p-0.5 mb-4 shadow-[0_0_30px_rgba(244,63,94,0.3)] shrink-0"
             >
               <div className="w-full h-full bg-background rounded-2xl flex items-center justify-center">
                 <Crown className="w-8 h-8 text-accent" />
@@ -210,7 +210,7 @@ export default function PremiumModal({ isOpen, onClose, language }: PremiumModal
             <button
               onClick={handleUpgrade}
               disabled={loading}
-              className="group relative w-full py-4 rounded-2xl font-black text-lg bg-gradient-to-r from-accent via-amber-500 to-purple-600 text-white shadow-[0_10px_30px_rgba(245,158,11,0.3)] hover:shadow-[0_15px_40px_rgba(245,158,11,0.5)] transition-all flex items-center justify-center space-x-3 disabled:opacity-70 disabled:cursor-not-allowed overflow-hidden shrink-0"
+              className="group relative w-full py-4 rounded-2xl font-black text-lg bg-gradient-to-r from-accent via-rose-500 to-purple-600 text-white shadow-[0_10px_30px_rgba(244,63,94,0.3)] hover:shadow-[0_15px_40px_rgba(244,63,94,0.5)] transition-all flex items-center justify-center space-x-3 disabled:opacity-70 disabled:cursor-not-allowed overflow-hidden shrink-0"
             >
               <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out" />
               {loading ? (

@@ -142,13 +142,13 @@ export default function ElitePromotionModal({ isOpen, onClose, language, isFlash
           initial={{ scale: 0.8, opacity: 0, y: 100 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.8, opacity: 0, y: 100 }}
-          className={`relative w-full max-w-md bg-background border ${isFlashSale ? 'border-amber-400/50' : 'border-accent/30'} rounded-[2.5rem] overflow-hidden shadow-[0_0_80px_rgba(245,158,11,0.25)] max-h-[95vh] flex flex-col`}
+          className={`relative w-full max-w-md bg-background border ${isFlashSale ? 'border-rose-400/50' : 'border-accent/30'} rounded-[2.5rem] overflow-hidden shadow-[0_0_80px_rgba(244,63,94,0.25)] max-h-[95vh] flex flex-col`}
         >
           {/* Animated background glow */}
-          <div className={`absolute top-0 left-0 right-0 h-48 bg-gradient-to-br ${isFlashSale ? 'from-amber-400/30 via-amber-500/20' : 'from-accent/30 via-purple-500/20'} to-transparent pointer-events-none`} />
+          <div className={`absolute top-0 left-0 right-0 h-48 bg-gradient-to-br ${isFlashSale ? 'from-rose-400/30 via-rose-500/20' : 'from-accent/30 via-purple-500/20'} to-transparent pointer-events-none`} />
           
           {isFlashSale && (
-            <div className="absolute top-0 left-0 right-0 py-2 bg-amber-400 flex items-center justify-center space-x-2 z-30">
+            <div className="absolute top-0 left-0 right-0 py-2 bg-rose-400 flex items-center justify-center space-x-2 z-30">
               <Zap className="w-4 h-4 text-black fill-black" />
               <Timer className="w-3 h-3 text-black" />
               <span className="text-[10px] font-black text-black uppercase tracking-[0.2em]">RARE FLASH SALE - {timeLeft}S LEFT</span>
@@ -167,10 +167,10 @@ export default function ElitePromotionModal({ isOpen, onClose, language, isFlash
                 repeat: Infinity,
                 ease: "easeInOut"
               }}
-              className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${isFlashSale ? 'from-amber-400 via-amber-400 to-rose-600' : 'from-accent via-amber-400 to-purple-600'} p-0.5 mb-4 shadow-[0_0_30px_rgba(245,158,11,0.3)] shrink-0`}
+              className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${isFlashSale ? 'from-rose-400 via-rose-400 to-rose-600' : 'from-accent via-rose-400 to-purple-600'} p-0.5 mb-4 shadow-[0_0_30px_rgba(244,63,94,0.3)] shrink-0`}
             >
               <div className="w-full h-full bg-background rounded-2xl flex items-center justify-center">
-                <Crown className={`w-8 h-8 ${isFlashSale ? 'text-amber-400' : 'text-accent'}`} />
+                <Crown className={`w-8 h-8 ${isFlashSale ? 'text-rose-400' : 'text-accent'}`} />
               </div>
             </motion.div>
 
@@ -178,7 +178,7 @@ export default function ElitePromotionModal({ isOpen, onClose, language, isFlash
               <h2 className="text-2xl font-black text-primary mb-1 tracking-tighter uppercase italic">
                 {isFlashSale ? (language === 'id' ? 'PENAWARAN LANGKA' : 'RARE OFFER') : 'ZONE ELITE'}
               </h2>
-              <div className={`h-1 w-12 ${isFlashSale ? 'bg-amber-400' : 'bg-accent'} mx-auto rounded-full mb-3`} />
+              <div className={`h-1 w-12 ${isFlashSale ? 'bg-rose-400' : 'bg-accent'} mx-auto rounded-full mb-3`} />
               <p className="text-secondary text-xs font-medium leading-relaxed px-4">
                 {isFlashSale 
                   ? (language === 'id' 
@@ -198,17 +198,17 @@ export default function ElitePromotionModal({ isOpen, onClose, language, isFlash
                   onClick={() => setSelectedPlan(plan.id as any)}
                   className={`relative p-4 rounded-2xl border-2 transition-all text-left flex flex-col ${isFlashSale ? 'w-full max-w-[240px]' : ''} ${
                     selectedPlan === plan.id
-                      ? (isFlashSale ? 'bg-amber-400/10 border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.2)]' : 'bg-accent/10 border-accent shadow-[0_0_20px_rgba(242,125,38,0.2)]')
+                      ? (isFlashSale ? 'bg-rose-400/10 border-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.2)]' : 'bg-accent/10 border-accent shadow-[0_0_20px_rgba(242,125,38,0.2)]')
                       : 'bg-white/[0.03] border-white/5 hover:border-white/10'
                   }`}
                 >
                   {selectedPlan === plan.id && (
-                    <div className={`absolute top-2 right-2 ${isFlashSale ? 'bg-amber-400' : 'bg-accent'} rounded-full p-0.5`}>
+                    <div className={`absolute top-2 right-2 ${isFlashSale ? 'bg-rose-400' : 'bg-accent'} rounded-full p-0.5`}>
                       <Check className="w-3 h-3 text-black" />
                     </div>
                   )}
                   <span className={`text-[10px] uppercase tracking-widest font-black mb-1 ${
-                    selectedPlan === plan.id ? (isFlashSale ? 'text-amber-400' : 'text-accent') : 'text-secondary'
+                    selectedPlan === plan.id ? (isFlashSale ? 'text-rose-400' : 'text-accent') : 'text-secondary'
                   }`}>
                     {plan.name}
                   </span>
@@ -234,8 +234,8 @@ export default function ElitePromotionModal({ isOpen, onClose, language, isFlash
                     transition={{ delay: i * 0.1 }}
                     className="flex items-center space-x-3"
                   >
-                    <div className={`flex-shrink-0 ${isFlashSale ? 'bg-amber-400/20' : 'bg-accent/20'} p-1.5 rounded-xl`}>
-                      <Check className={`w-3 h-3 ${isFlashSale ? 'text-amber-400' : 'text-accent'}`} />
+                    <div className={`flex-shrink-0 ${isFlashSale ? 'bg-rose-400/20' : 'bg-accent/20'} p-1.5 rounded-xl`}>
+                      <Check className={`w-3 h-3 ${isFlashSale ? 'text-rose-400' : 'text-accent'}`} />
                     </div>
                     <span className="text-[11px] font-bold text-primary/90 tracking-tight">{feature}</span>
                   </motion.li>
@@ -258,7 +258,7 @@ export default function ElitePromotionModal({ isOpen, onClose, language, isFlash
               <button
                 onClick={handleUpgrade}
                 disabled={loading}
-                className={`group relative w-full py-4 rounded-2xl font-black text-lg ${isFlashSale ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-rose-600' : 'bg-gradient-to-r from-accent via-amber-500 to-purple-600'} text-white shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center space-x-3 disabled:opacity-70 disabled:cursor-not-allowed overflow-hidden`}
+                className={`group relative w-full py-4 rounded-2xl font-black text-lg ${isFlashSale ? 'bg-gradient-to-r from-rose-400 via-rose-500 to-rose-600' : 'bg-gradient-to-r from-accent via-rose-500 to-purple-600'} text-white shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center space-x-3 disabled:opacity-70 disabled:cursor-not-allowed overflow-hidden`}
               >
                 <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out" />
                 {loading ? (

@@ -177,7 +177,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-display font-bold tracking-tight">{t('leaderboard.title', state.language)}</h1>
           {!isUsingFirebase && (
-            <div className="flex items-center space-x-1 text-xs text-amber-500 bg-amber-500/10 px-2 py-1 rounded-full border border-amber-500/20">
+            <div className="flex items-center space-x-1 text-xs text-rose-500 bg-rose-500/10 px-2 py-1 rounded-full border border-rose-500/20">
               <AlertCircle className="w-3 h-3" />
               <span>{t('leaderboard.local_mode', state.language)}</span>
             </div>
@@ -219,8 +219,8 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
           >
             <div className="w-16 h-16 flex items-center justify-center mb-2 relative">
               <ProfileFrame frame={allUsers[0]?.equippedFrame || null} src={allUsers[0]?.profilePicture || null} size="md" />
-              <Trophy className="w-6 h-6 text-amber-400 absolute -top-3 drop-shadow-md z-20" />
-              <div className="absolute -bottom-1 bg-amber-400 text-black text-xs font-bold px-2 rounded-full z-20">1</div>
+              <Trophy className="w-6 h-6 text-rose-400 absolute -top-3 drop-shadow-md z-20" />
+              <div className="absolute -bottom-1 bg-rose-400 text-black text-xs font-bold px-2 rounded-full z-20">1</div>
               {state.rivalId === allUsers[0]?.userId && (
                 <div className="absolute top-0 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
               )}
@@ -234,8 +234,8 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                 </div>
               );
             })()}
-            <div className="h-32 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-4 border-amber-400/50 flex flex-col items-center justify-end pb-2">
-              <span className="text-sm font-mono font-bold text-amber-400">{t('leaderboard.lvl', state.language).replace('{level}', (allUsers[0]?.level || 0).toString())}</span>
+            <div className="h-32 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-4 border-rose-400/50 flex flex-col items-center justify-end pb-2">
+              <span className="text-sm font-mono font-bold text-rose-400">{t('leaderboard.lvl', state.language).replace('{level}', (allUsers[0]?.level || 0).toString())}</span>
             </div>
           </div>
 
@@ -246,7 +246,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
           >
             <div className="w-12 h-12 flex items-center justify-center mb-2 relative">
               <ProfileFrame frame={allUsers[2]?.equippedFrame || null} src={allUsers[2]?.profilePicture || null} size="sm" />
-              <div className="absolute -bottom-1 bg-amber-700 text-white text-[10px] font-bold px-1.5 rounded-full z-20">3</div>
+              <div className="absolute -bottom-1 bg-rose-700 text-white text-[10px] font-bold px-1.5 rounded-full z-20">3</div>
               {state.rivalId === allUsers[2]?.userId && (
                 <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
               )}
@@ -260,7 +260,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                 </div>
               );
             })()}
-            <div className="h-20 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-amber-700/50 flex flex-col items-center justify-end pb-2">
+            <div className="h-20 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-rose-700/50 flex flex-col items-center justify-end pb-2">
               <span className="text-xs font-mono text-secondary">{t('leaderboard.lvl', state.language).replace('{level}', (allUsers[2]?.level || 0).toString())}</span>
             </div>
           </div>
@@ -459,7 +459,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                   </div>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm text-secondary">OVR</span>
-                    <span className="font-mono font-bold text-[#FFBF00]">{selectedUser.ovr || calculateOVR({ ...selectedUser, dailyStats: {}, badges: [], missionsCompleted: selectedUser.missionsCompleted || 0, streak: selectedUser.streak || 0, unlockedFrames: [] } as any).ovr}</span>
+                    <span className="font-mono font-bold text-[#F43F5E]">{selectedUser.ovr || calculateOVR({ ...selectedUser, dailyStats: {}, badges: [], missionsCompleted: selectedUser.missionsCompleted || 0, streak: selectedUser.streak || 0, unlockedFrames: [] } as any).ovr}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-secondary">{t('leaderboard.total_xp', state.language)}</span>
@@ -481,7 +481,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                     <span className="font-mono font-bold text-lg">{selectedUser.missionsCompleted || 0}</span>
                   </div>
                   <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
-                    <Star className="w-5 h-5 text-amber-400 mb-1" />
+                    <Star className="w-5 h-5 text-rose-400 mb-1" />
                     <span className="text-xs text-secondary mb-1">{t('leaderboard.badges', state.language)}</span>
                     <span className="font-mono font-bold text-lg">{selectedUser.badgesCount || 0}</span>
                   </div>

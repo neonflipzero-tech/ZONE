@@ -61,6 +61,7 @@ export class NotificationService {
     }
 
     const delay = scheduledTime.getTime() - now.getTime();
+    console.log(`Notification scheduled for ${scheduledTime.toLocaleTimeString()} (in ${Math.round(delay / 1000 / 60)} minutes)`);
 
     // Send message to SW to schedule
     if (this.swRegistration && this.swRegistration.active) {

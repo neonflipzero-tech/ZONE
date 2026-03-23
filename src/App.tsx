@@ -227,9 +227,9 @@ export default function App() {
       // Boss check
       if (state.bossState) {
         if (state.bossState.status === 'active' && prevBossStatusRef.current !== 'active') {
-          NotificationService.notifyNewBossAppeared(state.bossState.name, state.language);
+          NotificationService.notifyNewBossAppeared(state.bossState.topic || 'Unknown', state.language);
         } else if (state.bossState.status === 'defeated' && prevBossStatusRef.current !== 'defeated') {
-          NotificationService.notifyBossDefeated(state.bossState.name, state.language);
+          NotificationService.notifyBossDefeated(state.bossState.topic || 'Unknown', state.language);
         }
         prevBossStatusRef.current = state.bossState.status;
       }
@@ -452,11 +452,13 @@ export default function App() {
     content = (
       <>
         {state.unlockedItemsQueue && state.unlockedItemsQueue.length > 0 && isLevelUpAnimationComplete && (
-          <UnlockNotification 
-            item={state.unlockedItemsQueue[0]} 
-            onDismiss={dismissUnlockedItem} 
-            language={state.language}
-          />
+          <div key={`unlock-${state.unlockedItemsQueue[0].type}-${state.unlockedItemsQueue[0].id}`}>
+            <UnlockNotification 
+              item={state.unlockedItemsQueue[0]} 
+              onDismiss={dismissUnlockedItem} 
+              language={state.language}
+            />
+          </div>
         )}
         <div className="flex-1 relative overflow-hidden bg-black">
           <AnimatePresence>

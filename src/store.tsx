@@ -914,8 +914,9 @@ function useAppStateInternal() {
         bossChanged = true;
       }
     } else {
-      if (bossState.lastEncounterDate !== null && bossState.lastEncounterDate !== currentWeek) {
-        // User missed Monday entirely
+      // If it's not Monday, check if we missed the boss from a PREVIOUS week
+      if (bossState.lastEncounterDate !== null && bossState.lastEncounterDate !== currentWeek && (bossState.isActive || bossState.status === 'pending_choice' || bossState.status === 'active')) {
+        // User missed the boss from last week
         const penalty = Math.floor((state.zoneCoins || 0) * 0.3);
         bossState = {
           ...bossState,
@@ -932,34 +933,15 @@ function useAppStateInternal() {
               ? `Kamu melewatkan bos mingguan dan dia mencuri 30% (${penalty}) Zone Coins milikmu!` 
               : `You missed the weekly boss and it stole 30% (${penalty}) of your Zone Coins!`,
             icon: 'Info',
-            read: false
-          },
-          ...(state.notifications || [])
-        ];
-        bossChanged = true;
-      } else if (bossState.lastEncounterDate === currentWeek && (bossState.isActive || bossState.status === 'pending_choice')) {
-        // User saw the boss on Monday but didn't defeat it
-        const penalty = Math.floor((state.zoneCoins || 0) * 0.3);
-        bossState = {
-          ...bossState,
-          isActive: false,
-          status: 'escaped'
-        };
-        updates.zoneCoins = Math.max(0, (state.zoneCoins || 0) - penalty);
-        updates.notifications = [
-          {
-            id: `boss-escape-${Date.now()}-${Math.random()}`,
-            title: state.language === 'id' ? 'Bos Mingguan Kabur!' : 'Weekly Boss Escaped!',
-            description: state.language === 'id' 
-              ? `Bos mingguan berhasil kabur dan mencuri 30% (${penalty}) Zone Coins milikmu!` 
-              : `The weekly boss escaped and stole 30% (${penalty}) of your Zone Coins!`,
-            icon: 'Info',
-            read: false
+            read: false,
+            timestamp: Date.now()
           },
           ...(state.notifications || [])
         ];
         bossChanged = true;
       }
+      // Note: We removed the logic that made the boss escape if it was still active on Tuesday-Sunday.
+      // The boss now stays active until defeated or until the next Monday reset.
     }
 
     if (bossChanged) {

@@ -22,7 +22,7 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
     switch (iconName) {
       case 'Swords': return <Swords className="w-5 h-5 text-rose-400" />;
       case 'ArrowUpCircle': return <ArrowUpCircle className="w-5 h-5 text-green-400" />;
-      case 'AlertCircle': return <AlertCircle className="w-5 h-5 text-amber-400" />;
+      case 'AlertCircle': return <AlertCircle className="w-5 h-5 text-rose-400" />;
       case 'CheckCircle2': return <CheckCircle2 className="w-5 h-5 text-blue-400" />;
       default: return <Info className="w-5 h-5 text-accent" />;
     }

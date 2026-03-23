@@ -52,8 +52,8 @@ export default function SettingsScreen({
     const newEnabled = !state.notificationsEnabled;
     
     if (newEnabled) {
-      const granted = await NotificationService.requestPermission();
-      if (!granted) {
+      const permission = await NotificationService.requestPermission();
+      if (permission !== 'granted') {
         setToastMessage(state.language === 'id' ? 'Izin notifikasi ditolak' : 'Notification permission denied');
         setTimeout(() => setToastMessage(null), 3000);
         return;

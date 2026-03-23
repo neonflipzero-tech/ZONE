@@ -56,6 +56,13 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
   const [preCompletionStats, setPreCompletionStats] = useState<{ level: number, badgesCount: number } | null>(null);
   const { updateState } = useAppState();
 
+  // Auto-switch to BOSS tab if active
+  useEffect(() => {
+    if (state.bossState?.isActive || state.bossState?.status === 'pending_choice') {
+      setActiveTab('BOSS');
+    }
+  }, []); // Only on mount
+
   // Detect rewards after state updates from mission completion
   useEffect(() => {
     if (preCompletionStats) {
@@ -66,23 +73,31 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
       }
       
       if (state.badges.length > preCompletionStats.badgesCount) {
-        const newBadge = state.badges[state.badges.length - 1];
-        rewards.push({ type: 'badge', value: newBadge });
+        // Get all new badges
+        const newBadges = state.badges.slice(preCompletionStats.badgesCount);
+        newBadges.forEach(badge => {
+          rewards.push({ type: 'badge', value: badge });
+        });
       }
 
-      if (rewards.length > 0) {
-        setCompletionRewards(rewards);
-      }
-      
+      setCompletionRewards(rewards);
       setPreCompletionStats(null);
       setShowCompletionOverlay(true);
+      
+      // Trigger fireworks with Amber Rose theme
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#F43F5E', '#F43F5E', '#ffffff']
+      });
     }
-  }, [state.level, state.badges.length]);
+  }, [state.level, state.badges.length, preCompletionStats]);
 
   const hasCompletedQuestToday = state.lastActiveDate === new Date().toDateString();
-  const streakColorClass = hasCompletedQuestToday ? "text-amber-500" : "text-gray-400";
+  const streakColorClass = hasCompletedQuestToday ? "text-orange-500" : "text-gray-400";
   const streakBgClass = hasCompletedQuestToday 
-    ? "from-amber-500/10 to-rose-500/10 border-amber-500/20 shadow-amber-500/10" 
+    ? "from-orange-500/10 to-orange-600/10 border-orange-500/20 shadow-orange-500/10" 
     : "from-gray-500/10 to-gray-600/10 border-gray-500/20 shadow-gray-500/10";
 
   useEffect(() => {
@@ -115,14 +130,6 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
 
       onCompleteMission(missionId);
       handleCloseModal();
-      
-      // Trigger fireworks
-      confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#f97316', '#fbbf24', '#ffffff']
-      });
     }
   };
 
@@ -135,14 +142,6 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
 
       onCompleteMission(pendingMissionId, { useFreeze });
       setPendingMissionId(null);
-      
-      // Trigger fireworks
-      confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#f97316', '#fbbf24', '#ffffff']
-      });
     }
     setShowStreakFreezeDialog(false);
     handleCloseModal();
@@ -203,21 +202,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
 
   useEffect(() => {
     const isMonday = new Date().getDay() === 1;
-    if (isMonday) {
-      if (state.bossState && !state.bossState.isActive && state.chosenPath) {
-        // Use setTimeout to avoid updating state during render
-        setTimeout(() => {
-          updateState({
-            bossState: {
-              ...state.bossState!,
-              isActive: true,
-              status: 'pending_choice',
-              lastEncounterDate: null
-            }
-          });
-        }, 0);
-      }
-    } else {
+    if (!isMonday) {
       // If not Monday, ensure boss is NOT active
       if (state.bossState?.isActive) {
         setTimeout(() => {
@@ -305,7 +290,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                     <div className="flex flex-wrap justify-center gap-3">
                       {completionRewards.map((reward, idx) => (
                         <motion.div
-                          key={`reward-${idx}`}
+                          key={`reward-${reward.type}-${idx}`}
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
                           transition={{ delay: 0.3 + idx * 0.1, type: "spring" }}
@@ -342,7 +327,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                   setShowCompletionOverlay(false);
                   setCompletionRewards([]);
                 }}
-                className="w-full py-4 bg-orange-500 text-white rounded-2xl font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-orange-500/20"
+                className="w-full py-4 bg-accent text-black font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-accent/20"
               >
                 {state.language === 'id' ? 'Lanjutkan' : 'Continue'}
               </button>
@@ -417,7 +402,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
               {state.isPremium && (
                 <div className="flex items-center space-x-1 pl-2 border-l border-white/10" title="Elite Boosts Active">
                   <span className="text-[8px] font-black text-emerald-400">+50% XP</span>
-                  <span className="text-[8px] font-black text-amber-400">+25% ZC</span>
+                  <span className="text-[8px] font-black text-rose-400">+25% ZC</span>
                 </div>
               )}
             </div>
@@ -453,8 +438,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                 ? ['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] as MissionType[]
                 : ['REGULAR', 'DAILY', 'WEEKLY'] as MissionType[];
               
-              const isMonday = new Date().getDay() === 1;
-              if (isMonday && (state.bossState?.isActive || state.bossState?.status === 'pending_choice')) {
+              if (state.bossState?.isActive || state.bossState?.status === 'pending_choice') {
                 return [...baseTabs, 'BOSS' as MissionType];
               }
               return baseTabs;
@@ -477,7 +461,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
           {activeTab !== 'BOSS' && (
             <div className="h-1.5 w-full bg-surface rounded-full mb-6 overflow-hidden">
               <motion.div 
-                className="h-full bg-gradient-to-r from-accent to-amber-500"
+                className="h-full bg-gradient-to-r from-accent to-rose-500"
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercentage}%` }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
@@ -878,13 +862,18 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                                       title: state.language === 'id' ? 'Bos Dikalahkan!' : 'Boss Defeated!',
                                       description: state.language === 'id' ? 'Kamu berhasil mengalahkan bos mingguan dan mendapatkan 500 Zone Coins!' : 'You defeated the weekly boss and earned 500 Zone Coins!',
                                       icon: 'Trophy',
-                                      read: false
+                                      read: false,
+                                      timestamp: Date.now()
                                     },
                                     ...(state.notifications || [])
                                   ]
                                 });
-                                setShowVictoryAnimation(false);
-                                setActiveTab('REGULAR');
+                                
+                                // Close boss page immediately after a short delay for the animation
+                                setTimeout(() => {
+                                  setShowVictoryAnimation(false);
+                                  setActiveTab('REGULAR');
+                                }, 2500);
                               }, 3000);
                             } else {
                               updateState({
