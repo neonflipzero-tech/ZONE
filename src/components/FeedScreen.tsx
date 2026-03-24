@@ -1,4 +1,5 @@
 import { motion } from 'motion/react';
+import { shareContent } from '../utils/share';
 import { Post } from '../store';
 import { Heart, MessageCircle, Share2, User } from 'lucide-react';
 import { useState } from 'react';
@@ -81,16 +82,10 @@ export default function FeedScreen({ posts, onLike, language }: FeedScreenProps)
 
                 <button 
                   onClick={() => {
-                    const shareData = {
-                      title: 'Zone Store',
-                      text: post.caption,
-                      url: window.location.href
-                    };
-                    if (navigator.share) {
-                      navigator.share(shareData).catch(console.error);
-                    } else {
-                      navigator.clipboard.writeText(window.location.href);
-                    }
+                    shareContent(
+                      'Zone Store',
+                      post.caption
+                    );
                   }}
                   className="flex flex-col items-center group"
                 >

@@ -54,8 +54,11 @@ export default function SettingsScreen({
     if (newEnabled) {
       const permission = await NotificationService.requestPermission();
       if (permission === 'unsupported') {
-        setToastMessage(state.language === 'id' ? 'Browser kamu tidak mendukung notifikasi' : 'Your browser does not support notifications');
-        setTimeout(() => setToastMessage(null), 3000);
+        const message = state.language === 'id' 
+          ? 'Browser/APK ini tidak mendukung notifikasi sistem. Coba buka di Chrome atau tab baru.' 
+          : 'This browser/APK does not support system notifications. Try Chrome or a new tab.';
+        setToastMessage(message);
+        setTimeout(() => setToastMessage(null), 5000);
         return;
       }
       
@@ -76,12 +79,6 @@ export default function SettingsScreen({
       NotificationService.scheduleDailyReminder({ ...state, notificationsEnabled: newEnabled });
       setToastMessage(state.language === 'id' ? 'Notifikasi diaktifkan!' : 'Notifications enabled!');
       setTimeout(() => setToastMessage(null), 3000);
-    }
-  };
-
-  const openInNewTab = () => {
-    if (typeof window !== 'undefined') {
-      window.open(window.location.href, '_blank');
     }
   };
 
@@ -219,22 +216,6 @@ export default function SettingsScreen({
                       />
                     </div>
                     
-                    {typeof window !== 'undefined' && window.self !== window.top && (
-                      <div className="p-3 bg-accent/5 border border-accent/20 rounded-xl">
-                        <p className="text-[10px] text-accent font-medium leading-tight mb-2">
-                          {state.language === 'id' 
-                            ? 'Notifikasi sering tidak muncul di dalam AI Studio. Buka aplikasi di tab baru agar notifikasi berfungsi 100%.' 
-                            : 'Notifications often don\'t work inside AI Studio. Open the app in a new tab for 100% working notifications.'}
-                        </p>
-                        <button 
-                          onClick={openInNewTab}
-                          className="w-full py-2 bg-accent text-background text-[10px] font-black uppercase tracking-widest rounded-lg"
-                        >
-                          {state.language === 'id' ? 'BUKA DI TAB BARU' : 'OPEN IN NEW TAB'}
-                        </button>
-                      </div>
-                    )}
-
                     <button
                       onClick={async () => {
                         await NotificationService.testNotification(state.language);

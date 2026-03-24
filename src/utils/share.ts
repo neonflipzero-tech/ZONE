@@ -52,14 +52,24 @@ export const shareElementAsImage = async (elementId: string, title: string, text
     return shareContent(title, text);
   }
 
+  // Detect if we are in a WebView (common in APKs)
+  const isWebView = /wv|WebView|Android.*(Messenger|FBAN|FBAV|Instagram|Line)/i.test(navigator.userAgent);
+
   let blob: Blob | null = null;
   try {
     // Generate image quickly to preserve user gesture token
     blob = await toBlob(element, { 
       backgroundColor: '#0a0a0a', // Match background color
-      pixelRatio: 1, // Reduced to 1 to speed up generation and preserve gesture
+      pixelRatio: 2, // Increased for better quality
+      filter: (node) => {
+        // Ignore elements with data-html2canvas-ignore attribute
+        if (node instanceof HTMLElement && node.hasAttribute('data-html2canvas-ignore')) {
+          return false;
+        }
+        return true;
+      },
       style: {
-        transform: 'scale(1)', // Ensure no weird scaling issues
+        transform: 'scale(1)', 
         margin: '0',
       }
     });
@@ -68,13 +78,27 @@ export const shareElementAsImage = async (elementId: string, title: string, text
 
     const file = new File([blob], 'zone-share.png', { type: 'image/png' });
 
+    // Try to share the file
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        title,
-        text,
-        files: [file],
-      });
-      return true;
+      try {
+        // In some WebViews, sharing files AND text simultaneously causes issues
+        // We try sharing everything first
+        await navigator.share({
+          title,
+          text,
+          files: [file],
+        });
+        return true;
+      } catch (shareError: any) {
+        // If it failed with text, try sharing ONLY the file
+        if (shareError.name !== 'AbortError') {
+          await navigator.share({
+            files: [file],
+          });
+          return true;
+        }
+        throw shareError;
+      }
     } else {
       throw new Error('Cannot share files');
     }
@@ -84,31 +108,37 @@ export const shareElementAsImage = async (elementId: string, title: string, text
       return false;
     }
 
-    // If it's a gesture error or cannot share files, try to download instead
-    if (error.name === 'NotAllowedError' || error.message?.includes('user gesture') || error.message === 'Cannot share files') {
-      if (blob) {
+    // Fallback for APK/WebView or unsupported file sharing
+    if (blob) {
+      try {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'zone-share.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Also copy text to clipboard as a secondary action
         try {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'zone-share.png';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          
-          // Also copy text
           await navigator.clipboard.writeText(`${title}\n${text}\n${window.location.origin}`);
-          window.dispatchEvent(new CustomEvent('zone-notification', { 
-            detail: { message: 'Gambar berhasil diunduh dan teks disalin!', type: 'success' } 
-          }));
-          return true;
-        } catch (downloadError) {
-          console.error('Error downloading image:', downloadError);
+        } catch (e) {
+          console.warn('Clipboard fallback failed');
         }
+
+        window.dispatchEvent(new CustomEvent('zone-notification', { 
+          detail: { 
+            message: isWebView 
+              ? 'Pilih "Save" untuk simpan gambar & teks disalin!' 
+              : 'Gambar diunduh & teks disalin!', 
+            type: 'success' 
+          } 
+        }));
+        return true;
+      } catch (downloadError) {
+        console.error('Error downloading image:', downloadError);
       }
-    } else {
-      console.error('Error sharing image:', error);
     }
     
     // Ultimate fallback to text only

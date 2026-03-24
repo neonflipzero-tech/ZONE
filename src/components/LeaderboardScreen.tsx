@@ -158,6 +158,11 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
     return bTotal - aTotal;
   });
 
+  const currentUserRank = allUsers.findIndex(u => u.userId === state.userId || u.username === state.username) + 1;
+  const isCurrentUserInTop5 = currentUserRank <= 5;
+  const top50Users = allUsers.slice(0, 50);
+  const currentUserData = allUsers[currentUserRank - 1];
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -171,158 +176,204 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24"
+      className="flex flex-col h-full bg-background relative"
     >
-      <div className="px-6 pt-12 pb-6">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-display font-bold tracking-tight">{t('leaderboard.title', state.language)}</h1>
-          {!isUsingFirebase && (
-            <div className="flex items-center space-x-1 text-xs text-rose-500 bg-rose-500/10 px-2 py-1 rounded-full border border-rose-500/20">
-              <AlertCircle className="w-3 h-3" />
-              <span>{t('leaderboard.local_mode', state.language)}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Top 3 Podium */}
-        <div className="flex items-end justify-center space-x-2 mb-12 mt-8">
-          {/* 2nd Place */}
-          <div 
-            className="flex flex-col items-center w-24 cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => { if (allUsers[1]) setSelectedActionUser(allUsers[1]); }}
-          >
-            <div className="w-12 h-12 flex items-center justify-center mb-2 relative">
-              <ProfileFrame frame={allUsers[1]?.equippedFrame || null} src={allUsers[1]?.profilePicture || null} size="sm" />
-              <div className="absolute -bottom-1 bg-gray-300 text-black text-[10px] font-bold px-1.5 rounded-full z-20">2</div>
-              {state.rivalId === allUsers[1]?.userId && (
-                <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
-              )}
-            </div>
-            <span className="text-xs font-bold truncate w-full text-center">{allUsers[1]?.username || '-'}</span>
-            {allUsers[1]?.equippedTitle && (() => {
-              const titleDef = TITLES.find(t => t.id === allUsers[1]?.equippedTitle);
-              return (
-                <div className={`text-[8px] font-mono uppercase tracking-widest mt-0.5 inline-block text-center px-1 ${titleDef?.specialColor || 'text-accent/80'}`}>
-                  {titleDef?.name[state.language] || allUsers[1]?.equippedTitle}
-                </div>
-              );
-            })()}
-            <div className="h-24 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-gray-300/50 flex flex-col items-center justify-end pb-2">
-              <span className="text-xs font-mono text-secondary">{t('leaderboard.lvl', state.language).replace('{level}', (allUsers[1]?.level || 0).toString())}</span>
-            </div>
-          </div>
-
-          {/* 1st Place */}
-          <div 
-            className="flex flex-col items-center w-28 z-10 cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => { if (allUsers[0]) setSelectedActionUser(allUsers[0]); }}
-          >
-            <div className="w-16 h-16 flex items-center justify-center mb-2 relative">
-              <ProfileFrame frame={allUsers[0]?.equippedFrame || null} src={allUsers[0]?.profilePicture || null} size="md" />
-              <Trophy className="w-6 h-6 text-rose-400 absolute -top-3 drop-shadow-md z-20" />
-              <div className="absolute -bottom-1 bg-rose-400 text-black text-xs font-bold px-2 rounded-full z-20">1</div>
-              {state.rivalId === allUsers[0]?.userId && (
-                <div className="absolute top-0 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
-              )}
-            </div>
-            <span className="text-sm font-bold truncate w-full text-center text-primary">{allUsers[0]?.username || '-'}</span>
-            {allUsers[0]?.equippedTitle && (() => {
-              const titleDef = TITLES.find(t => t.id === allUsers[0]?.equippedTitle);
-              return (
-                <div className={`text-[9px] font-mono uppercase tracking-widest mt-0.5 inline-block text-center px-1 ${titleDef?.specialColor || 'text-accent/80'}`}>
-                  {titleDef?.name[state.language] || allUsers[0]?.equippedTitle}
-                </div>
-              );
-            })()}
-            <div className="h-32 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-4 border-rose-400/50 flex flex-col items-center justify-end pb-2">
-              <span className="text-sm font-mono font-bold text-rose-400">{t('leaderboard.lvl', state.language).replace('{level}', (allUsers[0]?.level || 0).toString())}</span>
-            </div>
-          </div>
-
-          {/* 3rd Place */}
-          <div 
-            className="flex flex-col items-center w-24 cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => { if (allUsers[2]) setSelectedActionUser(allUsers[2]); }}
-          >
-            <div className="w-12 h-12 flex items-center justify-center mb-2 relative">
-              <ProfileFrame frame={allUsers[2]?.equippedFrame || null} src={allUsers[2]?.profilePicture || null} size="sm" />
-              <div className="absolute -bottom-1 bg-rose-700 text-white text-[10px] font-bold px-1.5 rounded-full z-20">3</div>
-              {state.rivalId === allUsers[2]?.userId && (
-                <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
-              )}
-            </div>
-            <span className="text-xs font-bold truncate w-full text-center">{allUsers[2]?.username || '-'}</span>
-            {allUsers[2]?.equippedTitle && (() => {
-              const titleDef = TITLES.find(t => t.id === allUsers[2]?.equippedTitle);
-              return (
-                <div className={`text-[8px] font-mono uppercase tracking-widest mt-0.5 inline-block text-center px-1 ${titleDef?.specialColor || 'text-accent/80'}`}>
-                  {titleDef?.name[state.language] || allUsers[2]?.equippedTitle}
-                </div>
-              );
-            })()}
-            <div className="h-20 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-rose-700/50 flex flex-col items-center justify-end pb-2">
-              <span className="text-xs font-mono text-secondary">{t('leaderboard.lvl', state.language).replace('{level}', (allUsers[2]?.level || 0).toString())}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* List */}
-        <div className="space-y-3">
-          {allUsers.slice(3, 30).map((user, index) => {
-            const rankObj = getRankForLevel(user.level);
-            const isCurrentUser = user.username === state.username;
-            
-            return (
-              <div 
-                key={`${user.userId || user.username}-${index}`}
-                onClick={() => setSelectedActionUser(user)}
-                className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all cursor-pointer hover:scale-[1.02] ${
-                  isCurrentUser 
-                    ? 'bg-accent/10 border-accent/50 shadow-[0_0_15px_var(--color-accent)]' 
-                    : 'bg-surface border-white/5 hover:bg-surface-hover'
-                }`}
-              >
-                <div className={`w-6 text-center font-mono font-bold text-sm ${isCurrentUser ? 'text-accent' : 'text-secondary'}`}>
-                  {index + 4}
-                </div>
-                
-                <div className="w-10 h-10 flex items-center justify-center shrink-0">
-                  <ProfileFrame frame={user.equippedFrame} src={user.profilePicture || null} size="sm" />
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2">
-                    <h4 className={`font-bold truncate ${isCurrentUser ? 'text-primary' : 'text-secondary'}`}>
-                      {user.username} {isCurrentUser && '(You)'}
-                    </h4>
-                    {state.rivalId === user.userId && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-500 text-[8px] font-bold uppercase tracking-wider border border-rose-500/30">
-                        Rival
-                      </span>
-                    )}
-                  </div>
-                  {user.equippedTitle && (() => {
-                    const titleDef = TITLES.find(t => t.id === user.equippedTitle);
-                    return (
-                      <div className={`text-[10px] font-mono uppercase tracking-widest mt-0.5 inline-block ${titleDef?.specialColor || 'text-accent/80'}`}>
-                        {titleDef?.name[state.language] || user.equippedTitle}
-                      </div>
-                    );
-                  })()}
-                  <div className="flex items-center space-x-3 mt-1">
-                    <span className="text-xs font-mono text-accent">{t('leaderboard.lvl', state.language).replace('{level}', user.level.toString())}</span>
-                    <span className="text-xs font-mono text-secondary">{user.xp} {t('leaderboard.pts', state.language)}</span>
-                  </div>
-                </div>
-                
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${rankObj.bg}/20`}>
-                  {getRankIcon(rankObj.name, `w-4 h-4 ${rankObj.color}`)}
-                </div>
+      <div className="flex-1 overflow-y-auto no-scrollbar pb-32">
+        <div className="px-6 pt-12 pb-6">
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-2xl font-display font-bold tracking-tight">{t('leaderboard.title', state.language)}</h1>
+            {!isUsingFirebase && (
+              <div className="flex items-center space-x-1 text-xs text-rose-500 bg-rose-500/10 px-2 py-1 rounded-full border border-rose-500/20">
+                <AlertCircle className="w-3 h-3" />
+                <span>{t('leaderboard.local_mode', state.language)}</span>
               </div>
-            );
-          })}
+            )}
+          </div>
+
+          {/* Top 3 Podium */}
+          <div className="flex items-end justify-center space-x-2 mb-12 mt-8">
+            {/* 2nd Place */}
+            <div 
+              className="flex flex-col items-center w-24 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => { if (top50Users[1]) setSelectedActionUser(top50Users[1]); }}
+            >
+              <div className="w-12 h-12 flex items-center justify-center mb-2 relative">
+                <ProfileFrame frame={top50Users[1]?.equippedFrame || null} src={top50Users[1]?.profilePicture || null} size="sm" />
+                <div className="absolute -bottom-1 bg-gray-300 text-black text-[10px] font-bold px-1.5 rounded-full z-20">2</div>
+                {state.rivalId === top50Users[1]?.userId && (
+                  <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
+                )}
+              </div>
+              <span className="text-xs font-bold truncate w-full text-center">{top50Users[1]?.username || '-'}</span>
+              {top50Users[1]?.equippedTitle && (() => {
+                const titleDef = TITLES.find(t => t.id === top50Users[1]?.equippedTitle);
+                return (
+                  <div className={`text-[8px] font-mono uppercase tracking-widest mt-0.5 inline-block text-center px-1 ${titleDef?.specialColor || 'text-accent/80'}`}>
+                    {titleDef?.name[state.language] || top50Users[1]?.equippedTitle}
+                  </div>
+                );
+              })()}
+              <div className="h-24 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-slate-300/50 flex flex-col items-center justify-end pb-2">
+                <span className="text-xs font-mono text-secondary">{t('leaderboard.lvl', state.language).replace('{level}', (top50Users[1]?.level || 0).toString())}</span>
+              </div>
+            </div>
+
+            {/* 1st Place */}
+            <div 
+              className="flex flex-col items-center w-28 z-10 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => { if (top50Users[0]) setSelectedActionUser(top50Users[0]); }}
+            >
+              <div className="w-16 h-16 flex items-center justify-center mb-2 relative">
+                <ProfileFrame frame={top50Users[0]?.equippedFrame || null} src={top50Users[0]?.profilePicture || null} size="md" />
+                <Trophy className="w-6 h-6 text-yellow-400 absolute -top-3 drop-shadow-md z-20" />
+                <div className="absolute -bottom-1 bg-yellow-400 text-black text-xs font-bold px-2 rounded-full z-20">1</div>
+                {state.rivalId === top50Users[0]?.userId && (
+                  <div className="absolute top-0 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
+                )}
+              </div>
+              <span className="text-sm font-bold truncate w-full text-center text-primary">{top50Users[0]?.username || '-'}</span>
+              {top50Users[0]?.equippedTitle && (() => {
+                const titleDef = TITLES.find(t => t.id === top50Users[0]?.equippedTitle);
+                return (
+                  <div className={`text-[9px] font-mono uppercase tracking-widest mt-0.5 inline-block text-center px-1 ${titleDef?.specialColor || 'text-accent/80'}`}>
+                    {titleDef?.name[state.language] || top50Users[0]?.equippedTitle}
+                  </div>
+                );
+              })()}
+              <div className="h-32 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-4 border-yellow-400/50 flex flex-col items-center justify-end pb-2">
+                <span className="text-sm font-mono font-bold text-yellow-400">{t('leaderboard.lvl', state.language).replace('{level}', (top50Users[0]?.level || 0).toString())}</span>
+              </div>
+            </div>
+
+            {/* 3rd Place */}
+            <div 
+              className="flex flex-col items-center w-24 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => { if (top50Users[2]) setSelectedActionUser(top50Users[2]); }}
+            >
+              <div className="w-12 h-12 flex items-center justify-center mb-2 relative">
+                <ProfileFrame frame={top50Users[2]?.equippedFrame || null} src={top50Users[2]?.profilePicture || null} size="sm" />
+                <div className="absolute -bottom-1 bg-amber-700 text-white text-[10px] font-bold px-1.5 rounded-full z-20">3</div>
+                {state.rivalId === top50Users[2]?.userId && (
+                  <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
+                )}
+              </div>
+              <span className="text-xs font-bold truncate w-full text-center">{top50Users[2]?.username || '-'}</span>
+              {top50Users[2]?.equippedTitle && (() => {
+                const titleDef = TITLES.find(t => t.id === top50Users[2]?.equippedTitle);
+                return (
+                  <div className={`text-[8px] font-mono uppercase tracking-widest mt-0.5 inline-block text-center px-1 ${titleDef?.specialColor || 'text-accent/80'}`}>
+                    {titleDef?.name[state.language] || top50Users[2]?.equippedTitle}
+                  </div>
+                );
+              })()}
+              <div className="h-20 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-amber-700/50 flex flex-col items-center justify-end pb-2">
+                <span className="text-xs font-mono text-secondary">{t('leaderboard.lvl', state.language).replace('{level}', (top50Users[2]?.level || 0).toString())}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* List */}
+          <div className="space-y-3">
+            {top50Users.slice(3).map((user, index) => {
+              const rankObj = getRankForLevel(user.level);
+              const isCurrentUser = user.username === state.username;
+              
+              return (
+                <div 
+                  key={`${user.userId || user.username}-${index}`}
+                  onClick={() => setSelectedActionUser(user)}
+                  className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all cursor-pointer hover:scale-[1.02] ${
+                    isCurrentUser 
+                      ? 'bg-accent/10 border-accent/50 shadow-[0_0_15px_var(--color-accent)]' 
+                      : 'bg-surface border-white/5 hover:bg-surface-hover'
+                  }`}
+                >
+                  <div className={`w-6 text-center font-mono font-bold text-sm ${isCurrentUser ? 'text-accent' : 'text-secondary'}`}>
+                    {index + 4}
+                  </div>
+                  
+                  <div className="w-10 h-10 flex items-center justify-center shrink-0">
+                    <ProfileFrame frame={user.equippedFrame} src={user.profilePicture || null} size="sm" />
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <h4 className={`font-bold truncate ${isCurrentUser ? 'text-primary' : 'text-secondary'}`}>
+                        {user.username} {isCurrentUser && '(You)'}
+                      </h4>
+                      {state.rivalId === user.userId && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-500 text-[8px] font-bold uppercase tracking-wider border border-rose-500/30">
+                          Rival
+                        </span>
+                      )}
+                    </div>
+                    {user.equippedTitle && (() => {
+                      const titleDef = TITLES.find(t => t.id === user.equippedTitle);
+                      return (
+                        <div className={`text-[10px] font-mono uppercase tracking-widest mt-0.5 inline-block ${titleDef?.specialColor || 'text-accent/80'}`}>
+                          {titleDef?.name[state.language] || user.equippedTitle}
+                        </div>
+                      );
+                    })()}
+                    <div className="flex items-center space-x-3 mt-1">
+                      <span className="text-xs font-mono text-accent">{t('leaderboard.lvl', state.language).replace('{level}', user.level.toString())}</span>
+                      <span className="text-xs font-mono text-secondary">{user.xp} {t('leaderboard.pts', state.language)}</span>
+                    </div>
+                  </div>
+                  
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${rankObj.bg}/20`}>
+                    {getRankIcon(rankObj.name, `w-4 h-4 ${rankObj.color}`)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
+
+      {/* Sticky Bottom Row for Current User if not in Top 5 */}
+      {!isCurrentUserInTop5 && currentUserData && (
+        <div className="absolute bottom-24 left-0 right-0 px-6 pb-4 pt-2 bg-gradient-to-t from-background via-background to-transparent z-40">
+          <motion.div 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            onClick={() => setSelectedActionUser(currentUserData)}
+            className="p-4 rounded-2xl flex items-center space-x-4 border bg-accent/10 border-accent/50 shadow-[0_0_20px_rgba(244,63,94,0.2)] cursor-pointer backdrop-blur-md"
+          >
+            <div className="w-6 text-center font-mono font-bold text-sm text-accent">
+              {currentUserRank}
+            </div>
+            
+            <div className="w-10 h-10 flex items-center justify-center shrink-0">
+              <ProfileFrame frame={currentUserData.equippedFrame} src={currentUserData.profilePicture || null} size="sm" />
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2">
+                <h4 className="font-bold truncate text-primary">
+                  {currentUserData.username} (You)
+                </h4>
+              </div>
+              {currentUserData.equippedTitle && (() => {
+                const titleDef = TITLES.find(t => t.id === currentUserData.equippedTitle);
+                return (
+                  <div className={`text-[10px] font-mono uppercase tracking-widest mt-0.5 inline-block ${titleDef?.specialColor || 'text-accent/80'}`}>
+                    {titleDef?.name[state.language] || currentUserData.equippedTitle}
+                  </div>
+                );
+              })()}
+              <div className="flex items-center space-x-3 mt-1">
+                <span className="text-xs font-mono text-accent">{t('leaderboard.lvl', state.language).replace('{level}', currentUserData.level.toString())}</span>
+                <span className="text-xs font-mono text-secondary">{currentUserData.xp} {t('leaderboard.pts', state.language)}</span>
+              </div>
+            </div>
+            
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${getRankForLevel(currentUserData.level).bg}/20`}>
+              {getRankIcon(getRankForLevel(currentUserData.level).name, `w-4 h-4 ${getRankForLevel(currentUserData.level).color}`)}
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Action Modal */}
       {selectedActionUser && !selectedUser && (

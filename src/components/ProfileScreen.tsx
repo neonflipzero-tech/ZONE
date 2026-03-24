@@ -429,6 +429,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{t('profile.ovr_stats', state.language)}</h3>
             <button 
               onClick={handleShareOvr}
+              data-html2canvas-ignore
               className="p-1.5 rounded-full bg-surface border border-white/10 hover:bg-white/10 transition-colors"
             >
               <Share2 className="w-4 h-4 text-secondary" />
@@ -524,14 +525,25 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
         </div>
 
         {/* Focus Distribution */}
-        <div className="mb-8 px-2">
+        <div className="mb-8 px-2" id="focus-distribution-card">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">
               {state.language === 'id' ? 'Distribusi Fokus' : 'Focus Distribution'}
             </h3>
-            <div className="flex items-center space-x-1 bg-rose-400/10 px-2 py-0.5 rounded-full border border-rose-400/20">
-              <Crown className="w-3 h-3 text-rose-400" />
-              <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Elite</span>
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1 bg-rose-400/10 px-2 py-0.5 rounded-full border border-rose-400/20">
+                <Crown className="w-3 h-3 text-rose-400" />
+                <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Elite</span>
+              </div>
+              {state.isPremium && totalTodayMissions > 0 && (
+                <button 
+                  onClick={() => shareElementAsImage('focus-distribution-card', state.language === 'id' ? 'Distribusi Fokus Saya' : 'My Focus Distribution', 'Check out my daily focus on Zone!')}
+                  data-html2canvas-ignore
+                  className="p-1.5 rounded-full bg-surface border border-white/10 hover:bg-white/10 transition-colors"
+                >
+                  <Share2 className="w-4 h-4 text-secondary" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -708,7 +720,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
         <div className="mb-8" id="weekly-chart-card">
           <div className="flex justify-between items-center mb-4 px-2">
             <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{t('profile.consistency_record', state.language)}</h3>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2" data-html2canvas-ignore>
               <button 
                 onClick={() => setIsConsistencyHelpOpen(true)}
                 className="p-1.5 rounded-full bg-surface border border-white/10 hover:bg-white/10 transition-colors"
