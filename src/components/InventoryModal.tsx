@@ -359,8 +359,8 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                       <div className="p-4 rounded-2xl bg-surface/50 border border-white/10 flex flex-col">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center border border-white/30">
-                              <ZoneCoinIcon className="w-6 h-6 text-white" />
+                            <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
+                              <ZoneCoinIcon className="w-6 h-6 text-yellow-400" />
                             </div>
                             <div>
                               <h4 className="font-bold text-primary">2x Coin Potion</h4>

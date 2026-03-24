@@ -188,10 +188,10 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
             </h2>
             <button 
               onClick={() => setIsCoinInfoModalOpen(true)}
-              className="flex items-center space-x-1.5 bg-rose-500/10 px-3 py-1.5 rounded-full border border-rose-500/20 hover:scale-105 transition-transform cursor-pointer"
+              className="flex items-center space-x-1.5 bg-yellow-500/10 px-3 py-1.5 rounded-full border border-yellow-500/20 hover:scale-105 transition-transform cursor-pointer"
             >
-              <ZoneCoinIcon className="w-4 h-4 text-rose-400" />
-              <span className="text-sm font-bold text-rose-400">{state.zoneCoins || 0}</span>
+              <ZoneCoinIcon className="w-4 h-4 text-yellow-400" />
+              <span className="text-sm font-bold text-yellow-400">{state.zoneCoins || 0}</span>
             </button>
           </div>
 
@@ -467,15 +467,15 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
                     </div>
                   </div>
                   <button
-                    onClick={() => handlePurchase(150, 'Streak Freeze', () => {
+                    onClick={() => handlePurchase(600, 'Streak Freeze', () => {
                       updateState({
-                        zoneCoins: (state.zoneCoins || 0) - 150,
+                        zoneCoins: (state.zoneCoins || 0) - 600,
                         streakFreezes: (state.streakFreezes || 0) + 1
                       });
                     })}
-                    disabled={(state.zoneCoins || 0) < 150}
+                    disabled={(state.zoneCoins || 0) < 600}
                     className={`w-full py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${
-                      (state.zoneCoins || 0) >= 150 
+                      (state.zoneCoins || 0) >= 600 
                         ? 'bg-accent text-background hover:bg-accent/90' 
                         : 'bg-white/5 text-white/30 cursor-not-allowed'
                     }`}
@@ -483,7 +483,7 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
                     <span>{state.language === 'id' ? 'Beli' : 'Buy'}</span>
                     <div className="flex items-center space-x-1">
                       <ZoneCoinIcon className="w-4 h-4" />
-                      <span>150</span>
+                      <span>600</span>
                     </div>
                   </button>
                 </div>
@@ -492,8 +492,8 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
                 <div className="p-4 rounded-2xl bg-surface/50 border border-white/10 flex flex-col">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 rounded-xl bg-rose-500/20 flex items-center justify-center border border-rose-500/30">
-                        <ZoneCoinIcon className="w-6 h-6 text-rose-400" />
+                      <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
+                        <ZoneCoinIcon className="w-6 h-6 text-yellow-400" />
                       </div>
                       <div>
                         <h4 className="font-bold text-primary">2x Coin Potion</h4>
