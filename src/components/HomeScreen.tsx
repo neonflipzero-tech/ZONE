@@ -163,7 +163,11 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
     const duration = extractDuration(mission.text);
     // Only show timer if duration is found AND hasTimer is either true or undefined (for backward compatibility)
     // If hasTimer is explicitly false, don't show timer
-    if (duration && mission.hasTimer !== false) {
+    // Safety check: Productive path missions without "timer" in text should NOT have a timer
+    const isProductive = mission.text.toLowerCase().match(/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article|work|project|tugas|kerja|nulis|write|skripsi|exam|ujian|coding|dev|design|produktivitas|fokus|focus|prioritas|priority|jadwal|schedule|rencana|plan|organisir|organize|rapi|bersih|meja|email|inbox|belanja|masak|makan|persiapan|prep|resume|cv|portofolio|portfolio|investasi|invest|nabung|tabungan|keuangan|budget|anggaran|bisnis|usaha|omzet|sales|marketing|penjualan|klien|client|meeting|rapat|notulensi|notula|catatan|note|notes|ide|idea|kreatif|creative|gambar|lukis|desain|edit|video|audio|musik|instrumen|alat|latihan|practice|subscription|langganan|download|unduhan|password|sandi|contact|kontak|backup|cadangan|wallet|dompet|file|berkas|folder|trash|sampah|mail|surat|bill|tagihan|bank|balance|saldo|subscriptions|downloads|passwords|contacts|backups|wallets|files|folders|mails|bills|banks|balances|saldos)/);
+    const shouldHaveTimer = mission.hasTimer !== false && (!isProductive || mission.text.toLowerCase().includes('timer'));
+
+    if (duration && shouldHaveTimer) {
       setTimeLeft(duration);
     } else {
       setTimeLeft(null);
@@ -337,7 +341,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
       </AnimatePresence>
 
       {/* Header */}
-      <div className={`px-4 ${anyItemActive ? 'pt-10' : 'pt-14'} pb-4 flex justify-between items-center sticky top-0 bg-background/80 backdrop-blur-md z-30 border-b border-white/5`}>
+      <div className={`px-4 ${anyItemActive ? 'pt-1' : 'pt-2'} pb-4 flex justify-between items-center sticky top-0 bg-background/80 backdrop-blur-md z-30 border-b border-white/5`}>
         <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
           <div className="relative flex-shrink-0">
             <ProfileFrame frame={state.equippedFrame} src={state.profilePicture} size="sm" />
@@ -347,7 +351,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
             <h1 className="text-lg font-display font-black tracking-tight truncate">ZONE</h1>
             <div className="flex items-center space-x-1 mt-0.5">
               <Shield className={`w-3 h-3 flex-shrink-0 ${currentRank.color}`} />
-              <p className={`text-[9px] font-mono uppercase tracking-wider truncate ${currentRank.color}`}>{currentRank.name} • Lvl {state.level}</p>
+              <p className={`text-[12px] font-mono uppercase tracking-wider truncate ${currentRank.color}`}>{currentRank.name} • Lvl {state.level}</p>
             </div>
             {state.equippedTitle && (() => {
               const titleDef = TITLES.find(t => t.id === state.equippedTitle);
@@ -392,11 +396,52 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                 </div>
               )}
 
-              {anyItemActive && (
-                <div className="flex items-center space-x-1 pl-2 border-l border-white/10" title="2x Boost Active">
-                  <Zap className="w-3 h-3 text-purple-400" />
-                  <span className="text-[10px] font-bold text-purple-400">2x</span>
+              {isXpActive ? (
+                <div className="flex items-center space-x-1 pl-2 border-l border-white/10" title="Double XP Active">
+                  <Zap className="w-3 h-3 text-purple-400 animate-pulse" />
+                  <span className="text-[10px] font-bold text-purple-400">2x XP</span>
                 </div>
+              ) : (state.doubleXpPotions || 0) > 0 && (
+                <button 
+                  onClick={() => {
+                    sounds.playUseItem();
+                    const now = new Date();
+                    now.setHours(now.getHours() + 24);
+                    updateState({
+                      doubleXpPotions: (state.doubleXpPotions || 0) - 1,
+                      doubleXpActiveUntil: now.toISOString()
+                    });
+                  }}
+                  className="flex items-center space-x-1 pl-2 border-l border-white/10 hover:bg-white/5 transition-colors" 
+                  title="Use Double XP Potion"
+                >
+                  <Zap className="w-3 h-3 text-purple-400/60" />
+                  <span className="text-[10px] font-bold text-purple-400/60">x{state.doubleXpPotions}</span>
+                </button>
+              )}
+
+              {isCoinActive ? (
+                <div className="flex items-center space-x-1 pl-2 border-l border-white/10" title="Double Coin Active">
+                  <ZoneCoinIcon className="w-3 h-3 text-yellow-400 animate-pulse" />
+                  <span className="text-[10px] font-bold text-yellow-400">2x ZC</span>
+                </div>
+              ) : (state.doubleCoinPotions || 0) > 0 && (
+                <button 
+                  onClick={() => {
+                    sounds.playUseItem();
+                    const now = new Date();
+                    now.setHours(now.getHours() + 24);
+                    updateState({
+                      doubleCoinPotions: (state.doubleCoinPotions || 0) - 1,
+                      doubleCoinActiveUntil: now.toISOString()
+                    });
+                  }}
+                  className="flex items-center space-x-1 pl-2 border-l border-white/10 hover:bg-white/5 transition-colors" 
+                  title="Use Double Coin Potion"
+                >
+                  <ZoneCoinIcon className="w-3 h-3 text-yellow-400/60" />
+                  <span className="text-[10px] font-bold text-yellow-400/60">x{state.doubleCoinPotions}</span>
+                </button>
               )}
 
               {state.isPremium && (

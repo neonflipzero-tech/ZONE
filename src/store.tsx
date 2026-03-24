@@ -834,7 +834,7 @@ function useAppStateInternal() {
     // Physical / Stronger
     if (/(push|pull|run|walk|jog|gym|workout|exercise|squat|squad|plank|situp|sit-up|crunch|burpee|jump|lari|jalan|otot|fisik|olahraga|renang|sepeda|angkat|sweat|cardio|training|fitness|bola|basket|futsal|badminton|tenis|yoga|stretching|boxing|muaythai|karate|silat|treadmill|dumbell|barbell|lifting|kardio|sehat|kesehatan|atlet|atletik|maraton|sprint|lompat|tendang|pukul|tangkis|sparring|gowes|gowes|pedal|renang|berenang|kolam|lap|set|rep|reps|kalori|bakar|lemak)/.test(lower)) return 'STRONGER';
     // Productivity / Productive
-    if (/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article|work|project|tugas|kerja|nulis|write|skripsi|exam|ujian|coding|dev|design|produktivitas|fokus|focus|prioritas|priority|jadwal|schedule|rencana|plan|organisir|organize|rapi|bersih|meja|email|inbox|belanja|masak|makan|persiapan|prep|resume|cv|portofolio|portfolio|investasi|invest|nabung|tabungan|keuangan|budget|anggaran|bisnis|usaha|omzet|sales|marketing|penjualan|klien|client|meeting|rapat|notulensi|notula|catatan|note|notes|ide|idea|kreatif|creative|gambar|lukis|desain|edit|video|audio|musik|instrumen|alat|latihan|practice)/.test(lower)) return 'PRODUCTIVE';
+    if (/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article|work|project|tugas|kerja|nulis|write|skripsi|exam|ujian|coding|dev|design|produktivitas|fokus|focus|prioritas|priority|jadwal|schedule|rencana|plan|organisir|organize|rapi|bersih|meja|email|inbox|belanja|masak|makan|persiapan|prep|resume|cv|portofolio|portfolio|investasi|invest|nabung|tabungan|keuangan|budget|anggaran|bisnis|usaha|omzet|sales|marketing|penjualan|klien|client|meeting|rapat|notulensi|notula|catatan|note|notes|ide|idea|kreatif|creative|gambar|lukis|desain|edit|video|audio|musik|instrumen|alat|latihan|practice|subscription|langganan|download|unduhan|password|sandi|contact|kontak|backup|cadangan|wallet|dompet|file|berkas|folder|trash|sampah|mail|surat|bill|tagihan|bank|balance|saldo|subscriptions|downloads|passwords|contacts|backups|wallets|files|folders|mails|bills|banks|balances|saldos)/.test(lower)) return 'PRODUCTIVE';
     // Social / Extrovert
     if (/(talk|call|meet|friend|family|greet|help|bicara|telepon|teman|keluarga|sapa|bantu|nongkrong|sosial|chat|hangout|date|dinner|lunch|party|community|komunitas|relasi|network|kenalan|kenal|ngobrol|diskusi|debat|presentasi|panggung|tampil|perform|puji|compliment|senyum|smile|kontak|mata|eye|contact|jabat|tangan|peluk|hug|kado|hadiah|gift|donasi|sedekah|amal|zakat|tolong|peduli|care|empati|dengar|listen|curhat|cerita|story|berbagi|share|ajak|invite|gabung|join|kumpul|gathering|reuni|reunion|bukber|halal|bihalal|silaturahmi)/.test(lower)) return 'EXTROVERT';
     // Mental Health
@@ -1031,19 +1031,25 @@ function useAppStateInternal() {
               const originalText = shuffled[i];
               const scaledText = scaleMissionText(originalText, state.level);
               
-              // Only enable timer for specific keywords to avoid false positives
-              const timerKeywords = ['focus', 'hold', 'plank', 'meditate', 'wait', 'timer', 'duration', 'minutes', 'hours', 'seconds', 'menit', 'jam', 'detik'];
-              let hasTimer = timerKeywords.some(k => originalText.toLowerCase().includes(k)) && 
-                               !originalText.toLowerCase().includes('squats') && 
-                               !originalText.toLowerCase().includes('push-ups') &&
-                               !originalText.toLowerCase().includes('jumping jacks');
-
-              // Disable timer for most mental health missions unless it's a specific meditation/breathing exercise
-              if (type === 'REGULAR' && analyzeMissionPath(originalText) === 'MENTAL_HEALTH') {
-                const strictlyTimerNeeded = ['meditate', 'breathe', 'meditasi', 'nafas'].some(k => originalText.toLowerCase().includes(k));
-                if (!strictlyTimerNeeded) {
-                  hasTimer = false;
-                }
+              // Logika timer yang lebih ketat untuk mengurangi jumlah misi bertimer
+              const isProductive = analyzeMissionPath(originalText) === 'PRODUCTIVE';
+              const isMentalHealth = analyzeMissionPath(originalText) === 'MENTAL_HEALTH';
+              
+              let hasTimer = false;
+              
+              // Hanya gunakan timer jika kata 'timer' ada di teks, 
+              // atau untuk aktivitas yang benar-benar butuh timer (meditasi, plank, nafas)
+              const strictTimerKeywords = ['timer', 'meditate', 'meditasi', 'plank', 'breathe', 'nafas', 'hold'];
+              
+              if (strictTimerKeywords.some(k => originalText.toLowerCase().includes(k))) {
+                hasTimer = true;
+              }
+              
+              // Kecualikan latihan yang berbasis hitungan (reps) meskipun ada kata kunci di atas
+              if (originalText.toLowerCase().includes('squats') || 
+                  originalText.toLowerCase().includes('push-ups') ||
+                  originalText.toLowerCase().includes('jumping jacks')) {
+                hasTimer = false;
               }
 
               currentMissions.push({
@@ -1106,10 +1112,21 @@ function useAppStateInternal() {
 
       const baseXpReward = m.type === 'WEEKLY' ? 200 : m.type === 'DAILY' ? 100 : 50;
       const isDoubleXpActive = prev.doubleXpActiveUntil && new Date(prev.doubleXpActiveUntil) > new Date();
-      const xpReward = isDoubleXpActive ? baseXpReward * 2 : baseXpReward;
+      
+      // Calculate XP reward with multipliers
+      let xpMultiplier = 1;
+      if (isDoubleXpActive) xpMultiplier *= 2;
+      if (prev.isPremium) xpMultiplier *= 1.5;
+      const xpReward = Math.round(baseXpReward * xpMultiplier);
+
       const baseZcReward = m.type === 'WEEKLY' ? 50 : m.type === 'DAILY' ? 20 : 10;
       const isDoubleCoinActive = prev.doubleCoinActiveUntil && new Date(prev.doubleCoinActiveUntil) > new Date();
-      const zcReward = isDoubleCoinActive ? baseZcReward * 2 : baseZcReward;
+      
+      // Calculate ZC reward with multipliers
+      let zcMultiplier = 1;
+      if (isDoubleCoinActive) zcMultiplier *= 2;
+      if (prev.isPremium) zcMultiplier *= 1.25;
+      const zcReward = Math.round(baseZcReward * zcMultiplier);
       
       let newXp = prev.xp + xpReward;
       let newZoneCoins = (prev.zoneCoins || 0) + zcReward;
@@ -1602,6 +1619,29 @@ function useAppStateInternal() {
       }
     });
   };
+
+  // Migrasi untuk memperbaiki timer misi saat load (mengurangi jumlah timer)
+  useEffect(() => {
+    if (state?.isLoggedIn && state.missions.length > 0) {
+      const strictTimerKeywords = ['timer', 'meditate', 'meditasi', 'plank', 'breathe', 'nafas', 'hold'];
+      
+      const fixedMissions = state.missions.map(m => {
+        if (m.hasTimer && !m.completed) {
+          // Jika tidak ada kata kunci timer ketat, hapus timernya
+          const shouldHaveTimer = strictTimerKeywords.some(k => m.text.toLowerCase().includes(k));
+          if (!shouldHaveTimer) {
+            return { ...m, hasTimer: false };
+          }
+        }
+        return m;
+      });
+
+      if (JSON.stringify(fixedMissions) !== JSON.stringify(state.missions)) {
+        console.log('Migration: Reducing mission timers...');
+        updateState({ missions: fixedMissions });
+      }
+    }
+  }, [state?.isLoggedIn, state?.missions?.length]);
 
   return {
     state,

@@ -3,8 +3,6 @@ const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon-192x192.png',
-  '/icon-512x512.png',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap'
 ];
 
@@ -124,13 +122,21 @@ self.addEventListener('notificationclick', function(event) {
 
 // For local reminders (when the app is in background but SW is alive)
 self.addEventListener('message', (event) => {
+  console.log('Service Worker: Received message', event.data);
   if (event.data && event.data.type === 'SCHEDULE_NOTIFICATION') {
-    const { title, body, delay } = event.data;
+    const { title, body, delay, tag } = event.data;
+    console.log(`Service Worker: Scheduling notification "${title}" in ${delay}ms with tag ${tag}`);
+    
     setTimeout(() => {
+      console.log(`Service Worker: Showing scheduled notification "${title}"`);
       self.registration.showNotification(title, {
         body: body,
-        icon: '/icon-192x192.png',
-        badge: '/badge-72x72.png',
+        icon: 'https://picsum.photos/seed/zone/192/192',
+        badge: 'https://picsum.photos/seed/zone/72/72',
+        tag: tag || 'scheduled-notification',
+        vibrate: [100, 50, 100],
+        data: '/',
+        requireInteraction: true
       });
     }, delay);
   }

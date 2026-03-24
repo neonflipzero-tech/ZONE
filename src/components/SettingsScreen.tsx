@@ -53,9 +53,20 @@ export default function SettingsScreen({
     
     if (newEnabled) {
       const permission = await NotificationService.requestPermission();
-      if (permission !== 'granted') {
-        setToastMessage(state.language === 'id' ? 'Izin notifikasi ditolak' : 'Notification permission denied');
+      if (permission === 'unsupported') {
+        setToastMessage(state.language === 'id' ? 'Browser kamu tidak mendukung notifikasi' : 'Your browser does not support notifications');
         setTimeout(() => setToastMessage(null), 3000);
+        return;
+      }
+      
+      if (permission !== 'granted') {
+        const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+        const message = state.language === 'id' 
+          ? (isIframe ? 'Notifikasi diblokir oleh browser (Iframe). Buka di tab baru!' : 'Izin notifikasi ditolak. Aktifkan di pengaturan browser.')
+          : (isIframe ? 'Notifications blocked by browser (Iframe). Open in new tab!' : 'Notification permission denied. Enable in browser settings.');
+        
+        setToastMessage(message);
+        setTimeout(() => setToastMessage(null), 5000);
         return;
       }
     }
@@ -63,6 +74,14 @@ export default function SettingsScreen({
     updateState({ notificationsEnabled: newEnabled });
     if (newEnabled) {
       NotificationService.scheduleDailyReminder({ ...state, notificationsEnabled: newEnabled });
+      setToastMessage(state.language === 'id' ? 'Notifikasi diaktifkan!' : 'Notifications enabled!');
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
+  const openInNewTab = () => {
+    if (typeof window !== 'undefined') {
+      window.open(window.location.href, '_blank');
     }
   };
 
@@ -186,17 +205,47 @@ export default function SettingsScreen({
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="flex items-center justify-between pt-2">
-                    <div className="flex items-center space-x-2 text-secondary">
-                      <Clock className="w-4 h-4" />
-                      <span className="text-sm">{t('settings.notification_time', state.language)}</span>
+                  <div className="flex flex-col space-y-3 pt-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2 text-secondary">
+                        <Clock className="w-4 h-4" />
+                        <span className="text-sm">{t('settings.notification_time', state.language)}</span>
+                      </div>
+                      <input 
+                        type="time" 
+                        value={state.notificationTime}
+                        onChange={handleTimeChange}
+                        className="bg-background border border-white/10 rounded-lg px-3 py-1 text-sm text-primary focus:outline-none focus:border-accent transition-colors"
+                      />
                     </div>
-                    <input 
-                      type="time" 
-                      value={state.notificationTime}
-                      onChange={handleTimeChange}
-                      className="bg-background border border-white/10 rounded-lg px-3 py-1 text-sm text-primary focus:outline-none focus:border-accent transition-colors"
-                    />
+                    
+                    {typeof window !== 'undefined' && window.self !== window.top && (
+                      <div className="p-3 bg-accent/5 border border-accent/20 rounded-xl">
+                        <p className="text-[10px] text-accent font-medium leading-tight mb-2">
+                          {state.language === 'id' 
+                            ? 'Notifikasi sering tidak muncul di dalam AI Studio. Buka aplikasi di tab baru agar notifikasi berfungsi 100%.' 
+                            : 'Notifications often don\'t work inside AI Studio. Open the app in a new tab for 100% working notifications.'}
+                        </p>
+                        <button 
+                          onClick={openInNewTab}
+                          className="w-full py-2 bg-accent text-background text-[10px] font-black uppercase tracking-widest rounded-lg"
+                        >
+                          {state.language === 'id' ? 'BUKA DI TAB BARU' : 'OPEN IN NEW TAB'}
+                        </button>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={async () => {
+                        await NotificationService.testNotification(state.language);
+                        setToastMessage(state.language === 'id' ? 'Mencoba mengirim notifikasi tes...' : 'Attempting to send test notification...');
+                        setTimeout(() => setToastMessage(null), 3000);
+                      }}
+                      className="w-full py-3 rounded-xl bg-accent/10 border border-accent/20 text-accent font-bold text-xs hover:bg-accent/20 transition-colors flex items-center justify-center space-x-2"
+                    >
+                      <Bell className="w-4 h-4" />
+                      <span>{state.language === 'id' ? 'Tes Notifikasi' : 'Test Notification'}</span>
+                    </button>
                   </div>
                 </motion.div>
               )}

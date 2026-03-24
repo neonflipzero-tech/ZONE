@@ -6,46 +6,77 @@ export class NotificationService {
   static async init() {
     if (typeof window === 'undefined') return;
     
+    console.log('NotificationService: Initializing...');
     if ('serviceWorker' in navigator && 'Notification' in window) {
       try {
         const registration = await navigator.serviceWorker.register('/sw.js');
         this.swRegistration = registration;
-        console.log('Service Worker registered');
+        console.log('NotificationService: Service Worker registered successfully', registration.scope);
+        
+        // Check current permission
+        console.log('NotificationService: Current permission:', Notification.permission);
       } catch (error) {
-        console.error('Service Worker registration failed:', error);
+        console.error('NotificationService: Service Worker registration failed:', error);
       }
+    } else {
+      console.warn('NotificationService: Service Worker or Notification API not supported');
     }
   }
 
   static async requestPermission(): Promise<'granted' | 'denied' | 'default' | 'unsupported'> {
-    if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      console.warn('NotificationService: Notification API not supported in this environment');
+      return 'unsupported';
+    }
     
     try {
+      console.log('NotificationService: Requesting permission...');
       const permission = await Notification.requestPermission();
+      console.log('NotificationService: Permission result:', permission);
       return permission;
     } catch (error) {
-      console.error('Error requesting notification permission:', error);
+      console.error('NotificationService: Error requesting notification permission:', error);
       return 'denied';
     }
   }
 
   static async sendNotification(title: string, body: string, tag: string = 'zone-notification') {
-    if (typeof window === 'undefined' || Notification.permission !== 'granted') return;
+    if (typeof window === 'undefined') return;
+    
+    if (Notification.permission !== 'granted') {
+      console.warn('NotificationService: Cannot send notification, permission is:', Notification.permission);
+      return;
+    }
+
+    console.log(`NotificationService: Sending notification: "${title}" - "${body}"`);
 
     try {
       if (this.swRegistration) {
+        console.log('NotificationService: Using Service Worker to show notification');
         await this.swRegistration.showNotification(title, {
           body,
-          icon: '/icon-192x192.png',
-          badge: '/badge-72x72.png',
-          tag
-        });
+          icon: 'https://picsum.photos/seed/zone/192/192',
+          badge: 'https://picsum.photos/seed/zone/72/72',
+          tag,
+          vibrate: [100, 50, 100],
+          requireInteraction: true
+        } as any);
       } else {
+        console.log('NotificationService: Service Worker not available, falling back to new Notification()');
         new Notification(title, { body, tag });
       }
     } catch (error) {
-      console.error('Error sending notification:', error);
+      console.error('NotificationService: Error sending notification:', error);
     }
+  }
+
+  static async testNotification(language: 'en' | 'id') {
+    const title = language === 'id' ? 'Tes Notifikasi' : 'Test Notification';
+    const body = language === 'id' 
+      ? 'Jika kamu melihat ini, berarti notifikasi ZONE sudah berfungsi!' 
+      : 'If you see this, it means ZONE notifications are working!';
+    
+    await this.sendNotification(title, body, 'test-notification');
   }
 
   static scheduleDailyReminder(state: UserState) {
