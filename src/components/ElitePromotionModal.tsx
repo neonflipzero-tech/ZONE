@@ -134,7 +134,7 @@ export default function ElitePromotionModal({ isOpen, onClose, language, isFlash
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/95 backdrop-blur-xl"
+          className="absolute inset-0 bg-black/95 backdrop-blur-md"
           onClick={onClose}
         />
         

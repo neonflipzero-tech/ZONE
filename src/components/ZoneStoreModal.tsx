@@ -536,7 +536,7 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-[200] bg-background/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center"
+                className="absolute inset-0 z-[200] bg-background/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center"
               >
                 <motion.div
                   initial={{ scale: 0, rotate: -20 }}

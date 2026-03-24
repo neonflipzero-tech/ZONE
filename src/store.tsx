@@ -719,6 +719,20 @@ export function useAppState() {
   return context;
 }
 
+export const analyzeMissionPath = (text: string): PathType => {
+  const lower = text.toLowerCase();
+  // Physical / Stronger
+  if (/(push|pull|run|walk|jog|gym|workout|exercise|squat|squad|plank|situp|sit-up|crunch|burpee|jump|lari|jalan|otot|fisik|olahraga|renang|sepeda|angkat|sweat|cardio|training|fitness|bola|basket|futsal|badminton|tenis|yoga|stretching|boxing|muaythai|karate|silat|treadmill|dumbell|barbell|lifting|kardio|sehat|kesehatan|atlet|atletik|maraton|sprint|lompat|tendang|pukul|tangkis|sparring|gowes|gowes|pedal|renang|berenang|kolam|lap|set|rep|reps|kalori|bakar|lemak)/.test(lower)) return 'STRONGER';
+  // Productivity / Productive
+  if (/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article|work|project|tugas|kerja|nulis|write|skripsi|exam|ujian|coding|dev|design|produktivitas|fokus|focus|prioritas|priority|jadwal|schedule|rencana|plan|organisir|organize|rapi|bersih|meja|email|inbox|belanja|masak|makan|persiapan|prep|resume|cv|portofolio|portfolio|investasi|invest|nabung|tabungan|keuangan|budget|anggaran|bisnis|usaha|omzet|sales|marketing|penjualan|klien|client|meeting|rapat|notulensi|notula|catatan|note|notes|ide|idea|kreatif|creative|gambar|lukis|desain|edit|video|audio|musik|instrumen|alat|latihan|practice|subscription|langganan|download|unduhan|password|sandi|contact|kontak|backup|cadangan|wallet|dompet|file|berkas|folder|trash|sampah|mail|surat|bill|tagihan|bank|balance|saldo|subscriptions|downloads|passwords|contacts|backups|wallets|files|folders|mails|bills|banks|balances|saldos)/.test(lower)) return 'PRODUCTIVE';
+  // Social / Extrovert
+  if (/(talk|call|meet|friend|family|greet|help|bicara|telepon|teman|keluarga|sapa|bantu|nongkrong|sosial|chat|hangout|date|dinner|lunch|party|community|komunitas|relasi|network|kenalan|kenal|ngobrol|diskusi|debat|presentasi|panggung|tampil|perform|puji|compliment|senyum|smile|kontak|mata|eye|contact|jabat|tangan|peluk|hug|kado|hadiah|gift|donasi|sedekah|amal|zakat|tolong|peduli|care|empati|dengar|listen|curhat|cerita|story|berbagi|share|ajak|invite|gabung|join|kumpul|gathering|reuni|reunion|bukber|halal|bihalal|silaturahmi|question|tanya|stranger|orang asing|someone|seseorang|conversation|percakapan|interaction|interaksi|group|grup|kelompok|event|acara|public|publik|colleague|kolega|coworker|rekan kerja|neighbor|tetangga|cashier|kasir|opinion|pendapat|feedback|umpan balik|joke|canda|meme|voice|suara|intro|kenalan|kenal)/.test(lower)) return 'EXTROVERT';
+  // Mental Health
+  if (/(meditate|breathe|journal|calm|relax|sleep|nap|yoga|meditasi|nafas|tenang|tidur|jurnal|doa|pray|ibadah|sholat|dzikir|healing|mindful|rest|istirahat|self-care|syukur|gratitude|terima|kasih|thanks|puji|syukur|tenang|damai|peace|ikhlas|sabar|patience|maaf|forgive|ampun|tobat|muhasabah|renung|refleksi|reflection|hening|silent|solitude|me-time|hobi|hobby|senang|happy|bahagia|puas|content|lega|bebas|free|lepas|let|go|ikhlas|ikhlas|ikhlas)/.test(lower)) return 'MENTAL_HEALTH';
+  // Default to Discipline
+  return 'DISCIPLINE';
+};
+
 function useAppStateInternal() {
   const [activeUserEmail, setActiveUserEmail] = useState<string | null>(() => {
     return localStorage.getItem('lockin_active_user');
@@ -829,19 +843,6 @@ function useAppStateInternal() {
     setState((prev) => prev ? { ...prev, ...updates } : null);
   };
 
-  const analyzeMissionPath = (text: string): PathType => {
-    const lower = text.toLowerCase();
-    // Physical / Stronger
-    if (/(push|pull|run|walk|jog|gym|workout|exercise|squat|squad|plank|situp|sit-up|crunch|burpee|jump|lari|jalan|otot|fisik|olahraga|renang|sepeda|angkat|sweat|cardio|training|fitness|bola|basket|futsal|badminton|tenis|yoga|stretching|boxing|muaythai|karate|silat|treadmill|dumbell|barbell|lifting|kardio|sehat|kesehatan|atlet|atletik|maraton|sprint|lompat|tendang|pukul|tangkis|sparring|gowes|gowes|pedal|renang|berenang|kolam|lap|set|rep|reps|kalori|bakar|lemak)/.test(lower)) return 'STRONGER';
-    // Productivity / Productive
-    if (/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article|work|project|tugas|kerja|nulis|write|skripsi|exam|ujian|coding|dev|design|produktivitas|fokus|focus|prioritas|priority|jadwal|schedule|rencana|plan|organisir|organize|rapi|bersih|meja|email|inbox|belanja|masak|makan|persiapan|prep|resume|cv|portofolio|portfolio|investasi|invest|nabung|tabungan|keuangan|budget|anggaran|bisnis|usaha|omzet|sales|marketing|penjualan|klien|client|meeting|rapat|notulensi|notula|catatan|note|notes|ide|idea|kreatif|creative|gambar|lukis|desain|edit|video|audio|musik|instrumen|alat|latihan|practice|subscription|langganan|download|unduhan|password|sandi|contact|kontak|backup|cadangan|wallet|dompet|file|berkas|folder|trash|sampah|mail|surat|bill|tagihan|bank|balance|saldo|subscriptions|downloads|passwords|contacts|backups|wallets|files|folders|mails|bills|banks|balances|saldos)/.test(lower)) return 'PRODUCTIVE';
-    // Social / Extrovert
-    if (/(talk|call|meet|friend|family|greet|help|bicara|telepon|teman|keluarga|sapa|bantu|nongkrong|sosial|chat|hangout|date|dinner|lunch|party|community|komunitas|relasi|network|kenalan|kenal|ngobrol|diskusi|debat|presentasi|panggung|tampil|perform|puji|compliment|senyum|smile|kontak|mata|eye|contact|jabat|tangan|peluk|hug|kado|hadiah|gift|donasi|sedekah|amal|zakat|tolong|peduli|care|empati|dengar|listen|curhat|cerita|story|berbagi|share|ajak|invite|gabung|join|kumpul|gathering|reuni|reunion|bukber|halal|bihalal|silaturahmi)/.test(lower)) return 'EXTROVERT';
-    // Mental Health
-    if (/(meditate|breathe|journal|calm|relax|sleep|nap|yoga|meditasi|nafas|tenang|tidur|jurnal|doa|pray|ibadah|sholat|dzikir|healing|mindful|rest|istirahat|self-care|syukur|gratitude|terima|kasih|thanks|puji|syukur|tenang|damai|peace|ikhlas|sabar|patience|maaf|forgive|ampun|tobat|muhasabah|renung|refleksi|reflection|hening|silent|solitude|me-time|hobi|hobby|senang|happy|bahagia|puas|content|lega|bebas|free|lepas|let|go|ikhlas|ikhlas|ikhlas)/.test(lower)) return 'MENTAL_HEALTH';
-    // Default to Discipline
-    return 'DISCIPLINE';
-  };
 
   const generateMissions = (path: PathType) => {
     if (!state) return;

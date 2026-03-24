@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { UserState, MissionType, getRankForLevel, Mission, useAppState, TITLES } from '../store';
+import { UserState, MissionType, getRankForLevel, Mission, useAppState, TITLES, analyzeMissionPath } from '../store';
 import { CheckCircle2, Circle, Flame, Trophy, User, Shield, Timer, Wand2, Bell, Zap, Skull, Swords, X, ArrowLeft, Target, Mountain, Star, Store } from 'lucide-react';
 import { ZoneCoinIcon } from './ZoneCoinIcon';
 import { t } from '../utils/translations';
@@ -56,9 +56,10 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
   const [preCompletionStats, setPreCompletionStats] = useState<{ level: number, badgesCount: number } | null>(null);
   const { updateState } = useAppState();
 
-  // Auto-switch to BOSS tab if active
+  // Auto-switch to BOSS tab if active (only on Monday or if explicitly active)
   useEffect(() => {
-    if (state.bossState?.isActive || state.bossState?.status === 'pending_choice') {
+    const isMonday = new Date().getDay() === 1;
+    if (isMonday && (state.bossState?.isActive || state.bossState?.status === 'pending_choice')) {
       setActiveTab('BOSS');
     }
   }, []); // Only on mount
@@ -86,8 +87,8 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
       
       // Trigger fireworks with Amber Rose theme
       confetti({
-        particleCount: 150,
-        spread: 70,
+        particleCount: 60,
+        spread: 60,
         origin: { y: 0.6 },
         colors: ['#F43F5E', '#F43F5E', '#ffffff']
       });
@@ -235,7 +236,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="sticky top-[88px] left-4 right-4 z-40 bg-blue-500/20 border border-blue-500/50 rounded-xl p-3 flex items-center space-x-3 backdrop-blur-md shadow-lg shadow-blue-500/10 mx-6 mt-2"
+            className="sticky top-[88px] left-4 right-4 z-40 bg-blue-500/20 border border-blue-500/50 rounded-xl p-3 flex items-center space-x-3 backdrop-blur-sm shadow-lg shadow-blue-500/10 mx-6 mt-2"
           >
             <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
               <Shield className="w-4 h-4 text-blue-400" />
@@ -252,7 +253,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center"
+            className="fixed inset-0 z-[100] bg-background/98 flex flex-col items-center justify-center p-6 text-center"
           >
             <motion.div
               initial={{ scale: 0, rotate: -20 }}
@@ -341,7 +342,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
       </AnimatePresence>
 
       {/* Header */}
-      <div className={`px-4 ${anyItemActive ? 'pt-1' : 'pt-2'} pb-4 flex justify-between items-center sticky top-0 bg-background/80 backdrop-blur-md z-30 border-b border-white/5`}>
+      <div className={`px-4 ${anyItemActive ? 'pt-1' : 'pt-2'} pb-4 flex justify-between items-center sticky top-0 bg-background/80 backdrop-blur-sm z-30 border-b border-white/5`}>
         <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
           <div className="relative flex-shrink-0">
             <ProfileFrame frame={state.equippedFrame} src={state.profilePicture} size="sm" />
@@ -483,7 +484,8 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                 ? ['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] as MissionType[]
                 : ['REGULAR', 'DAILY', 'WEEKLY'] as MissionType[];
               
-              if (state.bossState?.isActive || state.bossState?.status === 'pending_choice') {
+              const isMonday = new Date().getDay() === 1;
+              if (state.bossState?.isActive || (isMonday && state.bossState?.status === 'pending_choice')) {
                 return [...baseTabs, 'BOSS' as MissionType];
               }
               return baseTabs;
@@ -730,7 +732,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
             className="fixed inset-0 z-50 bg-black overflow-y-auto flex flex-col"
           >
             {/* Header with Close Button */}
-            <div className="p-6 flex items-center sticky top-0 bg-black/80 backdrop-blur-md z-20 border-b border-white/5">
+            <div className="p-6 flex items-center sticky top-0 bg-black/80 backdrop-blur-sm z-20 border-b border-white/5">
               <button 
                 onClick={() => setActiveTab('REGULAR')} 
                 className="p-2 bg-surface rounded-full hover:bg-surface-hover transition-colors border border-white/10 mr-4"
@@ -754,7 +756,7 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 1.2 }}
-                      className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md"
+                      className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/98"
                     >
                       <motion.div
                         animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.2, 1] }}
@@ -879,6 +881,16 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                             newTasks[index].completed = true;
                             const newHp = Math.max(0, (state.bossState?.hp || 0) - task.damage);
                             
+                            // Track stats for boss tasks too
+                            const todayISO = new Date().toISOString().split('T')[0];
+                            const category = analyzeMissionPath(task.text);
+                            const newDailyCategoryStats = state.dailyCategoryStats ? { ...state.dailyCategoryStats } : {};
+                            if (!newDailyCategoryStats[todayISO]) newDailyCategoryStats[todayISO] = {};
+                            newDailyCategoryStats[todayISO][category] = (newDailyCategoryStats[todayISO][category] || 0) + 1;
+
+                            const newDailyStats = state.dailyStats ? { ...state.dailyStats } : {};
+                            newDailyStats[todayISO] = (newDailyStats[todayISO] || 0) + 1;
+                            
                             if (newHp === 0) {
                               // Boss defeated
                               setShowVictoryAnimation(true);
@@ -901,6 +913,8 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                                     })()
                                   },
                                   zoneCoins: (state.zoneCoins || 0) + 500,
+                                  dailyStats: newDailyStats,
+                                  dailyCategoryStats: newDailyCategoryStats,
                                   notifications: [
                                     {
                                       id: `boss-defeated-${Date.now()}-${Math.random()}`,
@@ -926,7 +940,9 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
                                   ...state.bossState!,
                                   hp: newHp,
                                   tasks: newTasks
-                                }
+                                },
+                                dailyStats: newDailyStats,
+                                dailyCategoryStats: newDailyCategoryStats
                               });
                             }
                           }}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserState, RANKS, getRankForLevel, TITLES, calculateOVR, useAppState } from '../store';
 import { Trophy, Flame, Shield, User, AlertCircle, X, CheckCircle2, Star, Swords, Zap, Crown } from 'lucide-react';
@@ -163,6 +163,34 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
   const top50Users = allUsers.slice(0, 50);
   const currentUserData = allUsers[currentUserRank - 1];
 
+  const [showSticky, setShowSticky] = useState(false);
+  const userRowRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isCurrentUserInTop5 || !currentUserData) {
+      setShowSticky(false);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // If user row is NOT intersecting (not visible), show sticky
+        setShowSticky(!entry.isIntersecting);
+      },
+      { 
+        root: scrollContainerRef.current,
+        threshold: 0.1 
+      }
+    );
+
+    if (userRowRef.current) {
+      observer.observe(userRowRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [isCurrentUserInTop5, currentUserData, top50Users]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -178,7 +206,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
       exit={{ opacity: 0 }}
       className="flex flex-col h-full bg-background relative"
     >
-      <div className="flex-1 overflow-y-auto no-scrollbar pb-32">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar pb-48">
         <div className="px-6 pt-12 pb-6">
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-2xl font-display font-bold tracking-tight">{t('leaderboard.title', state.language)}</h1>
@@ -281,6 +309,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
               return (
                 <div 
                   key={`${user.userId || user.username}-${index}`}
+                  ref={isCurrentUser ? userRowRef : null}
                   onClick={() => setSelectedActionUser(user)}
                   className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all cursor-pointer hover:scale-[1.02] ${
                     isCurrentUser 
@@ -331,14 +360,14 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
         </div>
       </div>
 
-      {/* Sticky Bottom Row for Current User if not in Top 5 */}
-      {!isCurrentUserInTop5 && currentUserData && (
-        <div className="absolute bottom-24 left-0 right-0 px-6 pb-4 pt-2 bg-gradient-to-t from-background via-background to-transparent z-40">
+      {/* Sticky Bottom Row for Current User if not in Top 5 and not visible in list */}
+      {showSticky && currentUserData && (
+        <div className="absolute bottom-[72px] left-0 right-0 px-6 pb-2 pt-2 bg-gradient-to-t from-background via-background to-transparent z-40">
           <motion.div 
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             onClick={() => setSelectedActionUser(currentUserData)}
-            className="p-4 rounded-2xl flex items-center space-x-4 border bg-accent/10 border-accent/50 shadow-[0_0_20px_rgba(244,63,94,0.2)] cursor-pointer backdrop-blur-md"
+            className="p-4 rounded-2xl flex items-center space-x-4 border bg-accent/10 border-accent/50 shadow-[0_0_20px_rgba(244,63,94,0.2)] cursor-pointer backdrop-blur-sm"
           >
             <div className="w-6 text-center font-mono font-bold text-sm text-accent">
               {currentUserRank}

@@ -146,7 +146,7 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.2 }}
             transition={{ duration: 0.5, type: "spring" }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-xl"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-md"
           >
             <div id="rank-up-card" className="text-center flex flex-col items-center p-8 rounded-3xl relative">
               <div
