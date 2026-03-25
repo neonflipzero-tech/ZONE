@@ -276,6 +276,10 @@ export class SoundManager {
     }
   }
 
+  click() {
+    this.playClick();
+  }
+
   playNotification() {
     try {
       this.init();

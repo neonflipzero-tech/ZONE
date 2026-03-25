@@ -50,6 +50,16 @@ export default function UnlockNotification({ item, onDismiss, language }: Unlock
         <ProfileFrame frame={item.id} src={null} size="lg" />
       </div>
     );
+  } else if (item.type === 'title') {
+    title = language === 'id' ? 'Gelar Baru Terbuka!' : 'New Title Unlocked!';
+    subtitle = item.id;
+    content = (
+      <div className="px-6 py-4 rounded-xl bg-accent/10 border border-accent/30 shadow-[0_0_20px_rgba(var(--color-accent-rgb),0.2)]">
+        <span className="text-xl font-display font-black text-accent tracking-widest uppercase italic">
+          {item.id}
+        </span>
+      </div>
+    );
   }
 
   return (

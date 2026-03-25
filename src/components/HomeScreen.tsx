@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { UserState, MissionType, getRankForLevel, Mission, useAppState, TITLES, analyzeMissionPath } from '../store';
+import { UserState, MissionType, getRankForLevel, Mission, useAppState, TITLES, analyzeMissionPath, extractDuration } from '../store';
 import { CheckCircle2, Circle, Flame, Trophy, User, Shield, Timer, Wand2, Bell, Zap, Skull, Swords, X, ArrowLeft, Target, Mountain, Star, Store } from 'lucide-react';
 import { ZoneCoinIcon } from './ZoneCoinIcon';
 import { t } from '../utils/translations';
@@ -20,23 +20,6 @@ interface HomeScreenProps {
   onReplaceMission: (id: string) => void;
   addCustomMission: (type: MissionType, text: string) => void;
   removeCustomMission: (type: MissionType, text: string) => void;
-}
-
-function extractDuration(text: string): number | null {
-  // Use word boundaries and allow hyphens/spaces to avoid false positives
-  // Hours: hours, hour, jam, jm
-  const hoursMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*(hours?|jam|jm)\b/i);
-  if (hoursMatch) return parseFloat(hoursMatch[1].replace(',', '.')) * 3600;
-
-  // Minutes: minutes, minute, mins, min, menit, mnt
-  const minutesMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*(minutes?|mins?|min|menit|mnt)\b/i);
-  if (minutesMatch) return parseFloat(minutesMatch[1].replace(',', '.')) * 60;
-
-  // Seconds: seconds, second, secs, sec, detik, dtk
-  const secondsMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*(seconds?|second|secs?|sec|detik|dtk)\b/i);
-  if (secondsMatch) return parseFloat(secondsMatch[1].replace(',', '.'));
-
-  return null;
 }
 
 export default function HomeScreen({ state, onCompleteMission, checkStreakFreezeNeeded, onReplaceMission, addCustomMission, removeCustomMission }: HomeScreenProps) {
@@ -162,11 +145,8 @@ export default function HomeScreen({ state, onCompleteMission, checkStreakFreeze
     setSelectedMission(mission);
     
     const duration = extractDuration(mission.text);
-    // Only show timer if duration is found AND hasTimer is either true or undefined (for backward compatibility)
-    // If hasTimer is explicitly false, don't show timer
-    // Safety check: Productive path missions without "timer" in text should NOT have a timer
-    const isProductive = mission.text.toLowerCase().match(/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article|work|project|tugas|kerja|nulis|write|skripsi|exam|ujian|coding|dev|design|produktivitas|fokus|focus|prioritas|priority|jadwal|schedule|rencana|plan|organisir|organize|rapi|bersih|meja|email|inbox|belanja|masak|makan|persiapan|prep|resume|cv|portofolio|portfolio|investasi|invest|nabung|tabungan|keuangan|budget|anggaran|bisnis|usaha|omzet|sales|marketing|penjualan|klien|client|meeting|rapat|notulensi|notula|catatan|note|notes|ide|idea|kreatif|creative|gambar|lukis|desain|edit|video|audio|musik|instrumen|alat|latihan|practice|subscription|langganan|download|unduhan|password|sandi|contact|kontak|backup|cadangan|wallet|dompet|file|berkas|folder|trash|sampah|mail|surat|bill|tagihan|bank|balance|saldo|subscriptions|downloads|passwords|contacts|backups|wallets|files|folders|mails|bills|banks|balances|saldos)/);
-    const shouldHaveTimer = mission.hasTimer !== false && (!isProductive || mission.text.toLowerCase().includes('timer'));
+    // Show timer if duration is found AND hasTimer is not explicitly false
+    const shouldHaveTimer = mission.hasTimer !== false && duration !== null;
 
     if (duration && shouldHaveTimer) {
       setTimeLeft(duration);

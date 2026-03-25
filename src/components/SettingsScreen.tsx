@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, LogOut, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Bell, Clock } from 'lucide-react';
-import { UserState, PathType } from '../store';
+import { ChevronLeft, LogOut, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Bell, Clock, Crown } from 'lucide-react';
+import { UserState, PathType, translateMissionText, scaleMissionText } from '../store';
 import React, { useState, useRef } from 'react';
 import { sounds } from '../utils/sounds';
 import { NotificationService } from '../services/NotificationService';
@@ -82,6 +82,54 @@ export default function SettingsScreen({
     }
   };
 
+  const handleLanguageChange = (lang: 'en' | 'id') => {
+    sounds.playClick();
+    
+    // Update all existing missions to the new language
+    const updatedMissions = state.missions.map(mission => {
+      // Use originalText if available, otherwise fallback to current text (for old missions)
+      const original = mission.originalText || mission.text;
+      const translated = translateMissionText(original, lang);
+      const scaled = scaleMissionText(translated, state.level);
+      
+      return {
+        ...mission,
+        text: scaled,
+        originalText: original // Ensure originalText is preserved/set
+      };
+    });
+
+    // Also update missions in pathProgress for all paths
+    const updatedPathProgress = { ...state.pathProgress };
+    (Object.keys(updatedPathProgress) as PathType[]).forEach(path => {
+      const progress = updatedPathProgress[path];
+      if (progress && progress.missions) {
+        updatedPathProgress[path] = {
+          ...progress,
+          missions: progress.missions.map(mission => {
+            const original = mission.originalText || mission.text;
+            const translated = translateMissionText(original, lang);
+            const scaled = scaleMissionText(translated, progress.level);
+            return {
+              ...mission,
+              text: scaled,
+              originalText: original
+            };
+          })
+        };
+      }
+    });
+
+    updateState({ 
+      language: lang,
+      missions: updatedMissions,
+      pathProgress: updatedPathProgress
+    });
+    
+    setToastMessage(lang === 'id' ? 'Bahasa diubah ke Indonesia' : 'Language changed to English');
+    setTimeout(() => setToastMessage(null), 2000);
+  };
+
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTime = e.target.value;
     updateState({ notificationTime: newTime });
@@ -160,13 +208,13 @@ export default function SettingsScreen({
             <span className="font-bold">{t('settings.language', state.language)}</span>
             <div className="flex bg-background rounded-lg p-1 border border-white/10">
               <button 
-                onClick={() => updateState({ language: 'en' })}
+                onClick={() => handleLanguageChange('en')}
                 className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${state.language === 'en' ? 'bg-primary text-background' : 'text-secondary hover:text-primary'}`}
               >
                 EN
               </button>
               <button 
-                onClick={() => updateState({ language: 'id' })}
+                onClick={() => handleLanguageChange('id')}
                 className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${state.language === 'id' ? 'bg-primary text-background' : 'text-secondary hover:text-primary'}`}
               >
                 ID
@@ -246,6 +294,37 @@ export default function SettingsScreen({
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${state.isProfilePublic !== false ? 'translate-x-6' : 'translate-x-1'}`} />
             </button>
           </div>
+
+          {/* Elite Chart Type Setting */}
+          {state.isPremium && (
+            <div className="p-4 flex items-center justify-between border-b border-white/5 bg-rose-500/5">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center">
+                  <Crown className="w-5 h-5 text-rose-500" />
+                </div>
+                <div>
+                  <span className="font-bold block text-rose-500">Elite Analysis Chart</span>
+                  <span className="text-xs text-secondary">
+                    {state.language === 'id' ? 'Pilih jenis grafik analisis mingguan' : 'Choose weekly analysis chart type'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex bg-background rounded-lg p-1 border border-white/10">
+                <button 
+                  onClick={() => updateState({ preferredChartType: 'bar' })}
+                  className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${state.preferredChartType !== 'line' ? 'bg-rose-500 text-white' : 'text-secondary hover:text-primary'}`}
+                >
+                  BAR
+                </button>
+                <button 
+                  onClick={() => updateState({ preferredChartType: 'line' })}
+                  className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${state.preferredChartType === 'line' ? 'bg-rose-500 text-white' : 'text-secondary hover:text-primary'}`}
+                >
+                  LINE
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Privacy Policy */}
           <button 

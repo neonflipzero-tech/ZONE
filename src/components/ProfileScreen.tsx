@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserState, getRankForLevel, PathType, calculateOVR, createDefaultState, BADGES, TITLES, useAppState } from '../store';
 import { Trophy, Flame, LogOut, Camera, User, Shield, ChevronDown, ChevronUp, Star, Lock, CheckCircle2, Share2, AlertTriangle, Footprints, Zap, Crown, Moon, Sun, Swords, Settings, X, Heart, Compass, Package, Store, ChevronRight, HelpCircle, Target } from 'lucide-react';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { t } from '../utils/translations';
 import { sounds } from '../utils/sounds';
 import ProfileFrame from './ProfileFrame';
@@ -29,6 +29,7 @@ interface ProfileScreenProps {
   onLogout: () => void;
   updateState: (updates: Partial<UserState>) => void;
   changePath: (path: PathType) => void;
+  rivalData: any | null;
 }
 
 function getRankIcon(rankName: string, className: string) {
@@ -36,7 +37,7 @@ function getRankIcon(rankName: string, className: string) {
   return <Trophy className={className} />;
 }
 
-export default function ProfileScreen({ state, onLogout, updateState, changePath }: ProfileScreenProps) {
+export default function ProfileScreen({ state, onLogout, updateState, changePath, rivalData }: ProfileScreenProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ovrStatsRef = useRef<HTMLDivElement>(null);
   const [isGoalDropdownOpen, setIsGoalDropdownOpen] = useState(false);
@@ -51,66 +52,8 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
   const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isConsistencyHelpOpen, setIsConsistencyHelpOpen] = useState(false);
-  const [rivalData, setRivalData] = useState<any | null>(null);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
-  const [showCrushedAnimation, setShowCrushedAnimation] = useState(false);
   const { crushRival } = useAppState();
-
-  useEffect(() => {
-    const fetchRival = async () => {
-      if (state.rivalId) {
-        let rData = null;
-        if (db) {
-          try {
-            const docRef = doc(db, 'users', state.rivalId);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-              rData = docSnap.data();
-            }
-          } catch (e: any) {
-            if (e?.code === 'unavailable' || e?.message?.includes('offline')) {
-              console.warn("Client is offline, skipping rival fetch from Firestore.");
-            } else {
-              console.error("Error fetching rival", e);
-            }
-          }
-        }
-
-        // Fallback to localStorage if not found in Firestore or offline
-        if (!rData) {
-          const savedLeaderboard = localStorage.getItem('lockin_global_leaderboard');
-          if (savedLeaderboard) {
-            try {
-              const users = JSON.parse(savedLeaderboard);
-              const localRival = users.find((u: any) => u.userId === state.rivalId);
-              if (localRival) {
-                rData = localRival;
-              }
-            } catch (e) {
-              console.error("Error parsing local leaderboard", e);
-            }
-          }
-        }
-
-        if (rData) {
-          setRivalData(rData);
-
-          // Check if crushed
-          const myTotalXp = state.xp + 50 * state.level * (state.level - 1);
-          const rivalTotalXp = rData.totalXp || 0;
-          
-          if (myTotalXp > rivalTotalXp && rivalTotalXp > 0) {
-            setShowCrushedAnimation(true);
-            setTimeout(() => {
-              crushRival();
-              setShowCrushedAnimation(false);
-            }, 3000);
-          }
-        }
-      }
-    };
-    fetchRival();
-  }, [state.rivalId, state.xp, state.level]);
 
   const handleResetProgress = () => {
     const defaultState = createDefaultState(state.username);
@@ -254,27 +197,6 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
       className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24"
     >
       <AnimatePresence>
-        {showCrushedAnimation && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.5 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          >
-            <div className="text-center">
-              <motion.div
-                animate={{ rotate: [0, -10, 10, -10, 10, 0], scale: [1, 1.2, 1] }}
-                transition={{ duration: 0.5, repeat: Infinity }}
-              >
-                <Swords className="w-32 h-32 text-rose-500 mx-auto mb-6" />
-              </motion.div>
-              <h1 className="text-6xl font-black font-display text-rose-500 tracking-tighter mb-2" style={{ textShadow: '0 0 20px rgba(244, 63, 94, 0.5)' }}>
-                RIVAL CRUSHED
-              </h1>
-              <p className="text-xl text-white font-mono">+500 XP BONUS</p>
-            </div>
-          </motion.div>
-        )}
       </AnimatePresence>
 
       <div className="px-4 pt-12 pb-6">
@@ -737,37 +659,72 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
           </div>
           
           <div className="bg-surface border border-white/5 rounded-2xl p-5 h-64 flex flex-col justify-end relative">
-            <div className="absolute inset-0 p-5 flex flex-col justify-between pointer-events-none">
-              {[1, 0.75, 0.5, 0.25, 0].map((tick) => (
-                <div key={`tick-${tick}`} className="w-full border-b border-white/5 h-0 relative">
-                  <span className="absolute -left-2 -top-2 text-[10px] text-secondary -translate-x-full">
-                    {Math.round(maxMissions * tick)}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div className="w-full h-full flex items-end justify-between relative z-10 pl-4">
-              {chartData.map((data, i) => {
-                const height = `${(data.missions / maxMissions) * 100}%`;
-                return (
-                  <div key={`chart-bar-${data.date}-${i}`} className="flex flex-col items-center w-8 group">
-                    <div className="w-full h-48 flex items-end justify-center relative">
-                      <motion.div 
-                        initial={{ height: 0 }}
-                        animate={{ height }}
-                        transition={{ duration: 0.5, delay: i * 0.1 }}
-                        className="w-2 bg-gradient-to-t from-rose-500/20 to-accent rounded-t-full relative group-hover:from-rose-500/40 group-hover:to-accent/80 transition-all"
-                      >
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface border border-white/10 px-2 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                          {data.missions} {t('profile.missions', state.language)}
-                        </div>
-                      </motion.div>
+            {state.preferredChartType === 'line' ? (
+              <div className="w-full h-full pt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#8E9299', fontSize: 10, fontFamily: 'monospace' }} 
+                    />
+                    <YAxis 
+                      hide={true} 
+                      domain={[0, maxMissions + 1]} 
+                    />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#151619', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                      itemStyle={{ color: '#F43F5E', fontWeight: 'bold' }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="missions" 
+                      stroke="#F43F5E" 
+                      strokeWidth={3} 
+                      dot={{ fill: '#F43F5E', strokeWidth: 2, r: 4, stroke: '#151619' }}
+                      activeDot={{ r: 6, strokeWidth: 0 }}
+                      animationDuration={1500}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <>
+                <div className="absolute inset-0 p-5 flex flex-col justify-between pointer-events-none">
+                  {[1, 0.75, 0.5, 0.25, 0].map((tick) => (
+                    <div key={`tick-${tick}`} className="w-full border-b border-white/5 h-0 relative">
+                      <span className="absolute -left-2 -top-2 text-[10px] text-secondary -translate-x-full">
+                        {Math.round(maxMissions * tick)}
+                      </span>
                     </div>
-                    <div className="text-[10px] text-secondary mt-2 font-mono">{data.date}</div>
-                  </div>
-                );
-              })}
-            </div>
+                  ))}
+                </div>
+                <div className="w-full h-full flex items-end justify-between relative z-10 pl-4">
+                  {chartData.map((data, i) => {
+                    const height = `${(data.missions / maxMissions) * 100}%`;
+                    return (
+                      <div key={`chart-bar-${data.date}-${i}`} className="flex flex-col items-center w-8 group">
+                        <div className="w-full h-48 flex items-end justify-center relative">
+                          <motion.div 
+                            initial={{ height: 0 }}
+                            animate={{ height }}
+                            transition={{ duration: 0.5, delay: i * 0.1 }}
+                            className="w-2 bg-gradient-to-t from-rose-500/20 to-accent rounded-t-full relative group-hover:from-rose-500/40 group-hover:to-accent/80 transition-all"
+                          >
+                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface border border-white/10 px-2 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                              {data.missions} {t('profile.missions', state.language)}
+                            </div>
+                          </motion.div>
+                        </div>
+                        <div className="text-[10px] text-secondary mt-2 font-mono">{data.date}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         </div>
 

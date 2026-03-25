@@ -74,6 +74,8 @@ export default function PremiumModal({ isOpen, onClose, language }: PremiumModal
   const features = language === 'id' ? [
     '+50% XP Boost',
     '+25% Bonus Koin',
+    'Analisis Progres Dinamis (Line Chart)',
+    'Analisis Distribusi Fokus (Donut Chart)',
     'Misi kustom tanpa batas (Unlimited)',
     'Bingkai Profil Eksklusif "Elite"',
     'Lencana (Badge) Emas Premium',
@@ -82,6 +84,8 @@ export default function PremiumModal({ isOpen, onClose, language }: PremiumModal
   ] : [
     '+50% XP Boost',
     '+25% Coin Bonus',
+    'Dynamic Progress Analysis (Line Chart)',
+    'Focus Distribution Analysis (Donut Chart)',
     'Unlimited custom missions',
     'Exclusive "Elite" Profile Frames',
     'Premium Gold Badges',

@@ -15,7 +15,7 @@ import JourneyScreen from './components/JourneyScreen';
 import PfpPromptModal from './components/PfpPromptModal';
 import UnlockNotification from './components/UnlockNotification';
 import ElitePromotionModal from './components/ElitePromotionModal';
-import { Target, Trophy, User, BarChart2, Map } from 'lucide-react';
+import { Target, Trophy, User, BarChart2, Map, Swords } from 'lucide-react';
 import { NotificationService } from './services/NotificationService';
 
 type Tab = 'home' | 'leaderboard' | 'journey' | 'rank' | 'profile';
@@ -240,6 +240,8 @@ export default function App() {
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [isPromoOpen, setIsPromoOpen] = useState(false);
   const [isFlashSale, setIsFlashSale] = useState(false);
+  const [showCrushedAnimation, setShowCrushedAnimation] = useState(false);
+  const [rivalData, setRivalData] = useState<any | null>(null);
 
   // Promotion Trigger Logic
   useEffect(() => {
@@ -290,13 +292,13 @@ export default function App() {
   useEffect(() => {
     const checkRival = async () => {
       if (state?.isLoggedIn && state?.rivalId) {
-        let rivalData = null;
+        let fetchedRivalData = null;
         if (db) {
           try {
             const docRef = doc(db, 'users', state.rivalId);
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
-              rivalData = docSnap.data();
+              fetchedRivalData = docSnap.data();
             }
           } catch (e: any) {
             if (e?.code === 'unavailable' || e?.message?.includes('offline')) {
@@ -307,14 +309,14 @@ export default function App() {
           }
         }
 
-        if (!rivalData) {
+        if (!fetchedRivalData) {
           const savedLeaderboard = localStorage.getItem('lockin_global_leaderboard');
           if (savedLeaderboard) {
             try {
               const users = JSON.parse(savedLeaderboard);
               const localRival = users.find((u: any) => u.userId === state.rivalId);
               if (localRival) {
-                rivalData = localRival;
+                fetchedRivalData = localRival;
               }
             } catch (e) {
               console.error("Error parsing local leaderboard", e);
@@ -322,28 +324,57 @@ export default function App() {
           }
         }
 
-        if (rivalData) {
+        if (fetchedRivalData) {
+          setRivalData(fetchedRivalData);
+
+          // Check for Crush (XP Surpassed)
+          const isBeaten = state.beatenRivals?.includes(state.rivalId);
+          if (!isBeaten && state.totalXp > (fetchedRivalData.totalXp || 0)) {
+            // CRUSHED!
+            setShowCrushedAnimation(true);
+            
+            // Add rewards
+            const newBeatenRivals = [...(state.beatenRivals || []), state.rivalId];
+            const newUnlockedItemsQueue = [...(state.unlockedItemsQueue || [])];
+            
+            // Check if title already unlocked
+            if (!state.unlockedTitles?.includes('Rival Crusher')) {
+              newUnlockedItemsQueue.push({ type: 'title', id: 'Rival Crusher' });
+            }
+
+            updateState({
+              totalXp: state.totalXp + 500,
+              beatenRivals: newBeatenRivals,
+              unlockedItemsQueue: newUnlockedItemsQueue,
+              unlockedTitles: [...(state.unlockedTitles || []), 'Rival Crusher'],
+              rivalId: null // Clear rival after beating them
+            });
+
+            // Sound effect
+            sounds.playSuccess();
+          }
+
           const lastRivalLevel = localStorage.getItem(`lockin_last_rival_level_${state.rivalId}`);
           
-          if (lastRivalLevel && parseInt(lastRivalLevel) < rivalData.level) {
+          if (lastRivalLevel && parseInt(lastRivalLevel) < fetchedRivalData.level) {
             addNotification({
               title: 'Rival Level Up!',
-              description: `${rivalData.username} baru naik ke Level ${rivalData.level} — kamu masih Level ${state.level}`,
+              description: `${fetchedRivalData.username} baru naik ke Level ${fetchedRivalData.level} — kamu masih Level ${state.level}`,
               icon: 'Swords'
             });
             // Push Notification
             if (state.notificationsEnabled) {
-              NotificationService.notifyRivalLevelUp(rivalData.username, rivalData.level, state.level, state.language);
+              NotificationService.notifyRivalLevelUp(fetchedRivalData.username, fetchedRivalData.level, state.level, state.language);
             }
-          } else if (rivalData.level > state.level && !lastRivalLevel) {
+          } else if (fetchedRivalData.level > state.level && !lastRivalLevel) {
              addNotification({
               title: 'Rival Ahead!',
-              description: `${rivalData.username} ada di Level ${rivalData.level} — kamu masih Level ${state.level}`,
+              description: `${fetchedRivalData.username} ada di Level ${fetchedRivalData.level} — kamu masih Level ${state.level}`,
               icon: 'Swords'
             });
           }
           
-          localStorage.setItem(`lockin_last_rival_level_${state.rivalId}`, rivalData.level.toString());
+          localStorage.setItem(`lockin_last_rival_level_${state.rivalId}`, fetchedRivalData.level.toString());
         }
       }
     };
@@ -352,7 +383,7 @@ export default function App() {
     if (state?.isLoggedIn) {
       checkRival();
     }
-  }, [state?.isLoggedIn, state?.rivalId]);
+  }, [state?.isLoggedIn, state?.rivalId, state?.totalXp]);
 
   useEffect(() => {
     if (state?.animatingLevelUp) {
@@ -460,6 +491,44 @@ export default function App() {
             />
           </div>
         )}
+
+        {showCrushedAnimation && rivalData && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-6"
+          >
+            <div className="text-center">
+              <motion.div
+                animate={{ 
+                  rotate: [0, -10, 10, -10, 10, 0],
+                  scale: [1, 1.2, 1.2, 1.2, 1.2, 1]
+                }}
+                transition={{ duration: 0.5, repeat: Infinity }}
+                className="text-6xl mb-4"
+              >
+                👊
+              </motion.div>
+              <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tighter italic">
+                {state.language === 'id' ? 'RIVAL DIHANCURKAN!' : 'RIVAL CRUSHED!'}
+              </h2>
+              <p className="text-rose-400 font-bold mb-6">
+                {state.language === 'id' ? `Kamu melampaui ${rivalData.username}!` : `You surpassed ${rivalData.username}!`}
+              </p>
+              <div className="bg-white/10 rounded-2xl p-4 mb-6">
+                <div className="text-sm text-gray-400 mb-1">{state.language === 'id' ? 'Hadiah' : 'Rewards'}</div>
+                <div className="text-2xl font-black text-amber-400">+500 XP</div>
+                <div className="text-rose-500 font-bold">TITLE: RIVAL CRUSHER</div>
+              </div>
+              <button
+                onClick={() => setShowCrushedAnimation(false)}
+                className="w-full py-4 bg-rose-600 text-white font-black rounded-xl uppercase tracking-widest shadow-[0_0_20px_rgba(225,29,72,0.5)] active:scale-95 transition-transform"
+              >
+                {state.language === 'id' ? 'LANJUTKAN' : 'CONTINUE'}
+              </button>
+            </div>
+          </motion.div>
+        )}
         <div className="flex-1 relative overflow-hidden bg-black">
           <AnimatePresence>
             {activeTab === 'home' && (
@@ -496,11 +565,39 @@ export default function App() {
                   onLogout={logout}
                   updateState={updateState}
                   changePath={handleChangeGoal}
+                  rivalData={rivalData}
                 />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
+
+        <AnimatePresence>
+          {showCrushedAnimation && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.2 }}
+              className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-6 text-center"
+            >
+              <motion.div
+                animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.2, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
+                className="relative mb-8"
+              >
+                <div className="absolute inset-0 bg-rose-500/30 blur-3xl rounded-full" />
+                <Swords className="w-32 h-32 text-rose-500 drop-shadow-[0_0_30px_rgba(244,63,94,0.8)] relative z-10" />
+              </motion.div>
+              <h2 className="text-4xl font-display font-black text-rose-500 mb-4 uppercase tracking-widest">
+                {state.language === 'id' ? 'RIVAL DIKALAHKAN!' : 'RIVAL CRUSHED!'}
+              </h2>
+              <p className="text-xl text-white font-bold mb-2">+500 XP REWARD</p>
+              <p className="text-secondary font-mono uppercase tracking-widest">
+                {state.language === 'id' ? 'Gelar "Rival Crusher" Terbuka' : '"Rival Crusher" Title Unlocked'}
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {isPromoOpen && (

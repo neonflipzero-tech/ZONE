@@ -1,15 +1,40 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { sounds } from './utils/sounds';
 
+import { MISSION_TRANSLATIONS } from './utils/missionTranslations';
+
 export type PathType = 'PRODUCTIVE' | 'STRONGER' | 'EXTROVERT' | 'DISCIPLINE' | 'MENTAL_HEALTH' | 'OTHER';
 export type MissionType = 'REGULAR' | 'DAILY' | 'WEEKLY' | 'ROUTINE' | 'BOSS';
 
 export interface Mission {
   id: string;
   text: string;
+  originalText?: string; // The base English text from PATH_MISSIONS
   completed: boolean;
   type: MissionType;
   hasTimer?: boolean;
+}
+
+export function extractDuration(text: string): number | null {
+  // Use word boundaries and allow hyphens/spaces to avoid false positives
+  // Hours: hours, hour, jam, jm
+  const hoursMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*(hours?|jam|jm)\b/i);
+  if (hoursMatch) return parseFloat(hoursMatch[1].replace(',', '.')) * 3600;
+
+  // Minutes: minutes, minute, mins, min, menit, mnt
+  const minutesMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*(minutes?|mins?|min|menit|mnt)\b/i);
+  if (minutesMatch) return parseFloat(minutesMatch[1].replace(',', '.')) * 60;
+
+  // Seconds: seconds, second, secs, sec, detik, dtk, dkt
+  const secondsMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*(seconds?|second|secs?|sec|detik|dtk|dkt)\b/i);
+  if (secondsMatch) return parseFloat(secondsMatch[1].replace(',', '.'));
+
+  return null;
+}
+
+export function translateMissionText(text: string, lang: 'en' | 'id'): string {
+  if (lang === 'en') return text;
+  return MISSION_TRANSLATIONS[text] || text;
 }
 
 export function scaleMissionText(text: string, level: number): string {
@@ -123,6 +148,7 @@ export interface UserState {
   bossState?: BossState;
   notificationsEnabled: boolean;
   notificationTime: string;
+  preferredChartType?: 'bar' | 'line';
 }
 
 export const RANKS = [
@@ -337,6 +363,7 @@ export const createDefaultState = (username: string): UserState => ({
   },
   notificationsEnabled: false,
   notificationTime: '09:00',
+  preferredChartType: 'bar',
 });
 
 const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
@@ -1021,7 +1048,7 @@ function useAppStateInternal() {
         
         if (availableMissions.length > 0) {
           // Filter out missions we already have to avoid duplicates
-          const unassigned = availableMissions.filter(text => !existingMissions.some(m => m.text === text));
+          const unassigned = availableMissions.filter(text => !existingMissions.some(m => (m.originalText || m.text) === text));
           
           const missingCount = expectedCount - existingMissions.length;
           const toAddCount = Math.min(missingCount, unassigned.length);
@@ -1030,32 +1057,21 @@ function useAppStateInternal() {
             const shuffled = [...unassigned].sort(() => 0.5 - Math.random());
             for (let i = 0; i < toAddCount; i++) {
               const originalText = shuffled[i];
-              const scaledText = scaleMissionText(originalText, state.level);
+              const translatedBase = translateMissionText(originalText, state.language);
+              const scaledText = scaleMissionText(translatedBase, state.level);
               
               // Logika timer yang lebih ketat untuk mengurangi jumlah misi bertimer
               const isProductive = analyzeMissionPath(originalText) === 'PRODUCTIVE';
               const isMentalHealth = analyzeMissionPath(originalText) === 'MENTAL_HEALTH';
               
-              let hasTimer = false;
-              
-              // Hanya gunakan timer jika kata 'timer' ada di teks, 
-              // atau untuk aktivitas yang benar-benar butuh timer (meditasi, plank, nafas)
-              const strictTimerKeywords = ['timer', 'meditate', 'meditasi', 'plank', 'breathe', 'nafas', 'hold'];
-              
-              if (strictTimerKeywords.some(k => originalText.toLowerCase().includes(k))) {
-                hasTimer = true;
-              }
-              
-              // Kecualikan latihan yang berbasis hitungan (reps) meskipun ada kata kunci di atas
-              if (originalText.toLowerCase().includes('squats') || 
-                  originalText.toLowerCase().includes('push-ups') ||
-                  originalText.toLowerCase().includes('jumping jacks')) {
-                hasTimer = false;
-              }
+              // Gunakan timer jika ada durasi waktu yang terdeteksi
+              const duration = extractDuration(originalText);
+              const hasTimer = duration !== null;
 
               currentMissions.push({
                 id: `${Date.now()}-${type}-${Math.random()}`,
                 text: scaledText,
+                originalText: originalText,
                 completed: false,
                 type,
                 hasTimer
@@ -1342,7 +1358,7 @@ function useAppStateInternal() {
               let randomText = unassigned[Math.floor(Math.random() * unassigned.length)];
               const scaledText = scaleMissionText(randomText, s.level);
               
-              const timerKeywords = ['focus', 'hold', 'plank', 'meditate', 'wait', 'timer', 'duration', 'minutes', 'hours', 'seconds', 'menit', 'jam', 'detik'];
+              const timerKeywords = ['focus', 'hold', 'plank', 'meditate', 'wait', 'timer', 'duration', 'minutes', 'hours', 'seconds', 'menit', 'jam', 'detik', 'minute', 'hour', 'second', 'dkt', 'dtk', 'mins', 'secs'];
               const hasTimer = timerKeywords.some(k => randomText.toLowerCase().includes(k)) && 
                                !randomText.toLowerCase().includes('squats') && 
                                !randomText.toLowerCase().includes('push-ups') &&
@@ -1508,12 +1524,20 @@ function useAppStateInternal() {
       const unassigned = pathMissions.filter(text => !existingTexts.includes(text) && text !== mission.text);
       
       if (unassigned.length > 0) {
-        let randomText = unassigned[Math.floor(Math.random() * unassigned.length)];
+        let originalText = unassigned[Math.floor(Math.random() * unassigned.length)];
+        const translatedBase = translateMissionText(originalText, prev.language);
+        const scaledText = scaleMissionText(translatedBase, prev.level);
+        
+        const duration = extractDuration(originalText);
+        const hasTimer = duration !== null;
+
         const newMissions = [...prev.missions];
         newMissions[missionIndex] = {
           ...mission,
           id: `${Date.now()}-${Math.random()}`,
-          text: randomText,
+          text: scaledText,
+          originalText: originalText,
+          hasTimer
         };
         return {
           ...prev,

@@ -22,13 +22,12 @@ const ALL_FRAMES = [
   'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 
   'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 
   'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral',
-  'frame-royal', 'frame-dragon', 'frame-elite'
+  'frame-royal', 'frame-dragon'
 ];
 
 const FRAME_COSTS: Record<string, number> = {
   'frame-royal': 500,
   'frame-dragon': 750,
-  'frame-elite': 2000,
 };
 
 export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateState }: ZoneStoreModalProps) {
@@ -161,7 +160,7 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
   };
 
   const lockedFrames = ALL_FRAMES.filter(f => !checkFrameUnlocked(f));
-  const lockedTitles = TITLES.filter(t => !isZaiki && !state.titles.includes(t.id));
+  const lockedTitles = TITLES.filter(t => !isZaiki && !state.titles.includes(t.id) && t.id !== 'Elite Zone');
 
   if (!isOpen) return null;
 
