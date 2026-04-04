@@ -59,6 +59,11 @@ export const useAppState = create<AppStore>((set, get) => ({
 
   init: () => {
     const { setAuthReady, setActiveUserEmail, setState } = get();
+    if (!auth) {
+      console.warn("Firebase Auth not initialized. Running in local mode.");
+      setAuthReady(true);
+      return () => {};
+    }
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user && user.email) {
         setActiveUserEmail(user.email);
@@ -79,7 +84,7 @@ export const useAppState = create<AppStore>((set, get) => ({
               }));
             }
             // Auto-grant Elite to Zaiki if not already set
-            if (!parsed.isPremium && (user.email === 'zaikiwildan@gmail.com' || parsed.username?.toLowerCase().includes('zaiki'))) {
+            if (!parsed.isPremium && user.email === 'zaikiwildan@gmail.com') {
               parsed.isPremium = true;
             }
             
@@ -238,6 +243,21 @@ export const useAppState = create<AppStore>((set, get) => ({
     const newState = { ...state, ...updates };
     set({ state: newState });
     localStorage.setItem(`lockin_user_${activeUserEmail}`, JSON.stringify(newState));
+
+    // Sync to Firestore if available
+    if (db && newState.userId) {
+      const userRef = doc(db, 'users', newState.userId);
+      // Calculate OVR for storage
+      const ovrData = calculateOVR(newState, activeUserEmail);
+      setDoc(userRef, { 
+        ...newState, 
+        ovr: ovrData.ovr,
+        stats: ovrData.stats,
+        lastUpdated: Date.now() 
+      }, { merge: true }).catch(err => {
+        console.error("Error syncing to Firestore:", err);
+      });
+    }
   },
 
   login: async (email, username, uid) => {
@@ -325,6 +345,10 @@ export const useAppState = create<AppStore>((set, get) => ({
 
   loginWithGoogle: async () => {
     const { login } = get();
+    if (!auth) {
+      console.error("Firebase Auth not initialized.");
+      return;
+    }
     try {
       const result = await signInWithPopup(auth, googleProvider);
       if (result.user && result.user.email) {
@@ -460,6 +484,9 @@ export const useAppState = create<AppStore>((set, get) => ({
 
     // Burst Limit Check
     const now = Date.now();
+    let integrityPenalty = 0;
+    let isPenaltyTriggered = false;
+
     if (state.burstLockUntil && now < state.burstLockUntil) {
       return;
     }
@@ -504,13 +531,20 @@ export const useAppState = create<AppStore>((set, get) => ({
       }
     }
 
-    let xpGain = mission.type === 'WEEKLY' ? 50 : (mission.type === 'DAILY' ? 25 : 10);
+    let xpGain = mission.type === 'WEEKLY' ? 200 : (mission.type === 'DAILY' ? 100 : 50);
     let coinGain = mission.type === 'WEEKLY' ? 100 : (mission.type === 'DAILY' ? 50 : 20);
+
+    // Elite Bonus (50% XP)
+    if (state.isPremium) {
+      xpGain = Math.floor(xpGain * 1.5);
+    }
 
     // The 2-Second Rule
     const appOpenTime = get().appOpenTime;
     if (now - appOpenTime < 2000) {
       xpGain = 1; // Minimal XP
+      integrityPenalty += 10;
+      isPenaltyTriggered = true;
       const msg = state.language === 'id'
         ? "Memproses... Kamu yakin sudah melakukan ini? Dirimu di masa depan sedang mengawasi."
         : "Processing... Are you sure you did this? Your future self is watching.";
@@ -533,6 +567,15 @@ export const useAppState = create<AppStore>((set, get) => ({
     const newTotalXp = state.totalXp + xpGain;
     const newCoins = state.zoneCoins + coinGain;
     const newMissionsCompleted = state.missionsCompleted + 1;
+
+    // Integrity Score Logic
+    let newIntegrityScore = Math.max(0, state.integrityScore - integrityPenalty);
+    let newConsecutiveCleanMissions = isPenaltyTriggered ? 0 : state.consecutiveCleanMissions + 1;
+    
+    if (newConsecutiveCleanMissions >= 5) {
+      newIntegrityScore = Math.min(100, newIntegrityScore + 5);
+      newConsecutiveCleanMissions = 0;
+    }
 
     let newLevel = state.level;
     let currentXp = newXp;
@@ -564,8 +607,10 @@ export const useAppState = create<AppStore>((set, get) => ({
     recentCompletions.push(now);
     
     let burstLockUntil = state.burstLockUntil || 0;
-    if (recentCompletions.length >= 5) {
+    if (recentCompletions.length === 5) {
       burstLockUntil = now + 10000; // 10 seconds lock
+      integrityPenalty += 10; // Reduced from 20
+      isPenaltyTriggered = true;
       
       const msg = state.language === 'id'
         ? "Neural Overheat. Tarik napas. Progres nyata bukanlah balapan."
@@ -576,6 +621,12 @@ export const useAppState = create<AppStore>((set, get) => ({
         description: msg,
         icon: 'Zap'
       });
+    }
+
+    if (recentCompletions.length > 5) {
+      burstLockUntil = now + 15000; // Longer lock for repeated spam
+      integrityPenalty += 5; // Reduced from 10
+      isPenaltyTriggered = true;
     }
 
     if (recentCompletions.length >= 7) {
@@ -638,6 +689,8 @@ export const useAppState = create<AppStore>((set, get) => ({
       lastActiveDate: today,
       recentCompletions,
       burstLockUntil,
+      integrityScore: newIntegrityScore,
+      consecutiveCleanMissions: newConsecutiveCleanMissions,
       dailyStats: newDailyStats,
       dailyCategoryStats: newDailyCategoryStats,
       missionsCompleted: newMissionsCompleted,
@@ -1131,6 +1184,8 @@ export interface UserState {
   lastRestNotificationTime: number;
   recentCompletions?: number[]; // Timestamps of recent completions
   burstLockUntil?: number; // Timestamp until which mission completion is locked
+  integrityScore: number;
+  consecutiveCleanMissions: number;
   baseStats: Record<string, number>;
   stats?: Record<string, number>;
   notificationsEnabled: boolean;
@@ -1256,6 +1311,14 @@ export function getRankForLevel(level: number) {
   return RANKS[0];
 }
 
+export function getIntegrityRating(score: number) {
+  if (score >= 90) return { letter: 'S', label: 'Supreme', color: '#00FFFF', glow: 'shadow-[0_0_15px_#00FFFF]' };
+  if (score >= 75) return { letter: 'A', label: 'Honest', color: '#39FF14', glow: 'shadow-[0_0_15px_#39FF14]' };
+  if (score >= 50) return { letter: 'B', label: 'Average', color: '#FFFFFF', glow: 'shadow-[0_0_15px_#FFFFFF]' };
+  if (score >= 25) return { letter: 'C', label: 'Suspicious', color: '#FFD300', glow: 'shadow-[0_0_15px_#FFD300]' };
+  return { letter: 'D', label: 'Dishonest', color: '#FF3131', glow: 'shadow-[0_0_15px_#FF3131] animate-pulse' };
+}
+
 export function calculateOVR(state: UserState, activeUserEmail?: string | null) {
   const getPathScore = (path: PathType, statKey: string) => {
     const p = state.chosenPath === path 
@@ -1288,22 +1351,22 @@ export function calculateOVR(state: UserState, activeUserEmail?: string | null) 
   // Weighted average (excluding 'other' from main OVR calculation as requested)
   let ovr = Math.floor((physical + discipline + mental + ambition + intellect + social) / 6);
 
-  // Hardcode OVR 100 for zaiki
-  const isZaiki = activeUserEmail === 'zaikiwildan@gmail.com' || state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase().includes('zaiki') || state.isPremium;
-  if (isZaiki) {
+  // Hardcode OVR 100 for Elite users (Zaiki)
+  const isElite = state.isPremium || activeUserEmail === 'zaikiwildan@gmail.com' || state.userId === 'zaikiwildan@gmail.com';
+  if (isElite) {
     ovr = 100;
   }
 
   return {
     ovr,
     stats: {
-      physical: isZaiki ? 100 : physical,
-      discipline: isZaiki ? 100 : discipline,
-      mental: isZaiki ? 100 : mental,
-      ambition: isZaiki ? 100 : ambition,
-      intellect: isZaiki ? 100 : intellect,
-      social: isZaiki ? 100 : social,
-      other: isZaiki ? 100 : other
+      physical: isElite ? 100 : physical,
+      discipline: isElite ? 100 : discipline,
+      mental: isElite ? 100 : mental,
+      ambition: isElite ? 100 : ambition,
+      intellect: isElite ? 100 : intellect,
+      social: isElite ? 100 : social,
+      other: isElite ? 100 : other
     }
   };
 }
@@ -1342,7 +1405,7 @@ export const PATH_QUOTES: Record<PathType, string[]> = {
 };
 
 export const createDefaultState = (username: string, email?: string, uid?: string): UserState => {
-  const isZaiki = email === 'zaikiwildan@gmail.com' || username.toLowerCase().includes('zaiki');
+  const isZaiki = email === 'zaikiwildan@gmail.com';
   
   return {
     dataVersion: 2,
@@ -1403,6 +1466,8 @@ export const createDefaultState = (username: string, email?: string, uid?: strin
     lastRestNotificationTime: 0,
     recentCompletions: [],
     burstLockUntil: 0,
+    integrityScore: 90,
+    consecutiveCleanMissions: 0,
     bossState: {
       status: 'idle',
       topic: null,

@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserState, getRankForLevel, PathType, calculateOVR, createDefaultState, BADGES, TITLES, useAppState, getTodayISO } from '../store';
+import { UserState, getRankForLevel, PathType, calculateOVR, createDefaultState, BADGES, TITLES, useAppState, getTodayISO, getIntegrityRating } from '../store';
 import { Trophy, Flame, LogOut, Camera, User, Shield, ChevronDown, ChevronUp, Star, Lock, CheckCircle2, Share2, AlertTriangle, Footprints, Zap, Crown, Moon, Sun, Swords, Settings, X, Heart, Compass, Package, Store, ChevronRight, HelpCircle, Target } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { t } from '../utils/translations';
@@ -54,6 +54,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isConsistencyHelpOpen, setIsConsistencyHelpOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const activeUserEmail = useAppState(s => s.activeUserEmail);
   const crushRival = useAppState(s => s.crushRival);
 
   const handleResetProgress = () => {
@@ -109,7 +110,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
 
   const maxMissions = useMemo(() => Math.max(...chartData.map(d => d.missions), 1), [chartData]);
 
-  const { ovr, stats } = useMemo(() => calculateOVR(state), [state]);
+  const { ovr, stats } = useMemo(() => calculateOVR(state, activeUserEmail), [state, activeUserEmail]);
 
   const todayISO = getTodayISO();
   const todayCategoryStats = state.dailyCategoryStats?.[todayISO] || {};
@@ -265,13 +266,10 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
                 <span className={`font-bold ${currentRank.color}`}>{currentRank.name}</span>
               </div>
               <div className="flex items-center space-x-3">
-                <button 
-                  onClick={scrollToOvrStats}
-                  className="flex items-center space-x-1 bg-white/10 px-2 py-0.5 rounded-md border border-white/20 hover:bg-white/20 transition-colors cursor-pointer"
-                >
-                  <span className="text-[10px] font-mono text-secondary">OVR</span>
-                  <span className="font-display font-black text-[#F43F5E]">{ovr}</span>
-                </button>
+                <div className="flex flex-col items-end leading-none">
+                  <span className="text-[10px] font-mono text-secondary mb-0.5 tracking-tighter">OVR</span>
+                  <span className="font-display font-black text-[#F43F5E] text-xl">{ovr}</span>
+                </div>
                 <span className="font-mono text-sm font-bold text-secondary">LVL {state.level}</span>
               </div>
             </div>
@@ -843,7 +841,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
                   <ProfileFrame frame={rivalData.equippedFrame} src={rivalData.profilePicture} size="sm" />
                   <span className="text-xs font-bold mt-2 truncate max-w-[80px] text-fuchsia-500">{rivalData.username}</span>
                   <span className="text-[10px] text-fuchsia-500 font-mono mt-1">
-                    OVR {rivalData.ovr || 0}
+                    OVR {rivalData.ovr || calculateOVR(rivalData, null).ovr}
                   </span>
                 </div>
               </div>

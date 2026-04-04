@@ -733,7 +733,8 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                     </span>
                     <span className="px-4 py-2 bg-accent/10 text-accent rounded-full text-sm font-mono font-bold border border-accent/20">
                       +{(() => {
-                        const baseXp = selectedMission.type === 'WEEKLY' ? 200 : selectedMission.type === 'DAILY' ? 100 : 50;
+                        let baseXp = selectedMission.type === 'WEEKLY' ? 200 : selectedMission.type === 'DAILY' ? 100 : 50;
+                        if (state.isPremium) baseXp = Math.floor(baseXp * 1.5);
                         const isDoubleXpActive = state.doubleXpActiveUntil && new Date(state.doubleXpActiveUntil) > new Date();
                         return isDoubleXpActive ? baseXp * 2 : baseXp;
                       })()} XP

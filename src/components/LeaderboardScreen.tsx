@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserState, RANKS, getRankForLevel, TITLES, calculateOVR, useAppState } from '../store';
+import { UserState, RANKS, getRankForLevel, TITLES, calculateOVR, useAppState, getIntegrityRating } from '../store';
 import { Trophy, Flame, Shield, User, AlertCircle, X, CheckCircle2, Star, Swords, Zap, Crown } from 'lucide-react';
 import ProfileFrame from './ProfileFrame';
 import { db, handleFirestoreError, OperationType } from '../firebase';
@@ -28,6 +28,8 @@ interface LeaderboardUser {
   missionsCompleted?: number;
   isProfilePublic?: boolean;
   ovr?: number;
+  integrityScore?: number;
+  isPremium?: boolean;
 }
 
 function getRankIcon(rankName: string, className: string) {
@@ -119,7 +121,8 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
           framesCount: state.unlockedFrames?.length || 0,
           missionsCompleted: state.missionsCompleted || 0,
           isProfilePublic: state.isProfilePublic !== false,
-          ovr: calculateOVR(state, activeUserEmail).ovr
+          ovr: calculateOVR(state, activeUserEmail).ovr,
+          integrityScore: state.integrityScore ?? 90
         };
       }
       return u;
@@ -154,7 +157,8 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
         framesCount: state.unlockedFrames?.length || 0,
         missionsCompleted: state.missionsCompleted || 0,
         isProfilePublic: state.isProfilePublic !== false,
-        ovr: calculateOVR(state, activeUserEmail).ovr
+        ovr: calculateOVR(state, activeUserEmail).ovr,
+        integrityScore: state.integrityScore ?? 90
       });
     }
 
@@ -165,7 +169,23 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
       return bTotal - aTotal;
     });
 
-    return finalUsers;
+    // Integrity Restriction: Users with score < 50 cannot be in Top 3
+    const top3: LeaderboardUser[] = [];
+    const others: LeaderboardUser[] = [];
+    
+    let i = 0;
+    while (top3.length < 3 && i < finalUsers.length) {
+      const user = finalUsers[i];
+      const score = user.integrityScore ?? 90;
+      if (score >= 50) {
+        top3.push(user);
+        finalUsers.splice(i, 1);
+      } else {
+        i++;
+      }
+    }
+    
+    return [...top3, ...finalUsers];
   }, [users, state]);
 
   const currentUserRank = useMemo(() => 
@@ -245,7 +265,9 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
                   <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
                 )}
               </div>
-              <span className="text-xs font-bold truncate w-full text-center">{top50Users[1]?.username || '-'}</span>
+              <div className="flex items-center justify-center space-x-1 w-full px-1">
+                <span className="text-xs font-bold truncate">{top50Users[1]?.username || '-'}</span>
+              </div>
               {top50Users[1]?.equippedTitle && (() => {
                 const titleDef = TITLES.find(t => t.id === top50Users[1]?.equippedTitle);
                 return (
@@ -254,7 +276,15 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
                   </div>
                 );
               })()}
-              <div className="h-24 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-slate-300/50 flex flex-col items-center justify-end pb-2">
+              <div className="h-24 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-slate-300/50 flex flex-col items-center justify-between py-2">
+                {top50Users[1] && (
+                  <div 
+                    className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black border border-white/10 shrink-0 ${getIntegrityRating(top50Users[1].integrityScore ?? 90).glow}`}
+                    style={{ color: getIntegrityRating(top50Users[1].integrityScore ?? 90).color, backgroundColor: `${getIntegrityRating(top50Users[1].integrityScore ?? 90).color}20` }}
+                  >
+                    {getIntegrityRating(top50Users[1].integrityScore ?? 90).letter}
+                  </div>
+                )}
                 <span className="text-xs font-mono text-secondary">{t('leaderboard.lvl', state.language).replace('{level}', (top50Users[1]?.level || 0).toString())}</span>
               </div>
             </div>
@@ -272,7 +302,9 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
                   <div className="absolute top-0 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
                 )}
               </div>
-              <span className="text-sm font-bold truncate w-full text-center text-primary">{top50Users[0]?.username || '-'}</span>
+              <div className="flex items-center justify-center space-x-1 w-full px-1">
+                <span className="text-sm font-bold truncate text-primary">{top50Users[0]?.username || '-'}</span>
+              </div>
               {top50Users[0]?.equippedTitle && (() => {
                 const titleDef = TITLES.find(t => t.id === top50Users[0]?.equippedTitle);
                 return (
@@ -281,7 +313,15 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
                   </div>
                 );
               })()}
-              <div className="h-32 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-4 border-yellow-400/50 flex flex-col items-center justify-end pb-2">
+              <div className="h-32 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-4 border-yellow-400/50 flex flex-col items-center justify-between py-3">
+                {top50Users[0] && (
+                  <div 
+                    className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-black border border-white/10 shrink-0 ${getIntegrityRating(top50Users[0].integrityScore ?? 90).glow}`}
+                    style={{ color: getIntegrityRating(top50Users[0].integrityScore ?? 90).color, backgroundColor: `${getIntegrityRating(top50Users[0].integrityScore ?? 90).color}20` }}
+                  >
+                    {getIntegrityRating(top50Users[0].integrityScore ?? 90).letter}
+                  </div>
+                )}
                 <span className="text-sm font-mono font-bold text-yellow-400">{t('leaderboard.lvl', state.language).replace('{level}', (top50Users[0]?.level || 0).toString())}</span>
               </div>
             </div>
@@ -298,7 +338,9 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
                   <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
                 )}
               </div>
-              <span className="text-xs font-bold truncate w-full text-center">{top50Users[2]?.username || '-'}</span>
+              <div className="flex items-center justify-center space-x-1 w-full px-1">
+                <span className="text-xs font-bold truncate">{top50Users[2]?.username || '-'}</span>
+              </div>
               {top50Users[2]?.equippedTitle && (() => {
                 const titleDef = TITLES.find(t => t.id === top50Users[2]?.equippedTitle);
                 return (
@@ -307,7 +349,15 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
                   </div>
                 );
               })()}
-              <div className="h-20 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-amber-700/50 flex flex-col items-center justify-end pb-2">
+              <div className="h-20 w-full bg-gradient-to-t from-surface to-surface-hover rounded-t-xl mt-2 border-t-2 border-amber-700/50 flex flex-col items-center justify-between py-2">
+                {top50Users[2] && (
+                  <div 
+                    className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black border border-white/10 shrink-0 ${getIntegrityRating(top50Users[2].integrityScore ?? 90).glow}`}
+                    style={{ color: getIntegrityRating(top50Users[2].integrityScore ?? 90).color, backgroundColor: `${getIntegrityRating(top50Users[2].integrityScore ?? 90).color}20` }}
+                  >
+                    {getIntegrityRating(top50Users[2].integrityScore ?? 90).letter}
+                  </div>
+                )}
                 <span className="text-xs font-mono text-secondary">{t('leaderboard.lvl', state.language).replace('{level}', (top50Users[2]?.level || 0).toString())}</span>
               </div>
             </div>
@@ -339,15 +389,38 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
                   </div>
                   
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <h4 className={`font-bold truncate ${isCurrentUser ? 'text-primary' : 'text-secondary'}`}>
-                        {user.username} {isCurrentUser && '(You)'}
-                      </h4>
-                      {state.rivalId === user.userId && (
-                        <span className="px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-500 text-[8px] font-bold uppercase tracking-wider border border-rose-500/30">
-                          Rival
-                        </span>
-                      )}
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <h4 className={`font-bold truncate ${isCurrentUser ? 'text-primary' : 'text-secondary'}`}>
+                            {user.username} {isCurrentUser && '(You)'}
+                          </h4>
+                          {state.rivalId === user.userId && (
+                            <span className="px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-500 text-[8px] font-bold uppercase tracking-wider border border-rose-500/30 shrink-0">
+                              Rival
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* OVR & Integrity Display - Moved Below Username */}
+                        <div className="flex items-center space-x-3 mt-1 shrink-0">
+                          <div className="flex items-center space-x-1">
+                            <span className="text-[8px] font-black text-white/40 uppercase">OVR</span>
+                            <span className="text-xs font-black text-primary">{user.ovr || calculateOVR(user as any, isCurrentUser ? activeUserEmail : null).ovr}</span>
+                          </div>
+                          {(() => {
+                            const rating = getIntegrityRating(user.integrityScore ?? 90);
+                            return (
+                              <div 
+                                className={`w-4 h-4 rounded-md flex items-center justify-center text-[8px] font-black border border-white/10 ${rating.glow}`}
+                                style={{ color: rating.color, backgroundColor: `${rating.color}20` }}
+                              >
+                                {rating.letter}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
                     </div>
                     {user.equippedTitle && (() => {
                       const titleDef = TITLES.find(t => t.id === user.equippedTitle);
@@ -391,10 +464,33 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
             </div>
             
             <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2">
-                <h4 className="font-bold truncate text-primary">
-                  {currentUserData.username} (You)
-                </h4>
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center space-x-2">
+                    <h4 className="font-bold truncate text-primary">
+                      {currentUserData.username} (You)
+                    </h4>
+                  </div>
+                  
+                  {/* OVR & Integrity Display - Moved Below Username */}
+                  <div className="flex items-center space-x-3 mt-1 shrink-0">
+                    <div className="flex items-center space-x-1">
+                      <span className="text-[8px] font-black text-white/40 uppercase">OVR</span>
+                      <span className="text-xs font-black text-primary">{currentUserData.ovr || calculateOVR(currentUserData as any, activeUserEmail).ovr}</span>
+                    </div>
+                    {(() => {
+                      const rating = getIntegrityRating(currentUserData.integrityScore ?? 90);
+                      return (
+                        <div 
+                          className={`w-4 h-4 rounded-md flex items-center justify-center text-[8px] font-black border border-white/10 ${rating.glow}`}
+                          style={{ color: rating.color, backgroundColor: `${rating.color}20` }}
+                        >
+                          {rating.letter}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
               </div>
               {currentUserData.equippedTitle && (() => {
                 const titleDef = TITLES.find(t => t.id === currentUserData.equippedTitle);

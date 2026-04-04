@@ -133,7 +133,7 @@ export default function App() {
   }, [state?.isLoggedIn, state?.onboardingCompleted, state?.chosenPath, state?.customMissions, isChangingGoal, state?.username, activeUserEmail]);
 
   useEffect(() => {
-    if (state?.isLoggedIn && state?.username && state?.userId && isAuthReady && auth.currentUser) {
+    if (state?.isLoggedIn && state?.username && state?.userId && isAuthReady && auth && auth.currentUser) {
       const ovrData = calculateOVR(state, activeUserEmail);
       const totalXp = 50 * state.level * (state.level - 1) + state.xp;
       const userData = {
@@ -150,6 +150,7 @@ export default function App() {
         framesCount: state.unlockedFrames?.length || 0,
         missionsCompleted: state.missionsCompleted || 0,
         isProfilePublic: state.isProfilePublic !== false,
+        isPremium: state.isPremium || false,
         ovr: ovrData.ovr,
         stats: ovrData.stats,
         missionAffinity: state.missionAffinity || {},

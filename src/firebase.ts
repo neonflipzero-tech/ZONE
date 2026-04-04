@@ -4,10 +4,26 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import firebaseConfig from '../firebase-applet-config.json';
 
+if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey === 'TODO_KEYHERE') {
+  console.error('Firebase configuration is missing or invalid. Please check your firebase-applet-config.json file.');
+}
+
 // Initialize Firebase
-export const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
+let app;
+let db: any = null;
+let auth: any = null;
+
+const isConfigValid = firebaseConfig && firebaseConfig.apiKey && firebaseConfig.apiKey !== 'TODO_KEYHERE';
+
+if (isConfigValid) {
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  auth = getAuth(app);
+} else {
+  console.error('Firebase configuration is missing or invalid. Please check your firebase-applet-config.json file.');
+}
+
+export { app, db, auth };
 export const googleProvider = new GoogleAuthProvider();
 
 export enum OperationType {

@@ -207,6 +207,7 @@ const LoginScreen = ({ onLogin, language }: LoginScreenProps) => {
                   type="text"
                   placeholder={t('login.username', language)}
                   value={username}
+                  maxLength={15}
                   onChange={(e) => {
                     setUsername(e.target.value);
                     setError('');

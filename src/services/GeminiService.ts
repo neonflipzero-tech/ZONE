@@ -1,6 +1,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let aiClient: GoogleGenAI | null = null;
+
+const getAi = () => {
+  if (!aiClient) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn("GEMINI_API_KEY is missing. AI features will be disabled.");
+      return null;
+    }
+    aiClient = new GoogleGenAI({ apiKey });
+  }
+  return aiClient;
+};
 
 export interface OnboardingAnalysis {
   suggestedPath: 'PRODUCTIVE' | 'STRONGER' | 'EXTROVERT' | 'DISCIPLINE' | 'MENTAL_HEALTH' | 'OTHER';
@@ -9,6 +21,15 @@ export interface OnboardingAnalysis {
 }
 
 export const analyzeOnboardingAnswers = async (answers: string[], language: 'en' | 'id'): Promise<OnboardingAnalysis> => {
+  const ai = getAi();
+  if (!ai) {
+    return {
+      suggestedPath: 'DISCIPLINE',
+      statAdjustments: { discipline: 10, ambition: 10, mental: 5 },
+      feedback: language === 'id' ? "Mari kita mulai perjalanan disiplinmu!" : "Let's start your discipline journey!"
+    };
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
