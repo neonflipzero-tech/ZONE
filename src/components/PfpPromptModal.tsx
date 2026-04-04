@@ -9,7 +9,7 @@ interface PfpPromptModalProps {
   onComplete: (croppedImageBase64: string | null) => void;
 }
 
-export default function PfpPromptModal({ language, onComplete }: PfpPromptModalProps) {
+const PfpPromptModal = ({ language, onComplete }: PfpPromptModalProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
@@ -93,4 +93,6 @@ export default function PfpPromptModal({ language, onComplete }: PfpPromptModalP
       </AnimatePresence>
     </>
   );
-}
+};
+
+export default React.memo(PfpPromptModal);

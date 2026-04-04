@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "The public profile of a user in the Zone.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The unique ID of the user." },
+        "username": { "type": "string", "description": "The display name of the user." },
+        "level": { "type": "integer", "description": "The current level of the user." },
+        "xp": { "type": "integer", "description": "The current XP of the user." },
+        "totalXp": { "type": "integer", "description": "The total accumulated XP of the user." },
+        "equippedFrame": { "type": "string", "description": "The ID of the currently equipped profile frame." },
+        "equippedTitle": { "type": "string", "description": "The ID of the currently equipped title." },
+        "profilePicture": { "type": "string", "description": "The URL of the user's profile picture." },
+        "streak": { "type": "integer", "description": "The current daily streak of the user." },
+        "badgesCount": { "type": "integer", "description": "The number of badges unlocked by the user." },
+        "framesCount": { "type": "integer", "description": "The number of frames unlocked by the user." },
+        "missionsCompleted": { "type": "integer", "description": "The total number of missions completed by the user." },
+        "isProfilePublic": { "type": "boolean", "description": "Whether the user's profile is visible on the global leaderboard." },
+        "ovr": { "type": "integer", "description": "The overall rating of the user." },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "physical": { "type": "integer" },
+            "discipline": { "type": "integer" },
+            "mental": { "type": "integer" },
+            "ambition": { "type": "integer" },
+            "intellect": { "type": "integer" },
+            "social": { "type": "integer" },
+            "other": { "type": "integer" }
+          }
+        },
+        "missionAffinity": {
+          "type": "object",
+          "description": "Weights for mission categories based on user behavior.",
+          "properties": {
+            "physical": { "type": "number" },
+            "discipline": { "type": "number" },
+            "mental": { "type": "number" },
+            "ambition": { "type": "number" },
+            "intellect": { "type": "number" },
+            "social": { "type": "number" }
+          }
+        },
+        "lastActive": { "type": "integer", "description": "The timestamp of the user's last activity." }
+      },
+      "required": ["userId", "username", "level", "xp", "totalXp", "lastActive"]
+    },
+    "Mission": {
+      "title": "Mission",
+      "description": "A mission template that can be assigned to users.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string", "enum": ["physical", "discipline", "mental", "ambition", "intellect", "social"] },
+        "xpReward": { "type": "integer" },
+        "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"] }
+      },
+      "required": ["id", "title", "description", "category", "xpReward"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Public user data for the global leaderboard."
+    },
+    "/missions/{missionId}": {
+      "schema": "Mission",
+      "description": "Global mission templates."
+    }
+  }
+}

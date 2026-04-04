@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useAppState, PathType, getRankForLevel, calculateOVR } from './store';
+import { useAppState, PathType, getRankForLevel, calculateOVR, MissionType } from './store';
+import { ZoneCoinIcon } from './components/ZoneCoinIcon';
 import { sounds } from './utils/sounds';
-import { db } from './firebase';
+import { db, handleFirestoreError, OperationType, auth } from './firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import LoginScreen from './components/LoginScreen';
+import ManifestoScreen from './components/ManifestoScreen';
 import OnboardingScreen from './components/OnboardingScreen';
 import HomeScreen from './components/HomeScreen';
 import ProfileScreen from './components/ProfileScreen';
@@ -15,6 +17,7 @@ import JourneyScreen from './components/JourneyScreen';
 import PfpPromptModal from './components/PfpPromptModal';
 import UnlockNotification from './components/UnlockNotification';
 import ElitePromotionModal from './components/ElitePromotionModal';
+import ProfileFrame from './components/ProfileFrame';
 import { Target, Trophy, User, BarChart2, Map, Swords } from 'lucide-react';
 import { NotificationService } from './services/NotificationService';
 
@@ -23,6 +26,7 @@ type Tab = 'home' | 'leaderboard' | 'journey' | 'rank' | 'profile';
 export default function App() {
   const { 
     state, 
+    activeUserEmail,
     login,
     logout,
     updateState, 
@@ -34,14 +38,46 @@ export default function App() {
     addCustomMission,
     removeCustomMission,
     dismissUnlockedItem,
-    addNotification
+    addNotification,
+    init,
+    isAuthReady
   } = useAppState();
+
+  useEffect(() => {
+    const unsubscribe = init();
+    return () => unsubscribe();
+  }, [init]);
 
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const activeTabRef = useRef<Tab>(activeTab);
   const preAnimationTabRef = useRef<Tab | null>(null);
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [isChangingGoal, setIsChangingGoal] = useState(false);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && state?.isLoggedIn) {
+        const today = new Date().toDateString();
+        const missionsDoneToday = state.dailyStats?.[today] || 0;
+        const now = Date.now();
+        const oneHour = 60 * 60 * 1000;
+        const lastNotif = state.lastRestNotificationTime || 0;
+
+        if (missionsDoneToday >= 2 && (now - lastNotif > oneHour)) {
+          NotificationService.sendNotification(
+            state.language === 'id' ? 'Capek?' : 'Tired?',
+            state.language === 'id' 
+              ? 'Istirahat dulu, kalau sudah siap, masuk ke zone lagi.' 
+              : 'Get some rest and then when you\'re ready, enter the zone again.'
+          );
+          updateState({ lastRestNotificationTime: now });
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [state?.isLoggedIn, state?.dailyStats, state?.lastRestNotificationTime, state?.language]);
 
   useEffect(() => {
     NotificationService.init();
@@ -74,9 +110,7 @@ export default function App() {
     if (params.get('upgrade') === 'success') {
       updateState({ isPremium: true });
       window.history.replaceState({}, document.title, window.location.pathname);
-      setTimeout(() => {
-        alert(state?.language === 'id' ? 'LockIn Premium Aktif! Terima kasih atas dukungan Anda.' : 'LockIn Premium Activated! Thank you for your support.');
-      }, 500);
+      // Premium activated successfully - UI will update automatically
     }
   }, [state?.language]);
 
@@ -96,10 +130,11 @@ export default function App() {
     if (state?.isLoggedIn && state?.onboardingCompleted && state?.chosenPath && !isChangingGoal) {
       generateMissions(state.chosenPath);
     }
-  }, [state?.isLoggedIn, state?.onboardingCompleted, state?.chosenPath, state?.customMissions, isChangingGoal]);
+  }, [state?.isLoggedIn, state?.onboardingCompleted, state?.chosenPath, state?.customMissions, isChangingGoal, state?.username, activeUserEmail]);
 
   useEffect(() => {
-    if (state?.isLoggedIn && state?.username && state?.userId) {
+    if (state?.isLoggedIn && state?.username && state?.userId && isAuthReady && auth.currentUser) {
+      const ovrData = calculateOVR(state, activeUserEmail);
       const totalXp = 50 * state.level * (state.level - 1) + state.xp;
       const userData = {
         userId: state.userId,
@@ -115,22 +150,26 @@ export default function App() {
         framesCount: state.unlockedFrames?.length || 0,
         missionsCompleted: state.missionsCompleted || 0,
         isProfilePublic: state.isProfilePublic !== false,
-        ovr: calculateOVR(state).ovr,
-        stats: calculateOVR(state).stats,
+        ovr: ovrData.ovr,
+        stats: ovrData.stats,
+        missionAffinity: state.missionAffinity || {},
         lastActive: Date.now()
       };
 
       // Sync to Firebase if configured
       if (db) {
         const timeout = setTimeout(() => {
+          const path = `users/${state.userId}`;
           setDoc(doc(db, 'users', state.userId), userData, { merge: true }).catch((e: any) => {
             if (e?.code === 'unavailable' || e?.message?.includes('offline')) {
               console.warn("Client is offline, skipping user data sync.");
+            } else if (e?.code === 'permission-denied') {
+              handleFirestoreError(e, OperationType.WRITE, path);
             } else {
               console.error("Error syncing user data:", e);
             }
           });
-        }, 2000);
+        }, 5000); // Increased delay to reduce frequency
         return () => clearTimeout(timeout);
       }
 
@@ -162,7 +201,7 @@ export default function App() {
         console.error('Failed to sync leaderboard to localStorage:', err);
       }
     }
-  }, [state?.level, state?.xp, state?.equippedFrame, state?.equippedTitle, state?.profilePicture, state?.username, state?.isLoggedIn, state?.userId, state?.streak, state?.badges?.length, state?.unlockedFrames?.length, state?.missionsCompleted, state?.isProfilePublic]);
+  }, [state?.level, state?.xp, state?.equippedFrame, state?.equippedTitle, state?.profilePicture, state?.username, state?.isLoggedIn, state?.userId, state?.streak, state?.badges?.length, state?.unlockedFrames?.length, state?.missionsCompleted, state?.isProfilePublic, isAuthReady]);
 
   // Level Cap Migration
   useEffect(() => {
@@ -183,7 +222,7 @@ export default function App() {
         
         // Check if it's after 8 PM (20:00)
         if (hours >= 20) {
-          const hasCompletedToday = state.missions.some(m => m.completed);
+          const hasCompletedToday = state.lastActiveDate === now.toDateString();
           const lastWarningDate = localStorage.getItem('lockin_last_streak_warning');
           const today = now.toDateString();
           
@@ -240,8 +279,6 @@ export default function App() {
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [isPromoOpen, setIsPromoOpen] = useState(false);
   const [isFlashSale, setIsFlashSale] = useState(false);
-  const [showCrushedAnimation, setShowCrushedAnimation] = useState(false);
-  const [rivalData, setRivalData] = useState<any | null>(null);
 
   // Promotion Trigger Logic
   useEffect(() => {
@@ -294,6 +331,7 @@ export default function App() {
       if (state?.isLoggedIn && state?.rivalId) {
         let fetchedRivalData = null;
         if (db) {
+          const path = `users/${state.rivalId}`;
           try {
             const docRef = doc(db, 'users', state.rivalId);
             const docSnap = await getDoc(docRef);
@@ -303,6 +341,8 @@ export default function App() {
           } catch (e: any) {
             if (e?.code === 'unavailable' || e?.message?.includes('offline')) {
               console.warn("Client is offline, skipping rival check from Firestore.");
+            } else if (e?.code === 'permission-denied') {
+              handleFirestoreError(e, OperationType.GET, path);
             } else {
               console.error("Error checking rival for notifications", e);
             }
@@ -325,14 +365,12 @@ export default function App() {
         }
 
         if (fetchedRivalData) {
-          setRivalData(fetchedRivalData);
+          updateState({ rivalData: fetchedRivalData });
 
           // Check for Crush (XP Surpassed)
           const isBeaten = state.beatenRivals?.includes(state.rivalId);
           if (!isBeaten && state.totalXp > (fetchedRivalData.totalXp || 0)) {
             // CRUSHED!
-            setShowCrushedAnimation(true);
-            
             // Add rewards
             const newBeatenRivals = [...(state.beatenRivals || []), state.rivalId];
             const newUnlockedItemsQueue = [...(state.unlockedItemsQueue || [])];
@@ -347,7 +385,8 @@ export default function App() {
               beatenRivals: newBeatenRivals,
               unlockedItemsQueue: newUnlockedItemsQueue,
               unlockedTitles: [...(state.unlockedTitles || []), 'Rival Crusher'],
-              rivalId: null // Clear rival after beating them
+              rivalId: null, // Clear rival after beating them
+              showCrushedAnimation: true
             });
 
             // Sound effect
@@ -397,26 +436,31 @@ export default function App() {
     }
   }, [state?.animatingLevelUp]);
 
-  const handleLogin = (email: string, username: string) => {
+  const handleLogin = useCallback((email: string, username: string) => {
     login(email, username);
-  };
+  }, [login]);
 
-  const handleSelectPath = (path: PathType, baseStats: Record<string, number>) => {
+  const handleSelectPath = useCallback((path: PathType, baseStats: Record<string, number>) => {
     updateState({ chosenPath: path, baseStats, onboardingCompleted: true });
-  };
+  }, [updateState]);
 
-  const handleChangeGoal = (path: PathType) => {
+  const handleAcceptManifesto = useCallback(() => {
+    updateState({ manifestoAccepted: true });
+    sounds.playLevelUp();
+  }, [updateState]);
+
+  const handleChangeGoal = useCallback((path: PathType) => {
     setIsChangingGoal(true);
     // Standardized loading time: 3 seconds
     setTimeout(() => {
       changePath(path);
       setIsChangingGoal(false);
     }, 3000);
-  };
+  }, [changePath]);
 
-  const handleDismissStreak = () => {
+  const handleDismissStreak = useCallback(() => {
     updateState({ showStreakAnimation: false });
-  };
+  }, [updateState]);
 
   // Render logic
   let content;
@@ -469,6 +513,8 @@ export default function App() {
     );
   } else if (!state || !state.isLoggedIn) {
     content = <LoginScreen onLogin={handleLogin} language={state?.language || 'en'} />;
+  } else if (!state.manifestoAccepted) {
+    content = <ManifestoScreen onAccept={handleAcceptManifesto} language={state.language} />;
   } else if (!state.onboardingCompleted) {
     content = <OnboardingScreen onSelectPath={handleSelectPath} language={state.language} />;
   } else if (state.showStreakAnimation) {
@@ -492,40 +538,104 @@ export default function App() {
           </div>
         )}
 
-        {showCrushedAnimation && rivalData && (
+        {state.showCrushedAnimation && state.rivalData && (
           <motion.div 
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl p-6"
           >
-            <div className="text-center">
-              <motion.div
-                animate={{ 
-                  rotate: [0, -10, 10, -10, 10, 0],
-                  scale: [1, 1.2, 1.2, 1.2, 1.2, 1]
-                }}
-                transition={{ duration: 0.5, repeat: Infinity }}
-                className="text-6xl mb-4"
-              >
-                👊
-              </motion.div>
-              <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tighter italic">
-                {state.language === 'id' ? 'RIVAL DIHANCURKAN!' : 'RIVAL CRUSHED!'}
-              </h2>
-              <p className="text-rose-400 font-bold mb-6">
-                {state.language === 'id' ? `Kamu melampaui ${rivalData.username}!` : `You surpassed ${rivalData.username}!`}
-              </p>
-              <div className="bg-white/10 rounded-2xl p-4 mb-6">
-                <div className="text-sm text-gray-400 mb-1">{state.language === 'id' ? 'Hadiah' : 'Rewards'}</div>
-                <div className="text-2xl font-black text-amber-400">+500 XP</div>
-                <div className="text-rose-500 font-bold">TITLE: RIVAL CRUSHER</div>
+            <div className="max-w-xs w-full text-center">
+              <div className="relative mb-12 flex justify-center">
+                {/* Rival Avatar being crushed */}
+                <motion.div
+                  initial={{ scale: 1, filter: 'grayscale(0%)' }}
+                  animate={{ 
+                    scale: [1, 1.1, 0.5, 0.2, 0],
+                    filter: ['grayscale(0%)', 'grayscale(0%)', 'grayscale(100%)', 'grayscale(100%)', 'grayscale(100%)'],
+                    opacity: [1, 1, 0.8, 0.5, 0]
+                  }}
+                  transition={{ duration: 1, times: [0, 0.3, 0.6, 0.8, 1], ease: "easeIn" }}
+                  className="relative z-0"
+                >
+                  <ProfileFrame frame={state.rivalData.equippedFrame} src={state.rivalData.profilePicture} size="xl" />
+                  <div className="absolute inset-0 bg-rose-600/20 rounded-full mix-blend-overlay" />
+                </motion.div>
+
+                {/* Punch Emoji */}
+                <motion.div
+                  initial={{ scale: 0, x: 100, y: 100, rotate: -45 }}
+                  animate={{ 
+                    scale: [0, 1.5, 1.2],
+                    x: [100, 0, 0],
+                    y: [100, 0, 0],
+                    rotate: [-45, 0, 0]
+                  }}
+                  transition={{ duration: 0.6, times: [0, 0.7, 1], ease: "backOut" }}
+                  className="absolute inset-0 flex items-center justify-center z-10"
+                >
+                  <div className="text-9xl drop-shadow-[0_0_40px_rgba(225,29,72,1)]">👊</div>
+                </motion.div>
+
+                {/* Impact Sparks */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: [0, 1, 0], scale: [0, 2, 2.5] }}
+                  transition={{ delay: 0.4, duration: 0.5 }}
+                  className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none"
+                >
+                  <div className="w-32 h-32 rounded-full border-8 border-white/40 blur-sm" />
+                </motion.div>
               </div>
-              <button
-                onClick={() => setShowCrushedAnimation(false)}
-                className="w-full py-4 bg-rose-600 text-white font-black rounded-xl uppercase tracking-widest shadow-[0_0_20px_rgba(225,29,72,0.5)] active:scale-95 transition-transform"
+
+              <motion.h2 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.8 }}
+                className="text-4xl font-black text-white font-display tracking-tighter uppercase mb-2 italic"
+              >
+                {state.language === 'id' ? 'RIVAL DIHANCURKAN!' : 'RIVAL CRUSHED!'}
+              </motion.h2>
+              
+              <motion.p 
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-rose-500 font-mono tracking-widest uppercase text-xs mb-8"
+              >
+                {state.language === 'id' ? `Kamu melampaui ${state.rivalData.username}!` : `You surpassed ${state.rivalData.username}!`}
+              </motion.p>
+
+              <motion.div 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                className="bg-white/5 border border-white/10 p-6 rounded-3xl mb-8 backdrop-blur-sm"
+              >
+                <div className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.2em] mb-4">
+                  {state.language === 'id' ? 'HADIAH DIDAPAT' : 'REWARDS EARNED'}
+                </div>
+                <div className="flex justify-center space-x-8">
+                  <div className="flex flex-col items-center">
+                    <div className="text-2xl font-black text-amber-400">+500 XP</div>
+                    <div className="text-[10px] text-gray-500 uppercase">Experience</div>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <div className="text-2xl font-black text-rose-500">CRUSHER</div>
+                    <div className="text-[10px] text-gray-500 uppercase">New Title</div>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.button
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.8 }}
+                onClick={() => useAppState.getState().dismissCrushedAnimation()}
+                className="w-full py-5 bg-rose-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-[0_0_30px_rgba(225,29,72,0.4)] hover:bg-rose-500 active:scale-95 transition-all"
               >
                 {state.language === 'id' ? 'LANJUTKAN' : 'CONTINUE'}
-              </button>
+              </motion.button>
             </div>
           </motion.div>
         )}
@@ -540,6 +650,7 @@ export default function App() {
                   onReplaceMission={replaceMission}
                   addCustomMission={addCustomMission}
                   removeCustomMission={removeCustomMission}
+                  isFlashSale={isFlashSale}
                 />
               </motion.div>
             )}
@@ -565,39 +676,13 @@ export default function App() {
                   onLogout={logout}
                   updateState={updateState}
                   changePath={handleChangeGoal}
-                  rivalData={rivalData}
+                  rivalData={state.rivalData}
+                  isFlashSale={isFlashSale}
                 />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-
-        <AnimatePresence>
-          {showCrushedAnimation && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.2 }}
-              className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-6 text-center"
-            >
-              <motion.div
-                animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.2, 1] }}
-                transition={{ duration: 1, repeat: Infinity }}
-                className="relative mb-8"
-              >
-                <div className="absolute inset-0 bg-rose-500/30 blur-3xl rounded-full" />
-                <Swords className="w-32 h-32 text-rose-500 drop-shadow-[0_0_30px_rgba(244,63,94,0.8)] relative z-10" />
-              </motion.div>
-              <h2 className="text-4xl font-display font-black text-rose-500 mb-4 uppercase tracking-widest">
-                {state.language === 'id' ? 'RIVAL DIKALAHKAN!' : 'RIVAL CRUSHED!'}
-              </h2>
-              <p className="text-xl text-white font-bold mb-2">+500 XP REWARD</p>
-              <p className="text-secondary font-mono uppercase tracking-widest">
-                {state.language === 'id' ? 'Gelar "Rival Crusher" Terbuka' : '"Rival Crusher" Title Unlocked'}
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         <AnimatePresence>
           {isPromoOpen && (

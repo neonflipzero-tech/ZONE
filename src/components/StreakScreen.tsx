@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Flame, Share2 } from 'lucide-react';
 import { sounds } from '../utils/sounds';
@@ -14,6 +14,11 @@ interface StreakScreenProps {
 
 export default function StreakScreen({ streak, onContinue }: StreakScreenProps) {
   const { incrementShareCount, state } = useAppState();
+
+  const randomQuoteKey = React.useMemo(() => {
+    const keys = ['streak.quote', 'streak.quote.1', 'streak.quote.2', 'streak.quote.3', 'streak.quote.4', 'streak.quote.5', 'streak.quote.6', 'streak.quote.7', 'streak.quote.8', 'streak.quote.9', 'streak.quote.10'];
+    return keys[Math.floor(Math.random() * keys.length)];
+  }, []);
 
   useEffect(() => {
     sounds.playLevelUp(); // Reuse level up sound for streak
@@ -66,7 +71,9 @@ export default function StreakScreen({ streak, onContinue }: StreakScreenProps) 
         </div>
 
         <div className="bg-surface/50 backdrop-blur-md border border-white/10 p-6 rounded-2xl max-w-sm mb-12">
-          <p className="text-lg font-medium italic text-primary/90">{t('streak.quote', state.language)}</p>
+          <p className="text-lg font-medium italic text-primary/90 leading-relaxed">
+            {t(randomQuoteKey, state.language)}
+          </p>
         </div>
 
         <div className="flex flex-col space-y-4 w-full max-w-xs" data-html2canvas-ignore>

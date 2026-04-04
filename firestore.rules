@@ -1,0 +1,138 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: /users/{userId}
+    // Document ID: userId (matches Firebase Auth UID)
+    // Fields:
+    //   - userId: string (required, immutable) - The unique ID of the user.
+    //   - username: string (required, max 50 chars) - The display name of the user.
+    //   - level: number (required, min 1, max 50) - The current level of the user.
+    //   - xp: number (required, min 0) - The current XP of the user.
+    //   - totalXp: number (required, min 0) - The total accumulated XP of the user.
+    //   - equippedFrame: string (optional) - The ID of the currently equipped profile frame.
+    //   - equippedTitle: string (optional) - The ID of the currently equipped title.
+    //   - profilePicture: string (optional, URL) - The URL of the user's profile picture.
+    //   - streak: number (optional, min 0) - The current daily streak of the user.
+    //   - badgesCount: number (optional, min 0) - The number of badges unlocked by the user.
+    //   - framesCount: number (optional, min 0) - The number of frames unlocked by the user.
+    //   - missionsCompleted: number (optional, min 0) - The total number of missions completed by the user.
+    //   - isProfilePublic: bool (optional) - Whether the user's profile is visible on the global leaderboard.
+    //   - ovr: number (optional, min 0, max 100) - The overall rating of the user.
+    //   - stats: map (optional) - The detailed stats of the user.
+    //   - lastActive: number (required, timestamp) - The timestamp of the user's last activity.
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "zaikiwildan@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*") || url.matches("^data:image/.*"));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      let allowedFields = [
+        'userId', 'username', 'level', 'xp', 'totalXp', 'equippedFrame', 
+        'equippedTitle', 'profilePicture', 'streak', 'badgesCount', 
+        'framesCount', 'missionsCompleted', 'isProfilePublic', 'ovr', 
+        'stats', 'lastActive', 'role', 'missionAffinity'
+      ];
+      return hasRequiredFields(['userId', 'username', 'level', 'xp', 'totalXp', 'lastActive']) &&
+             hasOnlyAllowedFields(allowedFields) &&
+             data.userId == request.auth.uid &&
+             data.username is string && data.username.size() > 0 && data.username.size() <= 50 &&
+             data.level is number && data.level >= 1 && data.level <= 100 &&
+             data.xp is number && data.xp >= 0 &&
+             data.totalXp is number && data.totalXp >= 0 &&
+             (!('profilePicture' in data) || data.profilePicture == null || data.profilePicture == "" || isValidUrl(data.profilePicture)) &&
+             (!('streak' in data) || (data.streak is number && data.streak >= 0)) &&
+             (!('ovr' in data) || (data.ovr is number && data.ovr >= 0 && data.ovr <= 100)) &&
+             (!('isProfilePublic' in data) || data.isProfilePublic is bool) &&
+             (!('stats' in data) || data.stats is map) &&
+             (!('missionAffinity' in data) || data.missionAffinity is map) &&
+             data.lastActive is number;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // Allow read if profile is public or user is owner
+      allow read: if isOwner(userId) || (resource.data.isProfilePublic == true);
+      
+      // Allow create if user is owner and data is valid
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      (!('role' in request.resource.data) || request.resource.data.role == 'user');
+      
+      // Allow update if user is owner and data is valid, or if admin
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && 
+                       ((!('role' in request.resource.data) && !('role' in resource.data)) || 
+                        (request.resource.data.role == resource.data.role) || isAdmin())) || 
+                      isAdmin();
+      
+      // Allow delete only by owner or admin
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// ===============================================================
+// Devil's Advocate Attack Documentation
+// ===============================================================
+// 1. Public List Exploit: FAILED. Read is restricted to public profiles or owner.
+// 2. Unauthorized Read/Write: FAILED. CRUD operations require ownership or admin rights.
+// 3. The "Update Bypass": FAILED. Update rule calls isValidUser() which enforces schema and limits.
+// 4. Ownership Hijacking (Create): FAILED. data.userId must match request.auth.uid.
+// 5. Ownership Hijacking (Update): FAILED. userId is part of the path and isOwner(userId) checks it.
+// 6. Immutable Field Modification: userId is effectively immutable as it must match the path and auth UID.
+// 7. Data Corruption (Type Juggling): FAILED. isValidUser() checks types (is number, is string, etc.).
+// 8. Resource Exhaustion / DoS: FAILED. username size is limited to 50.
+// 9. Required Field Omission: FAILED. hasRequiredFields() is called in isValidUser().
+// 10. Privilege Escalation: FAILED. role can only be set to 'user' on create, and update requires isAdmin() to change role.
+// 11. Schema Pollution: FAILED. hasOnlyAllowedFields() is used.
+// 12. Invalid State Transition: N/A for this simple model.
+// 13. Path Traversal / Scoping Attack: FAILED. userId in path must match auth UID.
+// 14. Timestamp Manipulation: lastActive is a number, but we could add request.time check if needed.
+// 15. Negative Value / Overflow: FAILED. level, xp, totalXp, streak, ovr have min/max checks.
+// 16. The "Mixed Content" Leak: FAILED. No PII like email is stored in the public user document.
+// 17. Counter/Action Replay: N/A.
+// 18. Orphaned Subcollection Access: N/A.
+// 19. Query Mismatch: App queries by userId or lists all public profiles, both allowed.
+// 20. Validator Pattern Check: PASSED. isValidUser() is called in both create and update.

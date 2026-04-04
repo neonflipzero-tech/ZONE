@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, Lock, Shield, Star, Store, Package, Zap, Snowflake, CheckCircle2, Users } from 'lucide-react';
 import { ZoneCoinIcon } from './ZoneCoinIcon';
 import ProfileFrame from './ProfileFrame';
-import { UserState, TITLES } from '../store';
+import { UserState, TITLES, isFrameUnlocked, ALL_FRAMES } from '../store';
 import { t } from '../utils/translations';
 import { sounds } from '../utils/sounds';
 import ZoneCoinInfoModal from './ZoneCoinInfoModal';
@@ -16,18 +16,9 @@ interface ZoneStoreModalProps {
   updateState: (updates: Partial<UserState>) => void;
 }
 
-const ALL_FRAMES = [
-  'frame-default', 'frame-bronze', 'frame-silver', 'frame-gold', 'frame-platinum', 
-  'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-legend', 'frame-mythic',
-  'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 
-  'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 
-  'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral',
-  'frame-royal', 'frame-dragon'
-];
-
 const FRAME_COSTS: Record<string, number> = {
   'frame-royal': 500,
-  'frame-dragon': 750,
+  'frame-glitch': 600,
 };
 
 export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateState }: ZoneStoreModalProps) {
@@ -59,30 +50,8 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
   const isZaiki = state.username?.toLowerCase() === 'zaiki';
   const totalMissions = Object.values(state.dailyStats || {}).reduce((a, b) => (a as number) + (b as number), 0) as number;
   
-  const checkFrameUnlocked = (frame: string) => {
-    const specialConditions: Record<string, boolean> = {
-      'frame-rgb': state.streak >= 7,
-      'frame-neon': totalMissions >= 50,
-      'frame-fire': (state.streak || 0) >= 30,
-      'frame-cyberpunk': (state.badges?.length || 0) >= 5,
-      'frame-hologram': totalMissions >= 100,
-      'frame-celestial': ovr >= 80,
-      'frame-void': (state.level || 0) >= 20,
-      'frame-aurora': (state.streak || 0) >= 60,
-      'frame-radiant': totalMissions >= 200,
-      'frame-abyssal': totalMissions >= 666,
-      'frame-inferno': (state.streak || 0) >= 100,
-      'frame-ethereal': ovr >= 95,
-      'frame-omniscience': ovr >= 100,
-      'frame-matrix': totalMissions >= 100,
-      'frame-viral': (state.shareCount || 0) >= 5,
-    };
-    return state.unlockedFrames?.includes(frame) || 
-      frame === 'frame-default' || 
-      isZaiki || 
-      (specialConditions[frame] ?? false);
-  };
-
+  const lockedFrames = ALL_FRAMES.filter(f => !isFrameUnlocked(f, state));
+  
   const getFrameDescription = (f: string) => {
     switch(f) {
       case 'frame-default': return t('frames.desc.default', state.language);
@@ -112,7 +81,7 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
       case 'frame-matrix': return t('frames.desc.matrix', state.language);
       case 'frame-viral': return t('frames.desc.viral', state.language);
       case 'frame-royal': return t('frames.desc.royal', state.language);
-      case 'frame-dragon': return t('frames.desc.dragon', state.language);
+      case 'frame-glitch': return t('frames.desc.glitch', state.language);
       default: return '';
     }
   };
@@ -159,7 +128,6 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
     }
   };
 
-  const lockedFrames = ALL_FRAMES.filter(f => !checkFrameUnlocked(f));
   const lockedTitles = TITLES.filter(t => !isZaiki && !state.titles.includes(t.id) && t.id !== 'Elite Zone');
 
   if (!isOpen) return null;

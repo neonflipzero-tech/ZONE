@@ -60,6 +60,14 @@ export default function UnlockNotification({ item, onDismiss, language }: Unlock
         </span>
       </div>
     );
+  } else if (item.type === 'rank') {
+    title = language === 'id' ? 'Pangkat Baru!' : 'New Rank Achieved!';
+    subtitle = item.id;
+    content = (
+      <div className="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary shadow-[0_0_30px_rgba(var(--color-primary-rgb),0.4)]">
+        <Shield className="w-12 h-12 text-primary" />
+      </div>
+    );
   }
 
   return (

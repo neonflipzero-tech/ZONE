@@ -1,27 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Crown, Check, X, Loader2, AlertCircle } from 'lucide-react';
+import { isUserInIndonesia } from '../utils/location';
 
 interface PremiumModalProps {
   isOpen: boolean;
   onClose: () => void;
   language: 'en' | 'id';
+  isFlashSale?: boolean;
 }
 
-export default function PremiumModal({ isOpen, onClose, language }: PremiumModalProps) {
+export default function PremiumModal({ isOpen, onClose, language, isFlashSale = false }: PremiumModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly' | 'lifetime'>('monthly');
 
+  const useIDR = useMemo(() => {
+    return language === 'id' || isUserInIndonesia();
+  }, [language]);
+
   const getPrice = (planId: string) => {
-    if (language === 'id') {
+    if (useIDR) {
+      if (isFlashSale && planId === 'monthly') return 'Rp 9.999';
       switch (planId) {
-        case 'monthly': return 'Rp 69.000';
-        case 'yearly': return 'Rp 449.000';
-        case 'lifetime': return 'Rp 749.000';
+        case 'monthly': return 'Rp 19.000';
+        case 'yearly': return 'Rp 119.000';
+        case 'lifetime': return 'Rp 199.000';
         default: return '';
       }
     } else {
+      if (isFlashSale && planId === 'monthly') return '$1.99';
       switch (planId) {
         case 'monthly': return '$4.99';
         case 'yearly': return '$29.99';

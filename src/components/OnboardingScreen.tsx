@@ -7,6 +7,8 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Responsi
 import { t } from '../utils/translations';
 import { sounds } from '../utils/sounds';
 
+import { analyzeOnboardingAnswers } from '../services/GeminiService';
+
 interface OnboardingScreenProps {
   onSelectPath: (path: PathType, baseStats: Record<string, number>) => void;
   language: 'en' | 'id';
@@ -110,9 +112,13 @@ export default function OnboardingScreen({ onSelectPath, language }: OnboardingS
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showOVR, setShowOVR] = useState(false);
   const [showPathSelection, setShowPathSelection] = useState(false);
+  const [answers, setAnswers] = useState<string[]>([]);
+  const [aiFeedback, setAiFeedback] = useState<string | null>(null);
 
   const handleSelectOption = (option: typeof QUESTIONS[0]['options'][0]) => {
     sounds.playClick();
+    setAnswers(prev => [...prev, `${QUESTIONS[step].text}: ${option.label}`]);
+    
     if (option.effect) {
       setBaseStats(prev => {
         const next = { ...prev };
@@ -135,20 +141,28 @@ export default function OnboardingScreen({ onSelectPath, language }: OnboardingS
     }
   };
 
-  const startAnalysis = () => {
+  const startAnalysis = async () => {
     setIsAnalyzing(true);
     setStep(QUESTIONS.length);
     
-    setTimeout(() => {
-      setIsAnalyzing(false);
-      setShowOVR(true);
-      sounds.playSuccess();
-    }, 3000);
+    // AI Analysis
+    const analysis = await analyzeOnboardingAnswers(answers, language);
+    
+    if (analysis) {
+      setBaseStats(analysis.statAdjustments);
+      setSelectedPath(analysis.suggestedPath);
+      setAiFeedback(analysis.feedback);
+    }
+    
+    setIsAnalyzing(false);
+    setShowOVR(true);
+    sounds.playSuccess();
   };
 
   const handleOtherSubmit = () => {
     if (!otherValue.trim()) return;
     sounds.playClick();
+    setAnswers(prev => [...prev, `${QUESTIONS[step].text}: ${otherValue}`]);
     
     if (step === QUESTIONS.length - 1) {
       setSelectedPath('OTHER');
@@ -295,6 +309,15 @@ export default function OnboardingScreen({ onSelectPath, language }: OnboardingS
             className="flex flex-col h-full px-6 pt-20 pb-10 overflow-y-auto no-scrollbar"
           >
             <div className="text-center mb-8">
+              {aiFeedback && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-6 p-4 bg-accent/10 border border-accent/20 rounded-2xl text-accent text-sm italic"
+                >
+                  "{aiFeedback}"
+                </motion.div>
+              )}
               <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}

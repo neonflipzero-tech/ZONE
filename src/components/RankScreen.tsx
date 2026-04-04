@@ -1,3 +1,4 @@
+import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { UserState, getRankForLevel, RANKS } from '../store';
 import { Shield, Trophy, Flame, Zap, Crown, Star } from 'lucide-react';
@@ -13,11 +14,11 @@ interface RankScreenProps {
   state: UserState;
 }
 
-export default function RankScreen({ state }: RankScreenProps) {
-  const currentRank = getRankForLevel(state.level);
+const RankScreen = ({ state }: RankScreenProps) => {
+  const currentRank = useMemo(() => getRankForLevel(state.level), [state.level]);
   
-  const isMaxLevel = state.level >= 50;
-  const xpProgress = isMaxLevel ? 100 : (state.xp / (state.level * 100)) * 100;
+  const isMaxLevel = useMemo(() => state.level >= 50, [state.level]);
+  const xpProgress = useMemo(() => isMaxLevel ? 100 : (state.xp / (state.level * 100)) * 100, [isMaxLevel, state.xp, state.level]);
 
   return (
     <motion.div 
@@ -115,4 +116,6 @@ export default function RankScreen({ state }: RankScreenProps) {
       </div>
     </motion.div>
   );
-}
+};
+
+export default React.memo(RankScreen);

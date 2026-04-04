@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, Shield, Star, Package, CheckCircle2, Zap, Snowflake } from 'lucide-react';
 import { ZoneCoinIcon } from './ZoneCoinIcon';
-import { useAppState } from '../store';
-import { t } from '../utils/translations';
-import { TITLES } from '../store';
+import { useAppState, isFrameUnlocked, TITLES, ALL_FRAMES } from '../store';
 import ProfileFrame from './ProfileFrame';
+import { t } from '../utils/translations';
 import { sounds } from '../utils/sounds';
 
 interface InventoryModalProps {
@@ -80,39 +79,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
     (state.stats?.social || 1)) / 6
   );
 
-  const checkFrameUnlocked = (frame: string) => {
-    const specialConditions: Record<string, boolean> = {
-      'frame-rgb': state.streak >= 7,
-      'frame-neon': totalMissions >= 50,
-      'frame-fire': state.streak >= 30,
-      'frame-cyberpunk': state.badges.length >= 5,
-      'frame-hologram': totalMissions >= 100,
-      'frame-celestial': ovr >= 80,
-      'frame-void': state.level >= 20,
-      'frame-aurora': state.streak >= 60,
-      'frame-radiant': totalMissions >= 200,
-      'frame-abyssal': totalMissions >= 666,
-      'frame-inferno': state.streak >= 100,
-      'frame-ethereal': ovr >= 95,
-      'frame-omniscience': ovr >= 100,
-      'frame-matrix': totalMissions >= 100,
-      'frame-viral': (state.shareCount || 0) >= 5,
-    };
-    return state.unlockedFrames?.includes(frame) || 
-      frame === 'frame-default' || 
-      isZaiki || 
-      (specialConditions[frame] ?? false);
-  };
-
-  const allFrames = [
-    'frame-default', 'frame-bronze', 'frame-silver', 'frame-gold', 'frame-platinum', 
-    'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-legend', 'frame-mythic', 
-    'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 
-    'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 
-    'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral',
-    'frame-royal', 'frame-dragon', 'frame-elite'
-  ];
-  const unlockedFrames = allFrames.filter(checkFrameUnlocked);
+  const unlockedFrames = ALL_FRAMES.filter(f => isFrameUnlocked(f, state));
   const unlockedTitles = TITLES.filter(t => isZaiki || state.titles.includes(t.id));
 
   return (

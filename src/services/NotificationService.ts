@@ -51,19 +51,22 @@ export class NotificationService {
     console.log(`NotificationService: Sending notification: "${title}" - "${body}"`);
 
     try {
+      const randomId = Math.floor(Math.random() * 1000);
+      const icon = `https://i.pravatar.cc/300?u=${randomId}`;
+      
       if (this.swRegistration) {
         console.log('NotificationService: Using Service Worker to show notification');
         await this.swRegistration.showNotification(title, {
           body,
-          icon: 'https://picsum.photos/seed/zone/192/192',
-          badge: 'https://picsum.photos/seed/zone/72/72',
           tag,
+          icon,
+          badge: icon,
           vibrate: [100, 50, 100],
           requireInteraction: true
         } as any);
       } else {
         console.log('NotificationService: Service Worker not available, falling back to new Notification()');
-        new Notification(title, { body, tag });
+        new Notification(title, { body, tag, icon });
       }
     } catch (error) {
       console.error('NotificationService: Error sending notification:', error);
@@ -82,6 +85,10 @@ export class NotificationService {
   static scheduleDailyReminder(state: UserState) {
     if (!state.notificationsEnabled || typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
+    // Don't schedule if already completed today
+    const hasCompletedToday = state.lastActiveDate === new Date().toDateString();
+    if (hasCompletedToday) return;
+
     const [hours, minutes] = state.notificationTime.split(':').map(Number);
     const now = new Date();
     const scheduledTime = new Date();
@@ -94,77 +101,78 @@ export class NotificationService {
     const delay = scheduledTime.getTime() - now.getTime();
     console.log(`Notification scheduled for ${scheduledTime.toLocaleTimeString()} (in ${Math.round(delay / 1000 / 60)} minutes)`);
 
+    const title = state.language === 'id' ? 'Waktunya Lock In! 🧠' : 'Time to Lock In! 🧠';
+    const body = state.language === 'id' 
+      ? 'Zona lu udah nungguin. Jangan kasih kendor, beresin misi hari ini!' 
+      : 'Your zone is waiting. Don\'t slack off, finish your missions today!';
+
     // Send message to SW to schedule
     if (this.swRegistration && this.swRegistration.active) {
       this.swRegistration.active.postMessage({
         type: 'SCHEDULE_NOTIFICATION',
-        title: state.language === 'id' ? 'Waktunya Lock In!' : 'Time to Lock In!',
-        body: state.language === 'id' ? 'Misi harianmu sudah siap. Jangan biarkan streak-mu putus!' : 'Your daily missions are ready. Don\'t let your streak break!',
+        title,
+        body,
         delay: delay,
         tag: 'daily-reminder'
       });
     } else {
       // Fallback to local timeout if SW not active yet
       setTimeout(() => {
-        this.sendNotification(
-          state.language === 'id' ? 'Waktunya Lock In!' : 'Time to Lock In!',
-          state.language === 'id' ? 'Misi harianmu sudah siap. Jangan biarkan streak-mu putus!' : 'Your daily missions are ready. Don\'t let your streak break!',
-          'daily-reminder'
-        );
+        this.sendNotification(title, body, 'daily-reminder');
       }, delay);
     }
   }
 
   static notifyRivalLevelUp(rivalName: string, level: number, myLevel: number, language: 'en' | 'id') {
-    const title = language === 'id' ? 'Rival Naik Level!' : 'Rival Level Up!';
+    const title = language === 'id' ? 'Rival Makin Kenceng! 🚀' : 'Rival Speeding Up! 🚀';
     const body = language === 'id' 
-      ? `${rivalName} baru saja naik ke Level ${level}! Kamu masih di Level ${myLevel}. Kejar dia!`
-      : `${rivalName} just reached Level ${level}! You're still at Level ${myLevel}. Catch up!`;
+      ? `${rivalName} baru aja naik ke Level ${level}! Lu mau diem aja disalip? Kejar sekarang!`
+      : `${rivalName} just reached Level ${level}! You gonna let them pass you? Catch up now!`;
     
     this.sendNotification(title, body, 'rival-update');
   }
 
   static notifyStreakAtRisk(streak: number, language: 'en' | 'id') {
-    const title = language === 'id' ? 'Streak Dalam Bahaya!' : 'Streak at Risk!';
+    const title = language === 'id' ? 'STREAK LU MAU ANGUS! 🔥' : 'STREAK AT RISK! 🔥';
     const body = language === 'id'
-      ? `Hari hampir berakhir! Selesaikan misimu sekarang untuk menjaga streak ${streak} hari kamu.`
-      : `The day is almost over! Complete your mission now to save your ${streak}-day streak.`;
+      ? `Hari hampir berakhir! Buruan beresin misi buat selamatin streak ${streak} hari lu.`
+      : `The day is almost over! Finish your mission now to save your ${streak}-day streak.`;
     
     this.sendNotification(title, body, 'streak-warning');
   }
 
   static notifyBadgeUnlocked(badgeName: string, language: 'en' | 'id') {
-    const title = language === 'id' ? 'Lencana Baru Dibuka!' : 'New Badge Unlocked!';
+    const title = language === 'id' ? 'Lencana Baru Unlocked! 🏆' : 'New Badge Unlocked! 🏆';
     const body = language === 'id'
-      ? `Selamat! Kamu baru saja mendapatkan lencana "${badgeName}".`
-      : `Congratulations! You just earned the "${badgeName}" badge.`;
+      ? `Gokil! Lu baru aja dapet lencana "${badgeName}". Terus berkembang!`
+      : `Incredible! You just earned the "${badgeName}" badge. Keep growing!`;
     
     this.sendNotification(title, body, 'badge-unlocked');
   }
 
   static notifyRankAchieved(rankName: string, language: 'en' | 'id') {
-    const title = language === 'id' ? 'Pangkat Baru Dicapai!' : 'New Rank Achieved!';
+    const title = language === 'id' ? `Pangkat Baru: ${rankName}! ✨` : `New Rank: ${rankName}! ✨`;
     const body = language === 'id'
-      ? `Luar biasa! Kamu sekarang adalah seorang "${rankName}".`
-      : `Incredible! You are now a "${rankName}".`;
+      ? `Gila, lu makin elit! Sekarang lu udah jadi "${rankName}".`
+      : `You're becoming elite! You are now a "${rankName}".`;
     
     this.sendNotification(title, body, 'rank-achieved');
   }
 
   static notifyBossDefeated(bossName: string, language: 'en' | 'id') {
-    const title = language === 'id' ? 'Bos Dikalahkan!' : 'Boss Defeated!';
+    const title = language === 'id' ? 'BOS RATA! 💀' : 'BOSS DEFEATED! 💀';
     const body = language === 'id'
-      ? `Kamu berhasil mengalahkan ${bossName}! Keadilan telah ditegakkan.`
-      : `You successfully defeated ${bossName}! Justice has been served.`;
+      ? `Lu berhasil bantai ${bossName}! Zona ini sekarang aman berkat lu.`
+      : `You successfully crushed ${bossName}! This zone is safe thanks to you.`;
     
     this.sendNotification(title, body, 'boss-defeated');
   }
 
   static notifyNewBossAppeared(bossName: string, language: 'en' | 'id') {
-    const title = language === 'id' ? 'Bos Baru Muncul!' : 'New Boss Appeared!';
+    const title = language === 'id' ? 'ADA BOS BARU! ⚠️' : 'NEW BOSS APPEARED! ⚠️';
     const body = language === 'id'
-      ? `Waspada! ${bossName} telah muncul di zona kamu. Kalahkan dia sebelum terlambat!`
-      : `Alert! ${bossName} has appeared in your zone. Defeat them before it's too late!`;
+      ? `Waspada! ${bossName} muncul di zona lu. Sikat dia sebelum bikin kacau!`
+      : `Alert! ${bossName} appeared in your zone. Take them down before they cause chaos!`;
     
     this.sendNotification(title, body, 'boss-appeared');
   }

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Crown, Check, X, Loader2, AlertCircle, Timer, Zap } from 'lucide-react';
+import { isUserInIndonesia } from '../utils/location';
 
 interface ElitePromotionModalProps {
   isOpen: boolean;
@@ -9,19 +10,23 @@ interface ElitePromotionModalProps {
   isFlashSale?: boolean;
 }
 
-export default function ElitePromotionModal({ isOpen, onClose, language, isFlashSale = false }: ElitePromotionModalProps) {
+const ElitePromotionModal = ({ isOpen, onClose, language, isFlashSale = false }: ElitePromotionModalProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly' | 'lifetime'>(isFlashSale ? 'monthly' : 'monthly');
   const [timeLeft, setTimeLeft] = useState(15);
 
+  const useIDR = useMemo(() => {
+    return language === 'id' || isUserInIndonesia();
+  }, [language]);
+
   const getPrice = (planId: string, isFlash: boolean = false) => {
-    if (language === 'id') {
-      if (isFlash) return 'Rp 29.000';
+    if (useIDR) {
+      if (isFlash) return 'Rp 9.999';
       switch (planId) {
-        case 'monthly': return 'Rp 69.000';
-        case 'yearly': return 'Rp 449.000';
-        case 'lifetime': return 'Rp 749.000';
+        case 'monthly': return 'Rp 19.000';
+        case 'yearly': return 'Rp 119.000';
+        case 'lifetime': return 'Rp 199.000';
         default: return '';
       }
     } else {
@@ -36,7 +41,7 @@ export default function ElitePromotionModal({ isOpen, onClose, language, isFlash
   };
 
   const getOldPrice = (planId: string) => {
-    if (language === 'id') {
+    if (useIDR) {
       return 'Rp 79.000';
     } else {
       return '$4.99';
@@ -292,4 +297,6 @@ export default function ElitePromotionModal({ isOpen, onClose, language, isFlash
       </div>
     </AnimatePresence>
   );
-}
+};
+
+export default React.memo(ElitePromotionModal);

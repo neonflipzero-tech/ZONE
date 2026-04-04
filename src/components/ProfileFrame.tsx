@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'motion/react';
 import { User } from 'lucide-react';
 
@@ -8,7 +8,7 @@ interface ProfileFrameProps {
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 }
 
-export default function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
+function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
   const sizeClass = 
     size === 'sm' ? 'w-10 h-10' : 
     size === 'md' ? 'w-16 h-16' : 
@@ -82,21 +82,31 @@ export default function ProfileFrame({ frame, src, size = 'md' }: ProfileFramePr
       );
       break;
     case 'frame-mythic':
-      bgClass = 'bg-background';
-      borderClass = 'p-[6px]';
+      bgClass = 'bg-black';
+      borderClass = 'p-[5px]';
       shapeClass = 'rounded-full';
       decorations = (
         <div className="absolute inset-0 z-0 flex items-center justify-center">
-          {/* Outer glowing aura */}
-          <div className="absolute inset-[-20%] rounded-full bg-fuchsia-600/30 blur-lg animate-pulse" />
+          {/* Blackhole Accretion Disk */}
+          <div className="absolute inset-[-30%] rounded-full bg-[conic-gradient(from_0deg,transparent,#7c3aed,#c084fc,transparent)] animate-[spin_2s_linear_infinite] blur-md opacity-80" />
           
-          {/* Main circular border with energy sweep */}
-          <div className="absolute inset-0 rounded-full border-[2px] border-fuchsia-600 shadow-[0_0_15px_#d946ef] overflow-hidden bg-fuchsia-950/80">
-            <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,transparent_60%,#f0abfc_100%)] animate-[spin_3s_linear_infinite]" />
+          {/* Event Horizon Glow */}
+          <div className="absolute inset-[-15%] rounded-full bg-violet-600/40 blur-xl animate-pulse" />
+          
+          {/* Swirling energy */}
+          <div className="absolute inset-0 rounded-full overflow-hidden bg-black">
+            <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#000,#4c1d95,#7c3aed,#000)] animate-[spin_3s_linear_infinite] opacity-90" />
+            
+            {/* Distorted inner ring */}
+            <motion.div 
+              animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
+              transition={{ duration: 4, repeat: Infinity }}
+              className="absolute inset-[2px] rounded-full border-2 border-violet-400/30 border-dashed"
+            />
           </div>
           
-          {/* Inner ring */}
-          <div className="absolute inset-[2px] rounded-full border border-white/40 border-dashed animate-[spin_10s_linear_infinite_reverse]" />
+          {/* Dark center shadow */}
+          <div className="absolute inset-0 rounded-full shadow-[inset_0_0_20px_rgba(0,0,0,1)] z-10" />
         </div>
       );
       break;
@@ -280,19 +290,70 @@ export default function ProfileFrame({ frame, src, size = 'md' }: ProfileFramePr
         </div>
       );
       break;
-    case 'frame-dragon':
+    case 'frame-glitch':
       bgClass = 'bg-transparent';
-      borderClass = 'p-[5px]';
+      borderClass = 'p-[4px]';
       decorations = (
-        <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_25px_#dc2626] bg-red-950">
-          {/* Swirling fire */}
-          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#dc2626,#991b1b,#dc2626)] animate-[spin_4s_linear_infinite] opacity-90 blur-sm" />
+        <div className="absolute inset-0 rounded-full z-0 overflow-hidden bg-black">
+          {/* Glitch Layers with Dark Green added */}
+          <motion.div 
+            animate={{ 
+              x: [-3, 3, -2, 4, -3],
+              opacity: [0.4, 0.7, 0.3, 0.8, 0.4]
+            }}
+            transition={{ duration: 0.25, repeat: Infinity, repeatType: "mirror" }}
+            className="absolute inset-0 border-[4px] border-cyan-500 rounded-full opacity-40"
+          />
+          <motion.div 
+            animate={{ 
+              x: [3, -3, 4, -2, 3],
+              opacity: [0.4, 0.7, 0.3, 0.8, 0.4]
+            }}
+            transition={{ duration: 0.2, repeat: Infinity, repeatType: "mirror", delay: 0.05 }}
+            className="absolute inset-0 border-[4px] border-magenta-500 rounded-full opacity-40"
+            style={{ borderColor: '#ff00ff' }}
+          />
+          <motion.div 
+            animate={{ 
+              y: [-2, 2, -1, 3, -2],
+              opacity: [0.3, 0.6, 0.2, 0.7, 0.3]
+            }}
+            transition={{ duration: 0.3, repeat: Infinity, repeatType: "mirror", delay: 0.1 }}
+            className="absolute inset-0 border-[4px] border-emerald-700 rounded-full opacity-40"
+          />
           
-          {/* Thick border */}
-          <div className="absolute inset-0 rounded-full border-[3px] border-red-600 shadow-[0_0_15px_#dc2626]" />
+          {/* Scanlines */}
+          <div className="absolute inset-0 pointer-events-none opacity-30 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.3)_50%),linear-gradient(90deg,rgba(255,0,0,0.08),rgba(0,255,0,0.04),rgba(0,0,255,0.08))] bg-[length:100%_3px,4px_100%]" />
           
-          {/* Fire emoji */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] animate-pulse">🔥</div>
+          {/* Digital Noise Blocks - Including Green ones */}
+          {[...Array(6)].map((_, i) => (
+            <motion.div
+              key={i}
+              animate={{ 
+                opacity: [0, 1, 0],
+                x: [-25, 25],
+                y: [-25, 25],
+                scaleX: [1, 3, 1]
+              }}
+              transition={{ 
+                duration: 0.15, 
+                repeat: Infinity, 
+                repeatDelay: Math.random() * 1.5,
+                delay: i * 0.3
+              }}
+              className={`absolute w-5 h-1 blur-[1px] ${i % 3 === 0 ? 'bg-cyan-400' : i % 3 === 1 ? 'bg-fuchsia-500' : 'bg-emerald-500'}`}
+              style={{ 
+                top: `${15 + i * 15}%`, 
+                left: `${15 + i * 12}%` 
+              }}
+            />
+          ))}
+
+          {/* Main Border */}
+          <div className="absolute inset-0 rounded-full border-[2px] border-white/90 shadow-[0_0_12px_rgba(255,255,255,0.6)]" />
+          
+          {/* Static Noise Overlay */}
+          <div className="absolute inset-0 opacity-10 pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-repeat" />
         </div>
       );
       break;
@@ -300,11 +361,23 @@ export default function ProfileFrame({ frame, src, size = 'md' }: ProfileFramePr
       bgClass = 'bg-transparent';
       borderClass = 'p-[4px]';
       decorations = (
-        <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_25px_rgba(245,158,11,1),inset_0_0_15px_rgba(245,158,11,0.8)]">
-          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#f59e0b,#f59e0b,#fcd34d,#f59e0b,#f59e0b)] animate-[spin_3s_linear_infinite] opacity-95 blur-sm" />
-          <div className="absolute inset-0 rounded-full border-2 border-white/60" />
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#f59e0b] rounded-full animate-ping shadow-[0_0_10px_#f59e0b]" />
-          <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-[#fcd34d] rounded-full animate-ping shadow-[0_0_10px_#fcd34d]" style={{ animationDelay: '0.5s' }} />
+        <div className="absolute inset-0 z-0 flex items-center justify-center">
+          {/* Rotating Square 1 (Red focus) */}
+          <motion.div 
+            animate={{ rotate: 360 }}
+            transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-[-10%] border-[2px] border-red-500 rounded-[25%]"
+          />
+          
+          {/* Rotating Square 2 (Gold focus) */}
+          <motion.div 
+            animate={{ rotate: -360 }}
+            transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-[-10%] border-[2px] border-amber-400 rounded-[25%]"
+          />
+
+          {/* Main circular gradient sweep */}
+          <div className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#ef4444,#fbbf24,#ef4444)] animate-[spin_4s_linear_infinite] opacity-80" />
         </div>
       );
       break;
@@ -318,13 +391,13 @@ export default function ProfileFrame({ frame, src, size = 'md' }: ProfileFramePr
     <div className={`relative flex items-center justify-center flex-shrink-0 ${sizeClass}`}>
       {decorations}
       <div 
-        className={`w-full h-full flex items-center justify-center ${shapeClass} relative z-10 ${bgClass} ${borderClass}`}
+        className={`w-full h-full flex items-center justify-center ${shapeClass} relative z-10 ${bgClass} ${borderClass} will-change-transform`}
       >
         <div 
           className={`w-full h-full bg-surface flex items-center justify-center ${shapeClass} relative z-10 overflow-hidden`}
         >
           {src ? (
-            <img src={src} alt="Profile" className="w-full h-full object-cover" />
+            <img src={src} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
           ) : (
             <User className="w-1/2 h-1/2 text-secondary" />
           )}
@@ -333,3 +406,5 @@ export default function ProfileFrame({ frame, src, size = 'md' }: ProfileFramePr
     </div>
   );
 }
+
+export default memo(ProfileFrame);

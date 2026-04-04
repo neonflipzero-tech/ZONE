@@ -1,6 +1,6 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserState, getRankForLevel, PathType, calculateOVR, createDefaultState, BADGES, TITLES, useAppState } from '../store';
+import { UserState, getRankForLevel, PathType, calculateOVR, createDefaultState, BADGES, TITLES, useAppState, getTodayISO } from '../store';
 import { Trophy, Flame, LogOut, Camera, User, Shield, ChevronDown, ChevronUp, Star, Lock, CheckCircle2, Share2, AlertTriangle, Footprints, Zap, Crown, Moon, Sun, Swords, Settings, X, Heart, Compass, Package, Store, ChevronRight, HelpCircle, Target } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { t } from '../utils/translations';
@@ -30,6 +30,7 @@ interface ProfileScreenProps {
   updateState: (updates: Partial<UserState>) => void;
   changePath: (path: PathType) => void;
   rivalData: any | null;
+  isFlashSale?: boolean;
 }
 
 function getRankIcon(rankName: string, className: string) {
@@ -37,7 +38,7 @@ function getRankIcon(rankName: string, className: string) {
   return <Trophy className={className} />;
 }
 
-export default function ProfileScreen({ state, onLogout, updateState, changePath, rivalData }: ProfileScreenProps) {
+const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, isFlashSale = false }: ProfileScreenProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ovrStatsRef = useRef<HTMLDivElement>(null);
   const [isGoalDropdownOpen, setIsGoalDropdownOpen] = useState(false);
@@ -53,10 +54,10 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isConsistencyHelpOpen, setIsConsistencyHelpOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
-  const { crushRival } = useAppState();
+  const crushRival = useAppState(s => s.crushRival);
 
   const handleResetProgress = () => {
-    const defaultState = createDefaultState(state.username);
+    const defaultState = createDefaultState(state.username, undefined, state.userId);
     updateState({
       ...defaultState,
       isLoggedIn: true,
@@ -91,24 +92,26 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
     }
   };
 
-  const currentRank = getRankForLevel(state.level);
+  const currentRank = useMemo(() => getRankForLevel(state.level), [state.level]);
 
   // Prepare chart data
-  const last7Days = Array.from({length: 7}, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    return d.toISOString().split('T')[0];
-  });
-  const chartData = last7Days.map(date => ({
-    date: date.substring(5).replace('-', '/'),
-    missions: state.dailyStats?.[date] || 0
-  }));
+  const chartData = useMemo(() => {
+    const last7Days = Array.from({length: 7}, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      return d.toISOString().split('T')[0];
+    });
+    return last7Days.map(date => ({
+      date: date.substring(5).replace('-', '/'),
+      missions: state.dailyStats?.[date] || 0
+    }));
+  }, [state.dailyStats]);
 
-  const maxMissions = Math.max(...chartData.map(d => d.missions), 1); // Avoid division by zero
+  const maxMissions = useMemo(() => Math.max(...chartData.map(d => d.missions), 1), [chartData]);
 
-  const { ovr, stats } = calculateOVR(state);
+  const { ovr, stats } = useMemo(() => calculateOVR(state), [state]);
 
-  const todayISO = new Date().toISOString().split('T')[0];
+  const todayISO = getTodayISO();
   const todayCategoryStats = state.dailyCategoryStats?.[todayISO] || {};
   
   const allCategories = [
@@ -658,9 +661,9 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             </div>
           </div>
           
-          <div className="bg-surface border border-white/5 rounded-2xl p-5 h-64 flex flex-col justify-end relative">
+          <div id="weekly-chart-card" className="bg-surface border border-white/5 rounded-2xl p-5 h-64 flex flex-col justify-end relative">
             {state.preferredChartType === 'line' ? (
-              <div className="w-full h-full pt-4">
+              <div id="elite-line-chart" className="w-full h-full pt-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
@@ -691,7 +694,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                 </ResponsiveContainer>
               </div>
             ) : (
-              <>
+              <div id="weekly-bar-chart" className="w-full h-full flex flex-col justify-end relative">
                 <div className="absolute inset-0 p-5 flex flex-col justify-between pointer-events-none">
                   {[1, 0.75, 0.5, 0.25, 0].map((tick) => (
                     <div key={`tick-${tick}`} className="w-full border-b border-white/5 h-0 relative">
@@ -723,7 +726,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
                     );
                   })}
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -1165,6 +1168,7 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
             isOpen={isPremiumModalOpen} 
             onClose={() => setIsPremiumModalOpen(false)} 
             language={state.language} 
+            isFlashSale={isFlashSale}
           />
         )}
       </AnimatePresence>
@@ -1183,4 +1187,6 @@ export default function ProfileScreen({ state, onLogout, updateState, changePath
       </AnimatePresence>
     </motion.div>
   );
-}
+};
+
+export default React.memo(ProfileScreen);

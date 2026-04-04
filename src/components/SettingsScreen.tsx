@@ -311,12 +311,14 @@ export default function SettingsScreen({
               </div>
               <div className="flex bg-background rounded-lg p-1 border border-white/10">
                 <button 
+                  id="elite-chart-bar-btn"
                   onClick={() => updateState({ preferredChartType: 'bar' })}
                   className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${state.preferredChartType !== 'line' ? 'bg-rose-500 text-white' : 'text-secondary hover:text-primary'}`}
                 >
                   BAR
                 </button>
                 <button 
+                  id="elite-chart-line-btn"
                   onClick={() => updateState({ preferredChartType: 'line' })}
                   className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${state.preferredChartType === 'line' ? 'bg-rose-500 text-white' : 'text-secondary hover:text-primary'}`}
                 >

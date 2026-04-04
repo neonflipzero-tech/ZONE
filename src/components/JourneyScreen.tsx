@@ -1,7 +1,7 @@
+import React, { useEffect, useRef, useState, useLayoutEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserState, getRankForLevel, RANKS, useAppState } from '../store';
 import { Shield, Lock, Star, Check, User, Share2, Zap, Crown } from 'lucide-react';
-import { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import { sounds } from '../utils/sounds';
 import ProfileFrame from './ProfileFrame';
 import { shareContent, shareElementAsImage } from '../utils/share';
@@ -12,20 +12,22 @@ interface JourneyScreenProps {
   updateState: (updates: Partial<UserState>) => void;
 }
 
-export default function JourneyScreen({ state, updateState }: JourneyScreenProps) {
+const JourneyScreen = ({ state, updateState }: JourneyScreenProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { incrementShareCount } = useAppState();
+  const incrementShareCount = useAppState(s => s.incrementShareCount);
   const [displayLevelCharacter, setDisplayLevelCharacter] = useState(state.animatingLevelUp ? state.previousLevel : state.level);
   const [displayLevelPfp, setDisplayLevelPfp] = useState(state.animatingLevelUp ? state.previousLevel : state.level);
   const [showRankUpOverlay, setShowRankUpOverlay] = useState(false);
   
-  const prevRank = getRankForLevel(state.previousLevel);
-  const currentRank = getRankForLevel(state.level);
-  const isRankUp = prevRank.name !== currentRank.name && state.animatingLevelUp;
-
+  const prevRank = useMemo(() => getRankForLevel(state.previousLevel), [state.previousLevel]);
+  const currentRank = useMemo(() => getRankForLevel(state.level), [state.level]);
+  const isRankUp = useMemo(() => prevRank.name !== currentRank.name && state.animatingLevelUp, [prevRank.name, currentRank.name, state.animatingLevelUp]);
+  
   // Generate levels to show (at least up to max level 50, or current level + 5)
-  const maxLevelToShow = Math.min(50, Math.max(50, state.level + 5));
-  const levels = Array.from({ length: maxLevelToShow }, (_, i) => i + 1).reverse();
+  const levels = useMemo(() => {
+    const maxLevelToShow = Math.min(50, Math.max(50, state.level + 5));
+    return Array.from({ length: maxLevelToShow }, (_, i) => i + 1).reverse();
+  }, [state.level]);
 
   const hasScrolledRef = useRef(false);
 
@@ -338,4 +340,6 @@ export default function JourneyScreen({ state, updateState }: JourneyScreenProps
       </div>
     </motion.div>
   );
-}
+};
+
+export default React.memo(JourneyScreen);

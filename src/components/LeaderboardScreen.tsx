@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserState, RANKS, getRankForLevel, TITLES, calculateOVR, useAppState } from '../store';
 import { Trophy, Flame, Shield, User, AlertCircle, X, CheckCircle2, Star, Swords, Zap, Crown } from 'lucide-react';
 import ProfileFrame from './ProfileFrame';
-import { db } from '../firebase';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../firebase';
+import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { sounds } from '../utils/sounds';
 
 import { t } from '../utils/translations';
@@ -35,7 +35,7 @@ function getRankIcon(rankName: string, className: string) {
   return <Trophy className={className} />;
 }
 
-export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
+const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
   const [users, setUsers] = useState<LeaderboardUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUsingFirebase, setIsUsingFirebase] = useState(!!db);
@@ -43,7 +43,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
   const [selectedActionUser, setSelectedActionUser] = useState<LeaderboardUser | null>(null);
   const [rivalError, setRivalError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
-  const { updateState, addNotification } = useAppState();
+  const { updateState, addNotification, activeUserEmail } = useAppState();
 
   useEffect(() => {
     if (selectedActionUser) {
@@ -55,7 +55,13 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
     if (db) {
       // Real-time global leaderboard using Firebase
       // Only order by totalXp to avoid needing a composite index in Firestore
-      const q = query(collection(db, 'users'), orderBy('totalXp', 'desc'), limit(50));
+      // Filter by isProfilePublic to match security rules
+      const q = query(
+        collection(db, 'users'), 
+        where('isProfilePublic', '==', true),
+        orderBy('totalXp', 'desc'), 
+        limit(50)
+      );
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedUsers: LeaderboardUser[] = [];
         snapshot.forEach((doc) => {
@@ -67,7 +73,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
         if (error?.code === 'unavailable' || error?.message?.includes('offline')) {
           console.warn("Client is offline, skipping leaderboard fetch.");
         } else {
-          console.error("Error fetching leaderboard:", error);
+          handleFirestoreError(error, OperationType.LIST, 'users');
         }
         setLoading(false);
       });
@@ -94,12 +100,48 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
     }
   }, []);
 
-  // Override current user's data with local state to ensure it's always up-to-date
-  let allUsers = users.map(u => {
-    if ((state.userId && u.userId === state.userId) || (u.username === state.username)) {
-      return {
-        ...u,
-        userId: state.userId || u.userId, // Ensure userId is updated if it was missing
+  const allUsers = useMemo(() => {
+    // Override current user's data with local state to ensure it's always up-to-date
+    let processedUsers = users.map(u => {
+      if ((state.userId && u.userId === state.userId) || (u.username === state.username)) {
+        return {
+          ...u,
+          userId: state.userId || u.userId, // Ensure userId is updated if it was missing
+          username: state.username,
+          level: state.level,
+          xp: state.xp,
+          totalXp: 50 * state.level * (state.level - 1) + state.xp,
+          equippedFrame: state.equippedFrame,
+          equippedTitle: state.equippedTitle,
+          profilePicture: state.profilePicture,
+          streak: state.streak || 0,
+          badgesCount: state.badges?.length || 0,
+          framesCount: state.unlockedFrames?.length || 0,
+          missionsCompleted: state.missionsCompleted || 0,
+          isProfilePublic: state.isProfilePublic !== false,
+          ovr: calculateOVR(state, activeUserEmail).ovr
+        };
+      }
+      return u;
+    });
+
+    // Deduplicate by username (in case local storage had old entries)
+    const uniqueUsers = new Map<string, LeaderboardUser>();
+    processedUsers.forEach(u => {
+      const currentTotalXp = u.totalXp || (50 * u.level * (u.level - 1) + u.xp);
+      const existingUser = uniqueUsers.get(u.username);
+      const existingTotalXp = existingUser ? (existingUser.totalXp || (50 * existingUser.level * (existingUser.level - 1) + existingUser.xp)) : -1;
+      
+      if (!existingUser || existingTotalXp < currentTotalXp) {
+        uniqueUsers.set(u.username, u);
+      }
+    });
+    let finalUsers = Array.from(uniqueUsers.values());
+
+    // If the current user is not in the list (e.g., just started and hasn't synced yet), add them locally
+    if (state.userId && !finalUsers.find(u => u.userId === state.userId || u.username === state.username)) {
+      finalUsers.push({
+        userId: state.userId,
         username: state.username,
         level: state.level,
         xp: state.xp,
@@ -112,56 +154,27 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
         framesCount: state.unlockedFrames?.length || 0,
         missionsCompleted: state.missionsCompleted || 0,
         isProfilePublic: state.isProfilePublic !== false,
-        ovr: calculateOVR(state).ovr
-      };
+        ovr: calculateOVR(state, activeUserEmail).ovr
+      });
     }
-    return u;
-  });
 
-  // Deduplicate by username (in case local storage had old entries)
-  const uniqueUsers = new Map<string, LeaderboardUser>();
-  allUsers.forEach(u => {
-    const currentTotalXp = u.totalXp || (50 * u.level * (u.level - 1) + u.xp);
-    const existingUser = uniqueUsers.get(u.username);
-    const existingTotalXp = existingUser ? (existingUser.totalXp || (50 * existingUser.level * (existingUser.level - 1) + existingUser.xp)) : -1;
-    
-    if (!existingUser || existingTotalXp < currentTotalXp) {
-      uniqueUsers.set(u.username, u);
-    }
-  });
-  allUsers = Array.from(uniqueUsers.values());
-
-  // If the current user is not in the list (e.g., just started and hasn't synced yet), add them locally
-  if (state.userId && !allUsers.find(u => u.userId === state.userId || u.username === state.username)) {
-    allUsers.push({
-      userId: state.userId,
-      username: state.username,
-      level: state.level,
-      xp: state.xp,
-      totalXp: 50 * state.level * (state.level - 1) + state.xp,
-      equippedFrame: state.equippedFrame,
-      equippedTitle: state.equippedTitle,
-      profilePicture: state.profilePicture,
-      streak: state.streak || 0,
-      badgesCount: state.badges?.length || 0,
-      framesCount: state.unlockedFrames?.length || 0,
-      missionsCompleted: state.missionsCompleted || 0,
-      isProfilePublic: state.isProfilePublic !== false,
-      ovr: calculateOVR(state).ovr
+    // Sort by totalXp DESC
+    finalUsers.sort((a, b) => {
+      const aTotal = a.totalXp || (50 * a.level * (a.level - 1) + a.xp);
+      const bTotal = b.totalXp || (50 * b.level * (b.level - 1) + b.xp);
+      return bTotal - aTotal;
     });
-  }
 
-  // Sort by totalXp DESC
-  allUsers.sort((a, b) => {
-    const aTotal = a.totalXp || (50 * a.level * (a.level - 1) + a.xp);
-    const bTotal = b.totalXp || (50 * b.level * (b.level - 1) + b.xp);
-    return bTotal - aTotal;
-  });
+    return finalUsers;
+  }, [users, state]);
 
-  const currentUserRank = allUsers.findIndex(u => u.userId === state.userId || u.username === state.username) + 1;
+  const currentUserRank = useMemo(() => 
+    allUsers.findIndex(u => u.userId === state.userId || u.username === state.username) + 1
+  , [allUsers, state.userId, state.username]);
+
   const isCurrentUserInTop5 = currentUserRank <= 5;
-  const top50Users = allUsers.slice(0, 50);
-  const currentUserData = allUsers[currentUserRank - 1];
+  const top50Users = useMemo(() => allUsers.slice(0, 50), [allUsers]);
+  const currentUserData = useMemo(() => allUsers[currentUserRank - 1], [allUsers, currentUserRank]);
 
   const [showSticky, setShowSticky] = useState(false);
   const userRowRef = useRef<HTMLDivElement>(null);
@@ -539,7 +552,7 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
                   </div>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm text-secondary">OVR</span>
-                    <span className="font-mono font-bold text-[#F43F5E]">{selectedUser.ovr || calculateOVR({ ...selectedUser, dailyStats: {}, badges: [], missionsCompleted: selectedUser.missionsCompleted || 0, streak: selectedUser.streak || 0, unlockedFrames: [] } as any).ovr}</span>
+                    <span className="font-mono font-bold text-[#F43F5E]">{selectedUser.ovr || calculateOVR({ ...selectedUser, dailyStats: {}, badges: [], missionsCompleted: selectedUser.missionsCompleted || 0, streak: selectedUser.streak || 0, unlockedFrames: [] } as any, activeUserEmail).ovr}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-secondary">{t('leaderboard.total_xp', state.language)}</span>
@@ -593,4 +606,6 @@ export default function LeaderboardScreen({ state }: LeaderboardScreenProps) {
       </AnimatePresence>
     </motion.div>
   );
-}
+};
+
+export default React.memo(LeaderboardScreen);

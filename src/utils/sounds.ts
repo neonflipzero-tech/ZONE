@@ -251,6 +251,43 @@ export class SoundManager {
     }
   }
 
+  playBossAction() {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      
+      // High frequency "click" part
+      const osc1 = this.ctx.createOscillator();
+      const gain1 = this.ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(1200, t);
+      osc1.frequency.exponentialRampToValueAtTime(600, t + 0.05);
+      gain1.gain.setValueAtTime(1.5, t); // Very loud
+      gain1.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+      osc1.connect(gain1);
+      gain1.connect(this.ctx.destination);
+      
+      // Lower frequency "thump" part
+      const osc2 = this.ctx.createOscillator();
+      const gain2 = this.ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(300, t);
+      osc2.frequency.exponentialRampToValueAtTime(100, t + 0.1);
+      gain2.gain.setValueAtTime(1.0, t); // Loud
+      gain2.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+      osc2.connect(gain2);
+      gain2.connect(this.ctx.destination);
+      
+      osc1.start(t);
+      osc1.stop(t + 0.05);
+      osc2.start(t);
+      osc2.stop(t + 0.1);
+    } catch (e) {
+      console.error("Audio playback failed", e);
+    }
+  }
+
   playClick() {
     try {
       this.init();

@@ -12,9 +12,10 @@ interface CustomMissionsModalProps {
   addCustomMission: (type: MissionType, text: string) => void;
   removeCustomMission: (type: MissionType, text: string) => void;
   initialTab?: MissionType;
+  isFlashSale?: boolean;
 }
 
-export default function CustomMissionsModal({ isOpen, onClose, state, addCustomMission, removeCustomMission, initialTab }: CustomMissionsModalProps) {
+export default function CustomMissionsModal({ isOpen, onClose, state, addCustomMission, removeCustomMission, initialTab, isFlashSale = false }: CustomMissionsModalProps) {
   const [activeTab, setActiveTab] = React.useState<MissionType>(initialTab || 'REGULAR');
   const [newMissionText, setNewMissionText] = React.useState('');
 
@@ -160,6 +161,7 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
           isOpen={showPremiumPrompt} 
           onClose={() => setShowPremiumPrompt(false)} 
           language={state.language} 
+          isFlashSale={isFlashSale}
         />
       </div>
     </AnimatePresence>

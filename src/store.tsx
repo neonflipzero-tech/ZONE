@@ -1,10 +1,985 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import React, { useState, useEffect } from 'react';
+import { create } from 'zustand';
 import { sounds } from './utils/sounds';
+import { auth, googleProvider, db } from './firebase';
+import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { getDoc, doc, setDoc } from 'firebase/firestore';
 
 import { MISSION_TRANSLATIONS } from './utils/missionTranslations';
 
+// ... (keep types and helper functions)
+
+export interface AppStore {
+  state: UserState | null;
+  activeUserEmail: string | null;
+  isAuthReady: boolean;
+  login: (email: string, username: string, uid?: string) => void;
+  loginWithGoogle: () => Promise<void>;
+  logout: () => void;
+  updateState: (updates: Partial<UserState>) => void;
+  generateMissions: (path: PathType) => void;
+  checkStreakFreezeNeeded: () => boolean;
+  completeMission: (id: string, options?: { useFreeze?: boolean }) => void;
+  replaceMission: (id: string) => void;
+  changePath: (path: PathType) => void;
+  addCustomMission: (type: MissionType, text: string) => void;
+  removeCustomMission: (type: MissionType, text: string) => void;
+  dismissUnlockedItem: () => void;
+  addNotification: (notif: Omit<Notification, 'id' | 'read' | 'timestamp'>) => void;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
+  incrementShareCount: () => void;
+  crushRival: () => void;
+  dismissCrushedAnimation: () => void;
+  triggerBoss: () => void;
+  attackBoss: (taskId: string) => void;
+  defeatBoss: () => void;
+  escapeBoss: () => void;
+  requestNotificationPermission: () => void;
+  setAuthReady: (ready: boolean) => void;
+  setActiveUserEmail: (email: string | null) => void;
+  setState: (state: UserState | null) => void;
+  appOpenTime: number;
+  init: () => () => void;
+}
+
+export const useAppState = create<AppStore>((set, get) => ({
+  state: null,
+  activeUserEmail: localStorage.getItem('lockin_active_user'),
+  isAuthReady: false,
+
+  setAuthReady: (ready) => set({ isAuthReady: ready }),
+  setActiveUserEmail: (email) => {
+    if (email) localStorage.setItem('lockin_active_user', email);
+    else localStorage.removeItem('lockin_active_user');
+    set({ activeUserEmail: email });
+  },
+  appOpenTime: Date.now(),
+  setState: (state) => set({ state }),
+
+  init: () => {
+    const { setAuthReady, setActiveUserEmail, setState } = get();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && user.email) {
+        setActiveUserEmail(user.email);
+        const saved = localStorage.getItem(`lockin_user_${user.email}`);
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            // Ensure userId matches Firebase Auth UID for Firestore permissions
+            if (user.uid && parsed.userId !== user.uid) {
+              parsed.userId = user.uid;
+              localStorage.setItem(`lockin_user_${user.email}`, JSON.stringify(parsed));
+            }
+            // Migration: remove timers from missions that don't strictly require them
+            if (parsed.missions) {
+              parsed.missions = parsed.missions.map((m: any) => ({
+                ...m,
+                hasTimer: extractDuration(m.originalText || m.text) !== null
+              }));
+            }
+            // Auto-grant Elite to Zaiki if not already set
+            if (!parsed.isPremium && (user.email === 'zaikiwildan@gmail.com' || parsed.username?.toLowerCase().includes('zaiki'))) {
+              parsed.isPremium = true;
+            }
+            
+            // Check for boss expiration
+            const today = getTodayISO();
+            
+            // Check for streak reset
+            if (parsed.lastActiveDate) {
+              const lastDate = new Date(parsed.lastActiveDate);
+              const todayDate = new Date(today);
+              const diff = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+              
+              if (diff > 1) {
+                // Streak broken!
+                if ((parsed.streakFreezes || 0) > 0) {
+                  parsed.streakFreezes -= 1;
+                  // Streak saved by freeze!
+                  if (!parsed.notifications) parsed.notifications = [];
+                  parsed.notifications.unshift({
+                    id: Math.random().toString(36).substring(2, 9),
+                    title: parsed.language === 'id' ? 'STREAK DISELAMATKAN!' : 'STREAK SAVED!',
+                    description: parsed.language === 'id' 
+                      ? 'Streak-mu diselamatkan oleh Streak Freeze!' 
+                      : 'Your streak was saved by a Streak Freeze!',
+                    icon: 'Shield',
+                    read: false,
+                    timestamp: Date.now()
+                  });
+                } else {
+                  parsed.streak = 0;
+                  if (!parsed.notifications) parsed.notifications = [];
+                  parsed.notifications.unshift({
+                    id: Math.random().toString(36).substring(2, 9),
+                    title: parsed.language === 'id' ? 'STREAK TERPUTUS' : 'STREAK BROKEN',
+                    description: parsed.language === 'id' 
+                      ? 'Kamu melewatkan satu hari. Streak kembali ke 0.' 
+                      : 'You missed a day. Streak reset to 0.',
+                    icon: 'Flame',
+                    read: false,
+                    timestamp: Date.now()
+                  });
+                }
+              }
+            }
+
+            // Check for boss expiration - only if week has changed
+            const now = new Date();
+            const currentWeek = Math.floor(now.getTime() / (7 * 24 * 60 * 60 * 1000));
+            
+            if (parsed.bossState && parsed.bossState.status === 'active') {
+              const lastEncounter = parsed.bossState.lastEncounterDate ? new Date(parsed.bossState.lastEncounterDate) : null;
+              const lastWeek = lastEncounter ? Math.floor(lastEncounter.getTime() / (7 * 24 * 60 * 60 * 1000)) : currentWeek;
+              
+              if (lastWeek < currentWeek) {
+                // Boss escaped because the week ended!
+                parsed.bossState.status = 'escaped';
+                parsed.bossState.isActive = false;
+                parsed.xp = Math.max(0, (parsed.xp || 0) - 500);
+                parsed.totalXp = Math.max(0, (parsed.totalXp || 0) - 500);
+                parsed.zoneCoins = Math.max(0, (parsed.zoneCoins || 0) - 100);
+                
+                if (!parsed.notifications) parsed.notifications = [];
+                parsed.notifications.unshift({
+                  id: Math.random().toString(36).substring(2, 9),
+                  title: parsed.language === 'id' ? 'BOSS KABUR!' : 'BOSS ESCAPED!',
+                  description: parsed.language === 'id' 
+                    ? 'Minggu telah berakhir. Boss melarikan diri dan mencuri 500 XP & 100 ZoneCoins!' 
+                    : 'The week has ended. The boss escaped and stole 500 XP & 100 ZoneCoins!',
+                  icon: 'Skull',
+                  read: false,
+                  timestamp: Date.now()
+                });
+  
+                // External Notification
+                if ('Notification' in window && Notification.permission === 'granted') {
+                  new Notification(parsed.language === 'id' ? 'BOSS KABUR!' : 'BOSS ESCAPED!', {
+                    body: parsed.language === 'id' 
+                      ? 'Minggu telah berakhir. Boss melarikan diri!' 
+                      : 'The week has ended. The boss escaped!',
+                    icon: '/favicon.ico'
+                  });
+                }
+              }
+            }
+
+            setState(parsed);
+          } catch (e) {
+            console.error("Error parsing saved state:", e);
+          }
+        } else {
+          const newState = createDefaultState(user.displayName || 'User', user.email);
+          newState.userId = user.uid;
+          setState(newState);
+          localStorage.setItem(`lockin_user_${user.email}`, JSON.stringify(newState));
+        }
+      }
+      setAuthReady(true);
+    });
+    return unsubscribe;
+  },
+
+  updateState: (updates) => {
+    const { state, activeUserEmail } = get();
+    if (!state || !activeUserEmail) return;
+
+    // Check for unlocks before applying updates
+    const newUnlockedItems = [...(state.unlockedItemsQueue || [])];
+    
+    // 1. Check for Level Up Unlocks (Frames)
+    if (updates.level && updates.level > state.level) {
+      for (let lvl = state.level + 1; lvl <= updates.level; lvl++) {
+        const rank = RANKS.find(r => r.minLevel === lvl);
+        if (rank) {
+          const frameId = `frame-${rank.name.toLowerCase()}`;
+          if (!state.unlockedFrames?.includes(frameId)) {
+            newUnlockedItems.push({ type: 'frame', id: frameId });
+          }
+        }
+      }
+    }
+
+    // 2. Check for Streak Unlocks
+    if (updates.streak && updates.streak > state.streak) {
+      if (updates.streak === 7 && !state.unlockedFrames?.includes('frame-rgb')) newUnlockedItems.push({ type: 'frame', id: 'frame-rgb' });
+      if (updates.streak === 30 && !state.unlockedFrames?.includes('frame-fire')) newUnlockedItems.push({ type: 'frame', id: 'frame-fire' });
+      if (updates.streak === 60 && !state.unlockedFrames?.includes('frame-aurora')) newUnlockedItems.push({ type: 'frame', id: 'frame-aurora' });
+      if (updates.streak === 100 && !state.unlockedFrames?.includes('frame-inferno')) newUnlockedItems.push({ type: 'frame', id: 'frame-inferno' });
+    }
+
+    // 3. Check for Mission Count Unlocks
+    if (updates.missionsCompleted && updates.missionsCompleted > state.missionsCompleted) {
+      if (updates.missionsCompleted === 50 && !state.unlockedFrames?.includes('frame-neon')) newUnlockedItems.push({ type: 'frame', id: 'frame-neon' });
+      if (updates.missionsCompleted === 100 && !state.unlockedFrames?.includes('frame-hologram')) newUnlockedItems.push({ type: 'frame', id: 'frame-hologram' });
+      if (updates.missionsCompleted === 200 && !state.unlockedFrames?.includes('frame-radiant')) newUnlockedItems.push({ type: 'frame', id: 'frame-radiant' });
+      if (updates.missionsCompleted === 666 && !state.unlockedFrames?.includes('frame-abyssal')) newUnlockedItems.push({ type: 'frame', id: 'frame-abyssal' });
+    }
+
+    // 4. Check for Rank Up
+    if (updates.level && updates.level > state.level) {
+      const oldRank = RANKS.slice().reverse().find(r => state.level >= r.minLevel);
+      const newRank = RANKS.slice().reverse().find(r => updates.level >= r.minLevel);
+      if (newRank && oldRank && newRank.name !== oldRank.name) {
+        newUnlockedItems.push({ type: 'rank', id: newRank.name });
+      }
+    }
+
+    if (newUnlockedItems.length > (state.unlockedItemsQueue?.length || 0)) {
+      updates.unlockedItemsQueue = newUnlockedItems;
+    }
+
+    // Auto-grant Elite to Zaiki if not already set
+    if (!state.isPremium && (activeUserEmail === 'zaikiwildan@gmail.com' || state.username.toLowerCase().includes('zaiki'))) {
+      updates.isPremium = true;
+    }
+
+    const newState = { ...state, ...updates };
+    set({ state: newState });
+    localStorage.setItem(`lockin_user_${activeUserEmail}`, JSON.stringify(newState));
+  },
+
+  login: async (email, username, uid) => {
+    const { setActiveUserEmail, setState } = get();
+    setActiveUserEmail(email);
+    
+    // Check for OG Title logic
+    let isOg = false;
+    if (db && email !== 'zaikiwildan@gmail.com') {
+      try {
+        const ogRef = doc(db, 'system', 'og_counter_v2');
+        const ogDoc = await getDoc(ogRef);
+        let count = 0;
+        if (ogDoc.exists()) {
+          count = ogDoc.data().count || 0;
+        }
+        
+        if (count < 100) {
+          // Check if this user already has it in firestore
+          if (uid) {
+            const userDoc = await getDoc(doc(db, 'users', uid));
+            if (userDoc.exists() && userDoc.data().unlockedTitles?.includes('OG')) {
+              isOg = true;
+            } else if (!userDoc.exists() || !userDoc.data().unlockedTitles?.includes('OG')) {
+              // Increment and grant
+              await setDoc(ogRef, { count: count + 1 }, { merge: true });
+              isOg = true;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error checking OG counter:", e);
+      }
+    }
+
+    const saved = localStorage.getItem(`lockin_user_${email}`);
+    if (saved) {
+      let parsed = JSON.parse(saved);
+
+      // Data Reset Logic: Reset everyone except Zaiki if version is old
+      if (parsed.dataVersion !== 2 && email !== 'zaikiwildan@gmail.com') {
+        parsed = createDefaultState(username, email, uid);
+        if (isOg && !parsed.unlockedTitles.includes('OG')) {
+          parsed.unlockedTitles.push('OG');
+          parsed.unlockedItemsQueue.push({ type: 'title', id: 'OG' });
+        }
+        setState(parsed);
+        localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
+        return;
+      }
+
+      // Ensure Zaiki has the latest version without resetting
+      if (email === 'zaikiwildan@gmail.com' && parsed.dataVersion !== 2) {
+        parsed.dataVersion = 2;
+        localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
+      }
+
+      // Ensure userId matches Firebase Auth UID for Firestore permissions
+      if (uid && parsed.userId !== uid) {
+        parsed.userId = uid;
+        localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
+      }
+      
+      // Auto-grant Elite to Zaiki
+      if (!parsed.isPremium && (email === 'zaikiwildan@gmail.com' || username.toLowerCase().includes('zaiki'))) {
+        parsed.isPremium = true;
+      }
+
+      if (isOg && !parsed.unlockedTitles?.includes('OG')) {
+        parsed.unlockedTitles = [...(parsed.unlockedTitles || []), 'OG'];
+        parsed.unlockedItemsQueue = [...(parsed.unlockedItemsQueue || []), { type: 'title', id: 'OG' }];
+      }
+
+      setState(parsed);
+    } else {
+      const newState = createDefaultState(username, email, uid);
+      if (isOg && !newState.unlockedTitles.includes('OG')) {
+        newState.unlockedTitles.push('OG');
+        newState.unlockedItemsQueue.push({ type: 'title', id: 'OG' });
+      }
+      setState(newState);
+      localStorage.setItem(`lockin_user_${email}`, JSON.stringify(newState));
+    }
+  },
+
+  loginWithGoogle: async () => {
+    const { login } = get();
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result.user && result.user.email) {
+        const email = result.user.email;
+        const uid = result.user.uid;
+        
+        // Check if user exists locally or in Firestore
+        const localSaved = localStorage.getItem(`lockin_user_${email}`);
+        let existsInFirestore = false;
+        
+        if (db) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', uid));
+            if (userDoc.exists()) {
+              existsInFirestore = true;
+            }
+          } catch (e) {
+            console.error("Error checking firestore user:", e);
+          }
+        }
+
+        if (!localSaved && !existsInFirestore) {
+          // Check if this is the dev account (bypass)
+          if (email !== 'zaikiwildan@gmail.com') {
+            await signOut(auth);
+            throw new Error(localStorage.getItem('lockin_language') === 'id' ? 'Akun tidak ditemukan. Silakan daftar terlebih dahulu.' : 'Account not found. Please sign up first.');
+          }
+        }
+
+        login(email, result.user.displayName || 'User', uid);
+      }
+    } catch (error: any) {
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        return;
+      }
+      console.error("Error signing in with Google:", error);
+      throw error;
+    }
+  },
+
+  logout: async () => {
+    const { setActiveUserEmail, setState } = get();
+    await signOut(auth);
+    setActiveUserEmail(null);
+    setState(null);
+  },
+
+  generateMissions: (path) => {
+    const { state, updateState } = get();
+    if (!state) return;
+
+    const missions: Mission[] = [];
+    const types: MissionType[] = ['REGULAR', 'DAILY', 'WEEKLY'];
+    
+    types.forEach(type => {
+      const pool = PATH_MISSIONS[path][type];
+      const count = 3;
+      
+      // Calculate weights for each mission in the pool
+      const weightedPool = pool.map(text => {
+        const category = analyzeMissionPath(text);
+        const weight = state.missionAffinity?.[category] || 1.0;
+        return { text, weight };
+      });
+
+      // Weighted random selection
+      const selected: string[] = [];
+      const tempPool = [...weightedPool];
+      
+      for (let i = 0; i < count && tempPool.length > 0; i++) {
+        const totalWeight = tempPool.reduce((sum, item) => sum + item.weight, 0);
+        let random = Math.random() * totalWeight;
+        
+        for (let j = 0; j < tempPool.length; j++) {
+          random -= tempPool[j].weight;
+          if (random <= 0) {
+            selected.push(tempPool[j].text);
+            tempPool.splice(j, 1);
+            break;
+          }
+        }
+      }
+
+      selected.forEach(text => {
+        missions.push({
+          id: Math.random().toString(36).substring(2, 9),
+          text: translateMissionText(scaleMissionText(text, state.level), state.language),
+          originalText: text,
+          completed: false,
+          type,
+          hasTimer: extractDuration(text) !== null
+        });
+      });
+    });
+
+    updateState({
+      missions,
+      lastMissionDate: new Date().toISOString().split('T')[0],
+      lastWeeklyDate: new Date().toISOString().split('T')[0],
+      chosenPath: path
+    });
+  },
+
+  checkStreakFreezeNeeded: () => {
+    const { state, updateState } = get();
+    if (!state || !state.lastActiveDate) return false;
+
+    const today = getTodayISO();
+    const lastDate = state.lastActiveDate;
+    
+    const last = new Date(lastDate);
+    const curr = new Date(today);
+    const diffTime = Math.abs(curr.getTime() - last.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 1 && state.streakFreezes > 0 && !state.streakFreezeUsedToday) {
+      updateState({
+        streakFreezes: state.streakFreezes - 1,
+        streakFreezeUsedToday: true,
+        lastActiveDate: today
+      });
+      return true;
+    }
+    return false;
+  },
+
+  completeMission: (id, options) => {
+    const { state, updateState, addNotification } = get();
+    if (!state) return;
+
+    const mission = state.missions.find(m => m.id === id);
+    if (!mission || mission.completed) return;
+
+    // Burst Limit Check
+    const now = Date.now();
+    if (state.burstLockUntil && now < state.burstLockUntil) {
+      return;
+    }
+
+    let newMissions = state.missions.map(m => 
+      m.id === id ? { ...m, completed: true } : m
+    );
+
+    // Auto-replace regular missions immediately so there's always a fresh stream
+    if (mission.type === 'REGULAR') {
+      const pool = PATH_MISSIONS[state.chosenPath || 'PRODUCTIVE']['REGULAR'];
+      const currentMissions = state.missions.map(m => m.originalText);
+      const filteredPool = pool.filter(t => !currentMissions.includes(t));
+      
+      // Ensure we have 3 regular missions at all times
+      const otherRegularMissions = newMissions.filter(m => m.type === 'REGULAR' && m.id !== id && !m.completed);
+      const needed = 3 - otherRegularMissions.length;
+      
+      if (needed > 0 && filteredPool.length > 0) {
+        const selectedTexts: string[] = [];
+        const tempPool = [...filteredPool];
+        for (let i = 0; i < needed && tempPool.length > 0; i++) {
+          const idx = Math.floor(Math.random() * tempPool.length);
+          selectedTexts.push(tempPool[idx]);
+          tempPool.splice(idx, 1);
+        }
+        
+        const newMissionsToAdd = selectedTexts.map(text => ({
+          id: Math.random().toString(36).substring(2, 9),
+          text: translateMissionText(scaleMissionText(text, state.level), state.language),
+          originalText: text,
+          completed: false,
+          type: 'REGULAR' as const,
+          hasTimer: extractDuration(text) !== null
+        }));
+        
+        // Remove the completed one and add the new ones
+        newMissions = [
+          ...newMissions.filter(m => m.id !== id),
+          ...newMissionsToAdd
+        ];
+      }
+    }
+
+    let xpGain = mission.type === 'WEEKLY' ? 50 : (mission.type === 'DAILY' ? 25 : 10);
+    let coinGain = mission.type === 'WEEKLY' ? 100 : (mission.type === 'DAILY' ? 50 : 20);
+
+    // The 2-Second Rule
+    const appOpenTime = get().appOpenTime;
+    if (now - appOpenTime < 2000) {
+      xpGain = 1; // Minimal XP
+      const msg = state.language === 'id'
+        ? "Memproses... Kamu yakin sudah melakukan ini? Dirimu di masa depan sedang mengawasi."
+        : "Processing... Are you sure you did this? Your future self is watching.";
+      
+      addNotification({
+        title: state.language === 'id' ? "Peringatan Integritas" : "Integrity Warning",
+        description: msg,
+        icon: 'AlertCircle'
+      });
+    }
+
+    if (state.doubleXpActiveUntil && new Date(state.doubleXpActiveUntil) > new Date()) {
+      xpGain *= 2;
+    }
+    if (state.doubleCoinActiveUntil && new Date(state.doubleCoinActiveUntil) > new Date()) {
+      coinGain *= 2;
+    }
+
+    const newXp = state.xp + xpGain;
+    const newTotalXp = state.totalXp + xpGain;
+    const newCoins = state.zoneCoins + coinGain;
+    const newMissionsCompleted = state.missionsCompleted + 1;
+
+    let newLevel = state.level;
+    let currentXp = newXp;
+    let animatingLevelUp = false;
+    let previousLevel = state.level;
+
+    // Multi-level up logic
+    while (newLevel < 50 && currentXp >= newLevel * 100) {
+      currentXp -= newLevel * 100;
+      newLevel += 1;
+      animatingLevelUp = true;
+    }
+
+    if (animatingLevelUp) {
+      sounds.playLevelUp();
+    } else {
+      sounds.playMissionComplete();
+    }
+
+    const today = getTodayISO();
+    let newStreak = state.streak;
+    if (state.lastActiveDate !== today) {
+      newStreak += 1;
+    }
+
+    // Abnormal Activity Detection
+    const oneMinuteAgo = now - 60000;
+    const recentCompletions = (state.recentCompletions || []).filter(t => t > oneMinuteAgo);
+    recentCompletions.push(now);
+    
+    let burstLockUntil = state.burstLockUntil || 0;
+    if (recentCompletions.length >= 5) {
+      burstLockUntil = now + 10000; // 10 seconds lock
+      
+      const msg = state.language === 'id'
+        ? "Neural Overheat. Tarik napas. Progres nyata bukanlah balapan."
+        : "Neural Overheat. Take a breath. Real progress isn't a race.";
+      
+      addNotification({
+        title: state.language === 'id' ? "Limit Terdeteksi" : "Limit Detected",
+        description: msg,
+        icon: 'Zap'
+      });
+    }
+
+    if (recentCompletions.length >= 7) {
+      const msg = state.language === 'id' 
+        ? "Aktivitas Abnormal Terdeteksi. Pertumbuhan OVR-mu terlihat buatan. Apakah kamu membangun kerajaan palsu?"
+        : "Abnormal Activity Detected. Your OVR growth looks artificial. Are you building a fake empire?";
+      
+      addNotification({
+        title: state.language === 'id' ? "Peringatan Sistem" : "System Warning",
+        description: msg,
+        icon: 'AlertCircle'
+      });
+
+      // Browser notification
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("Lock In", { body: msg });
+      } else if ("Notification" in window && Notification.permission !== "denied") {
+        Notification.requestPermission().then(permission => {
+          if (permission === "granted") {
+            new Notification("Lock In", { body: msg });
+          }
+        });
+      }
+    }
+
+    // Update daily stats for charts
+    const newDailyStats = { ...state.dailyStats };
+    newDailyStats[today] = (newDailyStats[today] || 0) + 1;
+
+    const category = analyzeMissionPath(mission.originalText || mission.text);
+    
+    // Immutable update for dailyCategoryStats
+    const newDailyCategoryStats = { ...state.dailyCategoryStats };
+    newDailyCategoryStats[today] = {
+      ...(newDailyCategoryStats[today] || {}),
+      [category]: ((newDailyCategoryStats[today]?.[category]) || 0) + 1
+    };
+
+    const newBadges = [...state.badges];
+    const newUnlockedItems = [...state.unlockedItemsQueue];
+    
+    if (newMissionsCompleted === 1 && !newBadges.includes('FIRST_STEP')) {
+      newBadges.push('FIRST_STEP');
+      newUnlockedItems.push({ type: 'badge', id: 'FIRST_STEP' });
+    }
+
+    // Update mission affinity (increase weight for completed category)
+    const newMissionAffinity = { ...state.missionAffinity };
+    const currentAffinity = newMissionAffinity[category] || 1.0;
+    newMissionAffinity[category] = Math.min(5.0, currentAffinity + 0.1); // Max weight 5.0
+
+    updateState({
+      missions: newMissions,
+      xp: currentXp,
+      totalXp: newTotalXp,
+      level: newLevel,
+      animatingLevelUp,
+      previousLevel,
+      streak: newStreak,
+      lastActiveDate: today,
+      recentCompletions,
+      burstLockUntil,
+      dailyStats: newDailyStats,
+      dailyCategoryStats: newDailyCategoryStats,
+      missionsCompleted: newMissionsCompleted,
+      zoneCoins: newCoins,
+      badges: newBadges,
+      unlockedItemsQueue: newUnlockedItems,
+      missionAffinity: newMissionAffinity,
+      showStreakAnimation: newStreak > state.streak
+    });
+  },
+
+  replaceMission: (id) => {
+    const { state, updateState } = get();
+    if (!state || state.zoneCoins < 50) return;
+
+    const mission = state.missions.find(m => m.id === id);
+    if (!mission || mission.completed) return;
+
+    const pool = PATH_MISSIONS[state.chosenPath || 'PRODUCTIVE'][mission.type];
+    const filteredPool = pool.filter(t => !state.missions.some(m => m.originalText === t));
+    const newText = filteredPool[Math.floor(Math.random() * filteredPool.length)];
+
+    const newMissions = state.missions.map(m => 
+      m.id === id ? {
+        ...m,
+        id: Math.random().toString(36).substring(2, 9),
+        text: translateMissionText(scaleMissionText(newText, state.level), state.language),
+        originalText: newText,
+        hasTimer: extractDuration(newText) !== null
+      } : m
+    );
+
+    // Update mission affinity (decrease weight for skipped category)
+    const category = analyzeMissionPath(mission.originalText || mission.text);
+    const currentAffinity = state.missionAffinity?.[category] || 1.0;
+    const newAffinity = Math.max(0.1, currentAffinity - 0.2); // Min weight 0.1
+
+    updateState({
+      missions: newMissions,
+      zoneCoins: state.zoneCoins - 50,
+      missionAffinity: {
+        ...state.missionAffinity,
+        [category]: newAffinity
+      }
+    });
+  },
+
+  changePath: (path) => {
+    const { state, updateState, generateMissions } = get();
+    if (!state) return;
+
+    if (state.chosenPath) {
+      const currentProgress: PathProgress = {
+        xp: state.xp,
+        level: state.level,
+        missions: state.missions,
+        lastMissionDate: state.lastMissionDate,
+        lastWeeklyDate: state.lastWeeklyDate,
+        badges: state.badges,
+        highestRankAchieved: state.highestRankAchieved
+      };
+      
+      const newPathProgress = { ...state.pathProgress, [state.chosenPath]: currentProgress };
+      const savedProgress = state.pathProgress[path];
+
+      if (savedProgress) {
+        updateState({
+          chosenPath: path,
+          xp: savedProgress.xp,
+          level: savedProgress.level,
+          missions: savedProgress.missions,
+          lastMissionDate: savedProgress.lastMissionDate,
+          lastWeeklyDate: savedProgress.lastWeeklyDate,
+          pathProgress: newPathProgress
+        });
+      } else {
+        updateState({
+          chosenPath: path,
+          xp: 0,
+          level: 1,
+          pathProgress: newPathProgress
+        });
+        generateMissions(path);
+      }
+    } else {
+      updateState({ chosenPath: path });
+      generateMissions(path);
+    }
+  },
+
+  addCustomMission: (type, text) => {
+    const { state, updateState } = get();
+    if (!state) return;
+    const current = state.customMissions[type] || [];
+    updateState({
+      customMissions: {
+        ...state.customMissions,
+        [type]: [...current, text]
+      }
+    });
+  },
+
+  removeCustomMission: (type, text) => {
+    const { state, updateState } = get();
+    if (!state) return;
+    const current = state.customMissions[type] || [];
+    updateState({
+      customMissions: {
+        ...state.customMissions,
+        [type]: current.filter(t => t !== text)
+      }
+    });
+  },
+
+  dismissUnlockedItem: () => {
+    const { state, updateState } = get();
+    if (!state) return;
+    updateState({
+      unlockedItemsQueue: state.unlockedItemsQueue.slice(1)
+    });
+  },
+
+  addNotification: (notif) => {
+    const { state, updateState } = get();
+    if (!state) return;
+    const newNotif: Notification = {
+      ...notif,
+      id: Math.random().toString(36).substring(2, 9),
+      read: false,
+      timestamp: Date.now()
+    };
+    updateState({
+      notifications: [newNotif, ...state.notifications].slice(0, 50)
+    });
+  },
+
+  markNotificationRead: (id) => {
+    const { state, updateState } = get();
+    if (!state) return;
+    updateState({
+      notifications: state.notifications.map(n => n.id === id ? { ...n, read: true } : n)
+    });
+  },
+
+  markAllNotificationsRead: () => {
+    const { state, updateState } = get();
+    if (!state) return;
+    updateState({
+      notifications: state.notifications.map(n => ({ ...n, read: true }))
+    });
+  },
+
+  incrementShareCount: () => {
+    const { state, updateState } = get();
+    if (!state) return;
+    updateState({ shareCount: state.shareCount + 1 });
+  },
+
+  triggerBoss: () => {
+    const { state, updateState } = get();
+    if (!state) return;
+    
+    const todayISO = getTodayISO();
+    
+    // Generate tasks for the boss
+    const pool = PATH_MISSIONS[state.chosenPath || 'DISCIPLINE']?.WEEKLY || PATH_MISSIONS.DISCIPLINE.WEEKLY;
+    const selected = [...pool].sort(() => 0.5 - Math.random()).slice(0, 3);
+    
+    const bossTasks = selected.map((text, i) => ({
+      id: `boss-task-${Date.now()}-${i}`,
+      text,
+      completed: false,
+      type: 'WEEKLY' as MissionType,
+      path: state.chosenPath || 'DISCIPLINE'
+    }));
+    
+    // Weekly color logic
+    const colors = ['#F43F5E', '#8B5CF6', '#10B981', '#F59E0B', '#3B82F6'];
+    const weekNumber = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+    const bossColor = colors[weekNumber % colors.length];
+    
+    updateState({
+      bossState: {
+        status: 'active',
+        topic: state.chosenPath || 'DISCIPLINE',
+        isActive: true,
+        lastEncounterDate: todayISO,
+        hp: 100,
+        maxHp: 100,
+        tasks: bossTasks,
+        color: bossColor
+      }
+    });
+  },
+
+  attackBoss: (taskId: string) => {
+    const { state, updateState, defeatBoss } = get();
+    if (!state || !state.bossState || !state.bossState.tasks) return;
+    
+    const task = state.bossState.tasks.find(t => t.id === taskId);
+    if (!task || task.completed) return;
+    
+    const updatedTasks = state.bossState.tasks.map(t => 
+      t.id === taskId ? { ...t, completed: true } : t
+    );
+    
+    const damage = 34; // 3 tasks = 102 damage
+    const newHp = Math.max(0, (state.bossState.hp || 100) - damage);
+    
+    updateState({
+      bossState: {
+        ...state.bossState,
+        tasks: updatedTasks,
+        hp: newHp,
+        status: newHp <= 0 ? 'defeated' : 'active'
+      }
+    });
+    
+    if (newHp <= 0) {
+      defeatBoss();
+    }
+  },
+
+  defeatBoss: () => {
+    const { state, updateState, addNotification } = get();
+    if (!state) return;
+    
+    // Decreased rewards as requested
+    const rewardXp = 1500;
+    const rewardCoins = 600;
+    
+    addNotification({
+      title: state.language === 'id' ? 'BOSS DIKALAHKAN!' : 'BOSS DEFEATED!',
+      description: state.language === 'id' 
+        ? `Kamu mendapatkan ${rewardXp} XP dan ${rewardCoins} ZoneCoins!` 
+        : `You earned ${rewardXp} XP and ${rewardCoins} ZoneCoins!`,
+      icon: 'Swords'
+    });
+    
+    const newTotalXp = state.totalXp + rewardXp;
+    const newCoins = state.zoneCoins + rewardCoins;
+    
+    let newLevel = state.level;
+    let newXp = state.xp + rewardXp;
+    let animatingLevelUp = false;
+    let previousLevel = state.level;
+
+    // Multi-level up logic
+    while (newLevel < 50 && newXp >= newLevel * 100) {
+      newXp -= newLevel * 100;
+      newLevel += 1;
+      animatingLevelUp = true;
+    }
+
+    if (animatingLevelUp) {
+      sounds.playLevelUp();
+    } else {
+      sounds.playMissionComplete();
+    }
+    
+    updateState({
+      xp: newXp,
+      totalXp: newTotalXp,
+      level: newLevel,
+      animatingLevelUp,
+      previousLevel,
+      zoneCoins: newCoins,
+      bossState: {
+        ...state.bossState!,
+        status: 'defeated',
+        isActive: false
+      }
+    });
+  },
+
+  escapeBoss: () => {
+    const { state, updateState, addNotification } = get();
+    if (!state || !state.bossState || state.bossState.status !== 'active') return;
+    
+    const penaltyXp = 500;
+    const penaltyCoins = 100;
+    
+    addNotification({
+      title: state.language === 'id' ? 'BOSS KABUR!' : 'BOSS ESCAPED!',
+      description: state.language === 'id' 
+        ? `Boss melarikan diri dan mencuri ${penaltyXp} XP & ${penaltyCoins} ZoneCoins!` 
+        : `The boss escaped and stole ${penaltyXp} XP & ${penaltyCoins} ZoneCoins!`,
+      icon: 'Skull'
+    });
+    
+    updateState({
+      xp: Math.max(0, state.xp - penaltyXp),
+      totalXp: Math.max(0, state.totalXp - penaltyXp),
+      zoneCoins: Math.max(0, state.zoneCoins - penaltyCoins),
+      bossState: {
+        ...state.bossState,
+        status: 'escaped',
+        isActive: false
+      }
+    });
+
+    // External Notification
+    if (Notification.permission === 'granted') {
+      new Notification(state.language === 'id' ? 'BOSS KABUR!' : 'BOSS ESCAPED!', {
+        body: state.language === 'id' 
+          ? `Boss melarikan diri dan mencuri ${penaltyXp} XP & ${penaltyCoins} ZoneCoins!` 
+          : `The boss escaped and stole ${penaltyXp} XP & ${penaltyCoins} ZoneCoins!`,
+        icon: '/favicon.ico'
+      });
+    }
+  },
+
+  requestNotificationPermission: () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  },
+
+  crushRival: () => {
+    const { state, updateState } = get();
+    if (!state || !state.rivalId) return;
+    
+    // We keep the rivalData for the animation, but clear the rivalId
+    updateState({
+      beatenRivals: [...state.beatenRivals, state.rivalId],
+      rivalId: null,
+      zoneCoins: state.zoneCoins + 500,
+      showCrushedAnimation: true,
+      // rivalData is already set by the App.tsx effect before calling this
+    });
+  },
+  dismissCrushedAnimation: () => {
+    const { updateState } = get();
+    updateState({ 
+      showCrushedAnimation: false,
+      rivalData: null 
+    });
+  }
+}));
+
 export type PathType = 'PRODUCTIVE' | 'STRONGER' | 'EXTROVERT' | 'DISCIPLINE' | 'MENTAL_HEALTH' | 'OTHER';
-export type MissionType = 'REGULAR' | 'DAILY' | 'WEEKLY' | 'ROUTINE' | 'BOSS';
+export type MissionType = 'REGULAR' | 'DAILY' | 'WEEKLY' | 'ROUTINE';
 
 export interface Mission {
   id: string;
@@ -13,6 +988,15 @@ export interface Mission {
   completed: boolean;
   type: MissionType;
   hasTimer?: boolean;
+}
+
+export function getTodayISO(): string {
+  // Use local date to avoid UTC midnight issues
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function extractDuration(text: string): number | null {
@@ -69,7 +1053,7 @@ export interface PathProgress {
 }
 
 export interface UnlockedItem {
-  type: 'badge' | 'frame' | 'title';
+  type: 'badge' | 'frame' | 'title' | 'rank';
   id: string;
 }
 
@@ -82,24 +1066,19 @@ export interface Notification {
   timestamp: number;
 }
 
-export interface BossTask {
-  id: string;
-  text: string;
-  completed: boolean;
-  damage: number;
-}
-
 export interface BossState {
-  isActive: boolean;
+  status: 'idle' | 'pending_choice' | 'active' | 'defeated' | 'escaped';
   topic: string | null;
-  hp: number;
-  maxHp: number;
-  tasks: BossTask[];
+  isActive: boolean;
   lastEncounterDate: string | null;
-  status: 'pending_choice' | 'active' | 'defeated' | 'escaped';
+  hp?: number;
+  maxHp?: number;
+  tasks?: Mission[];
+  color?: string;
 }
 
 export interface UserState {
+  dataVersion?: number;
   userId: string;
   username: string;
   profilePicture: string | null;
@@ -107,6 +1086,7 @@ export interface UserState {
   onboardingCompleted: boolean;
   chosenPath: PathType | null;
   xp: number;
+  totalXp: number;
   level: number;
   missions: Mission[];
   lastMissionDate: string;
@@ -125,6 +1105,7 @@ export interface UserState {
   unlockedFrames: string[];
   equippedFrame: string | null;
   titles: string[];
+  unlockedTitles: string[];
   equippedTitle: string | null;
   hasPromptedPfp: boolean;
   customMissions: Record<MissionType, string[]>;
@@ -132,23 +1113,91 @@ export interface UserState {
   shareCount: number;
   isProfilePublic: boolean;
   missionsCompleted: number;
+  manifestoAccepted?: boolean;
   notifications: Notification[];
   streakFreezes: number;
   lastStreakFreezeGiven: string | null;
   streakFreezeUsedToday: boolean;
   rivalId: string | null;
   beatenRivals: string[];
+  rivalData: any | null;
+  showCrushedAnimation: boolean;
   zoneCoins: number;
   doubleXpPotions: number;
   doubleXpActiveUntil: string | null;
   doubleCoinPotions: number;
   doubleCoinActiveUntil: string | null;
   isPremium: boolean;
+  lastRestNotificationTime: number;
+  recentCompletions?: number[]; // Timestamps of recent completions
+  burstLockUntil?: number; // Timestamp until which mission completion is locked
   baseStats: Record<string, number>;
-  bossState?: BossState;
+  stats?: Record<string, number>;
   notificationsEnabled: boolean;
   notificationTime: string;
   preferredChartType?: 'bar' | 'line';
+  activeTab: MissionType;
+  bossState?: BossState;
+  missionAffinity: Record<PathType, number>;
+  streakFreezesUsed?: number;
+}
+
+export const ALL_FRAMES = [
+  'frame-default', 'frame-bronze', 'frame-silver', 'frame-gold', 'frame-platinum', 
+  'frame-diamond', 'frame-master', 'frame-grandmaster', 'frame-challenger', 'frame-legend', 'frame-mythic', 
+  'frame-rgb', 'frame-neon', 'frame-fire', 'frame-cyberpunk', 'frame-hologram', 
+  'frame-celestial', 'frame-void', 'frame-aurora', 'frame-radiant', 
+  'frame-abyssal', 'frame-inferno', 'frame-ethereal', 'frame-omniscience', 'frame-matrix', 'frame-viral',
+  'frame-royal', 'frame-glitch', 'frame-elite'
+];
+
+export function isFrameUnlocked(frame: string, state: UserState): boolean {
+  if (!state) return false;
+  
+  const isZaiki = state.username?.toLowerCase() === 'zaiki';
+  const totalMissions = Object.values(state.dailyStats || {}).reduce((a: number, b: any) => a + (typeof b === 'number' ? b : 0), 0) as number;
+  const ovr = Math.round(
+    ((state.stats?.physical || 1) +
+    (state.stats?.discipline || 1) +
+    (state.stats?.mental || 1) +
+    (state.stats?.ambition || 1) +
+    (state.stats?.intellect || 1) +
+    (state.stats?.social || 1)) / 6
+  );
+
+  const specialConditions: Record<string, boolean> = {
+    'frame-bronze': state.level >= 1,
+    'frame-silver': state.level >= 3,
+    'frame-gold': state.level >= 6,
+    'frame-platinum': state.level >= 10,
+    'frame-diamond': state.level >= 15,
+    'frame-master': state.level >= 21,
+    'frame-grandmaster': state.level >= 28,
+    'frame-challenger': state.level >= 36,
+    'frame-legend': state.level >= 43,
+    'frame-mythic': state.level >= 50,
+    'frame-rgb': state.streak >= 7,
+    'frame-neon': totalMissions >= 50,
+    'frame-fire': state.streak >= 30,
+    'frame-cyberpunk': (state.badges?.length || 0) >= 5,
+    'frame-hologram': totalMissions >= 100,
+    'frame-celestial': ovr >= 80,
+    'frame-void': state.level >= 20,
+    'frame-aurora': state.streak >= 60,
+    'frame-radiant': totalMissions >= 200,
+    'frame-abyssal': totalMissions >= 666,
+    'frame-inferno': state.streak >= 100,
+    'frame-ethereal': ovr >= 95,
+    'frame-omniscience': ovr >= 100,
+    'frame-matrix': totalMissions >= 100,
+    'frame-viral': (state.shareCount || 0) >= 5,
+    'frame-elite': state.isPremium,
+  };
+
+  return state.unlockedFrames?.includes(frame) || 
+    frame === 'frame-default' || 
+    isZaiki || 
+    (specialConditions[frame] ?? false);
 }
 
 export const RANKS = [
@@ -207,7 +1256,7 @@ export function getRankForLevel(level: number) {
   return RANKS[0];
 }
 
-export function calculateOVR(state: UserState) {
+export function calculateOVR(state: UserState, activeUserEmail?: string | null) {
   const getPathScore = (path: PathType, statKey: string) => {
     const p = state.chosenPath === path 
       ? { level: state.level, xp: state.xp } 
@@ -240,7 +1289,7 @@ export function calculateOVR(state: UserState) {
   let ovr = Math.floor((physical + discipline + mental + ambition + intellect + social) / 6);
 
   // Hardcode OVR 100 for zaiki
-  const isZaiki = state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase().includes('zaiki');
+  const isZaiki = activeUserEmail === 'zaikiwildan@gmail.com' || state.userId === 'zaikiwildan@gmail.com' || state.username.toLowerCase().includes('zaiki') || state.isPremium;
   if (isZaiki) {
     ovr = 100;
   }
@@ -292,79 +1341,106 @@ export const PATH_QUOTES: Record<PathType, string[]> = {
   ]
 };
 
-export const createDefaultState = (username: string): UserState => ({
-  userId: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
-  username,
-  profilePicture: null,
-  isLoggedIn: true,
-  onboardingCompleted: false,
-  chosenPath: null,
-  xp: 0,
-  level: 1,
-  missions: [],
-  lastMissionDate: '',
-  lastWeeklyDate: '',
-  badges: [],
-  highestRankAchieved: 'Bronze',
-  language: 'en',
-  pathProgress: {},
-  streak: 0,
-  lastActiveDate: null,
-  showStreakAnimation: false,
-  animatingLevelUp: false,
-  previousLevel: 1,
-  dailyStats: {},
-  dailyCategoryStats: {},
-  unlockedFrames: ['frame-default'],
-  equippedFrame: null,
-  titles: ['Newbie'],
-  equippedTitle: 'Newbie',
-  hasPromptedPfp: false,
-  customMissions: {
-    REGULAR: [],
-    DAILY: [],
-    WEEKLY: [],
-    ROUTINE: [],
-    BOSS: []
-  },
-  unlockedItemsQueue: [],
-  shareCount: 0,
-  isProfilePublic: true,
-  missionsCompleted: 0,
-  notifications: [],
-  streakFreezes: 1,
-  lastStreakFreezeGiven: new Date().toISOString().split('T')[0],
-  streakFreezeUsedToday: false,
-  rivalId: null,
-  beatenRivals: [],
-  zoneCoins: 0,
-  doubleXpPotions: 0,
-  doubleXpActiveUntil: null,
-  doubleCoinPotions: 0,
-  doubleCoinActiveUntil: null,
-  isPremium: false,
-  baseStats: {
-    intellect: 0,
-    physical: 0,
-    social: 0,
-    ambition: 0,
-    discipline: 0,
-    mental: 0,
-    other: 0
-  },
-  bossState: {
-    isActive: false,
-    topic: null,
-    hp: 0,
-    maxHp: 0,
-    tasks: [],
-    lastEncounterDate: null,
-    status: 'pending_choice'
-  },
-  notificationsEnabled: false,
-  notificationTime: '09:00',
-  preferredChartType: 'bar',
-});
+export const createDefaultState = (username: string, email?: string, uid?: string): UserState => {
+  const isZaiki = email === 'zaikiwildan@gmail.com' || username.toLowerCase().includes('zaiki');
+  
+  return {
+    dataVersion: 2,
+    userId: uid || (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
+    username,
+    profilePicture: null,
+    isLoggedIn: true,
+    onboardingCompleted: false,
+    chosenPath: null,
+    xp: 0,
+    totalXp: 0,
+    level: 1,
+    missions: [],
+    lastMissionDate: '',
+    lastWeeklyDate: '',
+    badges: [],
+    highestRankAchieved: 'Bronze',
+    language: 'en',
+    pathProgress: {},
+    streak: 0,
+    lastActiveDate: null,
+    showStreakAnimation: false,
+    animatingLevelUp: false,
+    previousLevel: 1,
+    dailyStats: {},
+    dailyCategoryStats: {},
+    unlockedFrames: ['frame-default'],
+    equippedFrame: null,
+    titles: ['Newbie'],
+    unlockedTitles: ['Newbie'],
+    equippedTitle: 'Newbie',
+    hasPromptedPfp: false,
+    customMissions: {
+      REGULAR: [],
+      DAILY: [],
+      WEEKLY: [],
+      ROUTINE: []
+    },
+    unlockedItemsQueue: [],
+    shareCount: 0,
+    isProfilePublic: true,
+    missionsCompleted: 0,
+    manifestoAccepted: false,
+    notifications: [],
+    streakFreezes: 1,
+    lastStreakFreezeGiven: getTodayISO(),
+    streakFreezeUsedToday: false,
+    rivalId: null,
+    beatenRivals: [],
+    rivalData: null,
+    showCrushedAnimation: false,
+    zoneCoins: 0,
+    doubleXpPotions: 0,
+    doubleXpActiveUntil: null,
+    doubleCoinPotions: 0,
+    doubleCoinActiveUntil: null,
+    isPremium: isZaiki,
+    lastRestNotificationTime: 0,
+    recentCompletions: [],
+    burstLockUntil: 0,
+    bossState: {
+      status: 'idle',
+      topic: null,
+      isActive: false,
+      lastEncounterDate: null
+    },
+    baseStats: {
+      intellect: 0,
+      physical: 0,
+      social: 0,
+      ambition: 0,
+      discipline: 0,
+      mental: 0,
+      other: 0
+    },
+    stats: {
+      intellect: 0,
+      physical: 0,
+      social: 0,
+      ambition: 0,
+      discipline: 0,
+      mental: 0,
+      other: 0
+    },
+    notificationsEnabled: false,
+    notificationTime: '09:00',
+    preferredChartType: 'bar',
+    activeTab: 'REGULAR',
+    missionAffinity: {
+      PRODUCTIVE: 1.0,
+      STRONGER: 1.0,
+      EXTROVERT: 1.0,
+      DISCIPLINE: 1.0,
+      MENTAL_HEALTH: 1.0,
+      OTHER: 1.0
+    }
+  };
+};
 
 const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
   PRODUCTIVE: {
@@ -422,8 +1498,7 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Review your monthly goals", "Set next month's goals for 20 minutes", "Create a vision board for 60 minutes", 
       "Read a biography", "Watch a documentary"
     ],
-    ROUTINE: [],
-    BOSS: []
+    ROUTINE: []
   },
   STRONGER: {
     REGULAR: [
@@ -480,8 +1555,7 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Meal prep for 7 days", "Track macros for 7 days", "Do 200 push-ups in one day", 
       "Do 200 squats in one day", "Run a 5k under 30 mins"
     ],
-    ROUTINE: [],
-    BOSS: []
+    ROUTINE: []
   },
   EXTROVERT: {
     REGULAR: [
@@ -538,8 +1612,7 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Go to a trade show for 2 hours", "Volunteer at a shelter for 2 hours", "Volunteer at a food bank for 2 hours", 
       "Join a book club for 1.5 hours", "Spend 15 minutes at a cafe"
     ],
-    ROUTINE: [],
-    BOSS: []
+    ROUTINE: []
   },
     DISCIPLINE: {
       REGULAR: [
@@ -596,8 +1669,7 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
         "Wash windows for 60 minutes", "Clean the oven for 30 minutes", "Clean the fridge for 30 minutes", 
         "Organize the garage for 2 hours", "Donate 5 items"
       ],
-      ROUTINE: [],
-      BOSS: []
+      ROUTINE: []
     },
   MENTAL_HEALTH: {
     REGULAR: [
@@ -654,15 +1726,13 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Have a pajama day for 24 hours", "Sleep in without an alarm", "Do a 1-hour meditation", 
       "Do a 1-hour yoga class", "Write a short story for 60 minutes"
     ],
-    ROUTINE: [],
-    BOSS: []
+    ROUTINE: []
   },
   OTHER: {
     REGULAR: [],
     DAILY: [],
     WEEKLY: [],
-    ROUTINE: [],
-    BOSS: []
+    ROUTINE: []
   }
 };
 
@@ -733,19 +1803,6 @@ export function usePosts() {
   return { posts, addPost, likePost };
 }
 
-const AppStateContext = createContext<ReturnType<typeof useAppStateInternal> | null>(null);
-
-export function AppStateProvider({ children }: { children: ReactNode }) {
-  const state = useAppStateInternal();
-  return <AppStateContext.Provider value={state}>{children}</AppStateContext.Provider>;
-}
-
-export function useAppState() {
-  const context = useContext(AppStateContext);
-  if (!context) throw new Error('useAppState must be used within AppStateProvider');
-  return context;
-}
-
 export const analyzeMissionPath = (text: string): PathType => {
   const lower = text.toLowerCase();
   // Physical / Stronger
@@ -760,931 +1817,3 @@ export const analyzeMissionPath = (text: string): PathType => {
   return 'DISCIPLINE';
 };
 
-function useAppStateInternal() {
-  const [activeUserEmail, setActiveUserEmail] = useState<string | null>(() => {
-    return localStorage.getItem('lockin_active_user');
-  });
-
-  const [state, setState] = useState<UserState | null>(() => {
-    const email = localStorage.getItem('lockin_active_user');
-    if (email) {
-      const saved = localStorage.getItem(`lockin_user_${email}`);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (!parsed.missions) parsed.missions = [];
-          if (!parsed.highestRankAchieved) parsed.highestRankAchieved = getRankForLevel(parsed.level || 1).name;
-          if (!parsed.pathProgress) parsed.pathProgress = {};
-          return { ...createDefaultState(parsed.username || email), ...parsed, isLoggedIn: true };
-        } catch (e) {
-          return createDefaultState(email);
-        }
-      }
-      return createDefaultState(email);
-    }
-    return null;
-  });
-
-  useEffect(() => {
-    if (activeUserEmail && state) {
-      localStorage.setItem(`lockin_user_${activeUserEmail}`, JSON.stringify(state));
-      localStorage.setItem('lockin_active_user', activeUserEmail);
-    } else if (!activeUserEmail) {
-      localStorage.removeItem('lockin_active_user');
-    }
-  }, [state, activeUserEmail]);
-
-  useEffect(() => {
-    if (state && (state.username.toLowerCase().includes('zaiki') || (activeUserEmail && activeUserEmail.toLowerCase().includes('zaiki')))) {
-      const needsUpdate = state.level < 50 || (state.zoneCoins || 0) < 10000 || !state.isPremium || !state.titles.includes('Elite Zone') || !state.unlockedFrames.includes('frame-elite') || !state.badges.includes('ELITE_ZONE');
-      if (needsUpdate) {
-        setState(prev => {
-          if (!prev) return prev;
-          const newFrames = [...(prev.unlockedFrames || [])];
-          const eliteFrames = ['frame-mythic', 'frame-elite', 'frame-royal', 'frame-dragon'];
-          eliteFrames.forEach(f => {
-            if (!newFrames.includes(f)) newFrames.push(f);
-          });
-          
-          const newTitles = [...(prev.titles || [])];
-          if (!newTitles.includes('Elite Zone')) newTitles.push('Elite Zone');
-
-          const newBadges = [...(prev.badges || [])];
-          if (!newBadges.includes('ELITE_ZONE')) newBadges.push('ELITE_ZONE');
-
-          return {
-            ...prev,
-            level: 50,
-            xp: 0,
-            highestRankAchieved: 'Mythic',
-            unlockedFrames: newFrames,
-            equippedFrame: 'frame-elite',
-            titles: newTitles,
-            equippedTitle: 'Elite Zone',
-            badges: newBadges,
-            zoneCoins: Math.max(prev.zoneCoins || 0, 10000),
-            isPremium: true
-          };
-        });
-      }
-    }
-  }, [state?.level, state?.username, activeUserEmail, state?.isPremium, state?.titles?.length, state?.unlockedFrames?.length, state?.badges?.length]);
-
-  const login = (email: string, username: string) => {
-    const saved = localStorage.getItem(`lockin_user_${email}`);
-    const usersStr = localStorage.getItem('lockin_auth_users');
-    const users = usersStr ? JSON.parse(usersStr) : {};
-    const isOG = users[email]?.isOG;
-    const isZaiki = username.toLowerCase().includes('zaiki') || email.toLowerCase().includes('zaiki');
-
-    let newState: UserState;
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (!parsed.missions) parsed.missions = [];
-        if (!parsed.highestRankAchieved) parsed.highestRankAchieved = getRankForLevel(parsed.level || 1).name;
-        if (!parsed.titles) parsed.titles = ['Newbie'];
-        if (isOG && !parsed.titles.includes('OG')) parsed.titles.push('OG');
-        newState = { ...createDefaultState(username), ...parsed, isLoggedIn: true, username };
-        if (isZaiki) newState.isPremium = true;
-      } catch (e) {
-        newState = createDefaultState(username);
-        if (isOG) newState.titles.push('OG');
-        if (isZaiki) newState.isPremium = true;
-      }
-    } else {
-      newState = createDefaultState(username);
-      if (isOG) newState.titles.push('OG');
-      if (isZaiki) newState.isPremium = true;
-    }
-    setActiveUserEmail(email);
-    setState(newState);
-  };
-
-  const logout = () => {
-    setActiveUserEmail(null);
-    setState(null);
-  };
-
-  const updateState = (updates: Partial<UserState>) => {
-    setState((prev) => prev ? { ...prev, ...updates } : null);
-  };
-
-
-  const generateMissions = (path: PathType) => {
-    if (!state) return;
-    const today = new Date().toDateString();
-    
-    // Get ISO week string
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-    const yearStart = new Date(d.getFullYear(), 0, 1);
-    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    const currentWeek = `${d.getFullYear()}-W${weekNo}`;
-
-    let updates: Partial<UserState> = {};
-    let currentMissions = [...state.missions];
-    let missionsChanged = false;
-
-    const pathMissions = path === 'OTHER' 
-      ? (state.customMissions || { REGULAR: [], DAILY: [], WEEKLY: [], ROUTINE: [], BOSS: [] })
-      : PATH_MISSIONS[path];
-
-    const getMissionsForType = (type: MissionType) => {
-      const missions = pathMissions[type];
-      if (!missions || missions.length === 0) {
-        return [];
-      }
-      return missions;
-    };
-
-    if (state.lastMissionDate !== today) {
-      currentMissions = currentMissions.filter(m => m.type !== 'DAILY' && m.type !== 'ROUTINE');
-      updates.lastMissionDate = today;
-      missionsChanged = true;
-    }
-
-    if (state.lastWeeklyDate !== currentWeek) {
-      currentMissions = currentMissions.filter(m => m.type !== 'WEEKLY');
-      updates.lastWeeklyDate = currentWeek;
-      missionsChanged = true;
-      
-      if (state.lastStreakFreezeGiven !== currentWeek) {
-        updates.streakFreezes = (state.streakFreezes || 0) + 1;
-        updates.lastStreakFreezeGiven = currentWeek;
-      }
-    }
-
-    const isMonday = new Date().getDay() === 1;
-    let bossState = state.bossState || {
-      isActive: false,
-      topic: null,
-      hp: 0,
-      maxHp: 0,
-      tasks: [],
-      lastEncounterDate: null,
-      status: 'escaped' as const // Default to escaped so new users don't get penalized immediately
-    };
-    let bossChanged = false;
-
-    if (isMonday) {
-      if (bossState.lastEncounterDate !== currentWeek) {
-        bossState = {
-          isActive: true,
-          topic: null,
-          hp: 0,
-          maxHp: 0,
-          tasks: [],
-          lastEncounterDate: currentWeek,
-          status: 'pending_choice'
-        };
-        bossChanged = true;
-      }
-    } else {
-      // If it's not Monday, check if we missed the boss from a PREVIOUS week
-      if (bossState.lastEncounterDate !== null && bossState.lastEncounterDate !== currentWeek && (bossState.isActive || bossState.status === 'pending_choice' || bossState.status === 'active')) {
-        // User missed the boss from last week
-        const penalty = Math.floor((state.zoneCoins || 0) * 0.3);
-        bossState = {
-          ...bossState,
-          isActive: false,
-          status: 'escaped',
-          lastEncounterDate: currentWeek
-        };
-        updates.zoneCoins = Math.max(0, (state.zoneCoins || 0) - penalty);
-        updates.notifications = [
-          {
-            id: `boss-escape-${Date.now()}-${Math.random()}`,
-            title: state.language === 'id' ? 'Bos Mingguan Kabur!' : 'Weekly Boss Escaped!',
-            description: state.language === 'id' 
-              ? `Kamu melewatkan bos mingguan dan dia mencuri 30% (${penalty}) Zone Coins milikmu!` 
-              : `You missed the weekly boss and it stole 30% (${penalty}) of your Zone Coins!`,
-            icon: 'Info',
-            read: false,
-            timestamp: Date.now()
-          },
-          ...(state.notifications || [])
-        ];
-        bossChanged = true;
-      }
-      // Note: We removed the logic that made the boss escape if it was still active on Tuesday-Sunday.
-      // The boss now stays active until defeated or until the next Monday reset.
-    }
-
-    if (bossChanged) {
-      updates.bossState = bossState;
-    }
-
-    // Ensure all mission types have the correct number of missions
-    const missionTypesToGenerate: MissionType[] = path === 'OTHER' 
-      ? ['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] 
-      : ['REGULAR', 'DAILY', 'WEEKLY'];
-
-    missionTypesToGenerate.forEach((type) => {
-      if (type === 'ROUTINE') {
-        const availableMissions = getMissionsForType(type);
-        const existingMissions = currentMissions.filter(m => m.type === 'ROUTINE');
-        
-        // Remove ones that are no longer in availableMissions
-        const toRemove = existingMissions.filter(m => !availableMissions.includes(m.text));
-        if (toRemove.length > 0) {
-          currentMissions = currentMissions.filter(m => !toRemove.includes(m));
-          missionsChanged = true;
-        }
-
-        // Add missing ones
-        const missing = availableMissions.filter(text => !existingMissions.some(m => m.text === text));
-        if (missing.length > 0) {
-          missing.forEach(text => {
-            currentMissions.push({
-              id: `${Date.now()}-ROUTINE-${Math.random()}`,
-              text,
-              completed: false,
-              type: 'ROUTINE'
-            });
-          });
-          missionsChanged = true;
-        }
-
-        // Sort them to match the order in customMissions.ROUTINE
-        const routineMissions = currentMissions.filter(m => m.type === 'ROUTINE');
-        const otherMissions = currentMissions.filter(m => m.type !== 'ROUTINE');
-        
-        let orderChanged = false;
-        routineMissions.sort((a, b) => {
-          const diff = availableMissions.indexOf(a.text) - availableMissions.indexOf(b.text);
-          if (diff !== 0) orderChanged = true;
-          return diff;
-        });
-
-        if (orderChanged) {
-          currentMissions = [...otherMissions, ...routineMissions];
-          missionsChanged = true;
-        }
-        return;
-      }
-
-      if (type === 'REGULAR') {
-        // Remove completed regular missions so they get replaced
-        const beforeCount = currentMissions.length;
-        currentMissions = currentMissions.filter(m => !(m.type === 'REGULAR' && m.completed));
-        if (currentMissions.length !== beforeCount) {
-          missionsChanged = true;
-        }
-      }
-      
-      let existingMissions = currentMissions.filter(m => m.type === type);
-      const expectedCount = 3; // Max 3 missions per type
-
-      if (existingMissions.length > expectedCount) {
-        // Trim excess missions
-        const toKeep = existingMissions.slice(0, expectedCount);
-        currentMissions = currentMissions.filter(m => m.type !== type || toKeep.includes(m));
-        missionsChanged = true;
-      } else if (existingMissions.length < expectedCount) {
-        // Add missing missions
-        const availableMissions = getMissionsForType(type);
-        
-        if (availableMissions.length > 0) {
-          // Filter out missions we already have to avoid duplicates
-          const unassigned = availableMissions.filter(text => !existingMissions.some(m => (m.originalText || m.text) === text));
-          
-          const missingCount = expectedCount - existingMissions.length;
-          const toAddCount = Math.min(missingCount, unassigned.length);
-          
-          if (toAddCount > 0) {
-            const shuffled = [...unassigned].sort(() => 0.5 - Math.random());
-            for (let i = 0; i < toAddCount; i++) {
-              const originalText = shuffled[i];
-              const translatedBase = translateMissionText(originalText, state.language);
-              const scaledText = scaleMissionText(translatedBase, state.level);
-              
-              // Logika timer yang lebih ketat untuk mengurangi jumlah misi bertimer
-              const isProductive = analyzeMissionPath(originalText) === 'PRODUCTIVE';
-              const isMentalHealth = analyzeMissionPath(originalText) === 'MENTAL_HEALTH';
-              
-              // Gunakan timer jika ada durasi waktu yang terdeteksi
-              const duration = extractDuration(originalText);
-              const hasTimer = duration !== null;
-
-              currentMissions.push({
-                id: `${Date.now()}-${type}-${Math.random()}`,
-                text: scaledText,
-                originalText: originalText,
-                completed: false,
-                type,
-                hasTimer
-              });
-            }
-            missionsChanged = true;
-          }
-        }
-      }
-    });
-
-    if (missionsChanged) {
-      updates.missions = currentMissions;
-      updateState(updates);
-    }
-  };
-
-  const checkStreakFreezeNeeded = () => {
-    if (!state || !state.lastActiveDate) return false;
-    const today = new Date().toDateString();
-    if (state.lastActiveDate === today) return false;
-    
-    const lastDate = new Date(state.lastActiveDate);
-    const currentDate = new Date(today);
-    const diffTime = Math.abs(currentDate.getTime() - lastDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-    
-    if (diffDays > 1) {
-      const missedDays = diffDays - 1;
-      return (state.streakFreezes || 0) >= missedDays;
-    }
-    return false;
-  };
-
-  const completeMission = (id: string, options?: { useFreeze?: boolean }) => {
-    if (!state) return;
-    const mission = state.missions.find(m => m.id === id);
-    if (!mission || mission.completed) return;
-
-    const useFreeze = options?.useFreeze ?? true;
-    const isRegular = mission.type === 'REGULAR';
-    let leveledUp = false;
-
-    setState((prev) => {
-      if (!prev) return prev;
-      
-      const missionIndex = prev.missions.findIndex(m => m.id === id);
-      if (missionIndex === -1) return prev;
-      const m = prev.missions[missionIndex];
-      
-      if (m.completed) return prev;
-
-      let newMissions = [...prev.missions];
-      newMissions[missionIndex] = { ...m, completed: true };
-
-      const baseXpReward = m.type === 'WEEKLY' ? 200 : m.type === 'DAILY' ? 100 : 50;
-      const isDoubleXpActive = prev.doubleXpActiveUntil && new Date(prev.doubleXpActiveUntil) > new Date();
-      
-      // Calculate XP reward with multipliers
-      let xpMultiplier = 1;
-      if (isDoubleXpActive) xpMultiplier *= 2;
-      if (prev.isPremium) xpMultiplier *= 1.5;
-      const xpReward = Math.round(baseXpReward * xpMultiplier);
-
-      const baseZcReward = m.type === 'WEEKLY' ? 50 : m.type === 'DAILY' ? 20 : 10;
-      const isDoubleCoinActive = prev.doubleCoinActiveUntil && new Date(prev.doubleCoinActiveUntil) > new Date();
-      
-      // Calculate ZC reward with multipliers
-      let zcMultiplier = 1;
-      if (isDoubleCoinActive) zcMultiplier *= 2;
-      if (prev.isPremium) zcMultiplier *= 1.25;
-      const zcReward = Math.round(baseZcReward * zcMultiplier);
-      
-      let newXp = prev.xp + xpReward;
-      let newZoneCoins = (prev.zoneCoins || 0) + zcReward;
-      let newLevel = prev.level;
-      let newBadges = [...prev.badges];
-      let newUnlockedFrames = prev.unlockedFrames ? [...prev.unlockedFrames] : ['frame-default'];
-      let newTitles = prev.titles ? [...prev.titles] : ['Newbie'];
-      let newPathProgress = { ...prev.pathProgress };
-      let newUnlockedItemsQueue = prev.unlockedItemsQueue ? [...prev.unlockedItemsQueue] : [];
-
-      if (prev.chosenPath === 'OTHER') {
-        const relatedPath = analyzeMissionPath(m.text);
-        if (relatedPath !== 'OTHER') {
-          const currentProgress = newPathProgress[relatedPath] || { 
-            level: 1, xp: 0, missions: [], lastMissionDate: '', lastWeeklyDate: '', badges: [], highestRankAchieved: 'Bronze' 
-          };
-          let pXp = currentProgress.xp + xpReward;
-          let pLevel = currentProgress.level;
-          if (pXp >= pLevel * 100 && pLevel < 50) {
-            pXp = pXp - pLevel * 100;
-            pLevel += 1;
-          }
-          if (pLevel >= 50) {
-            pXp = Math.min(pXp, pLevel * 100 - 1);
-          }
-          newPathProgress[relatedPath] = {
-            ...currentProgress,
-            xp: pXp,
-            level: pLevel
-          };
-        }
-      }
-
-      while (newXp >= newLevel * 100 && newLevel < 50) {
-        newXp = newXp - newLevel * 100;
-        newLevel += 1;
-        leveledUp = true;
-        
-        const newRank = getRankForLevel(newLevel);
-        const frameName = `frame-${newRank.name.toLowerCase()}`;
-        if (!newUnlockedFrames.includes(frameName)) {
-          newUnlockedFrames.push(frameName);
-          newUnlockedItemsQueue.push({ type: 'frame', id: frameName });
-        }
-      }
-      if (newLevel >= 50) {
-        newXp = Math.min(newXp, newLevel * 100 - 1);
-      }
-
-      const weeklyMissions = newMissions.filter(m => m.type === 'WEEKLY');
-      const allWeeklyCompleted = weeklyMissions.length > 0 && weeklyMissions.every(m => m.completed);
-      if (allWeeklyCompleted && !newBadges.includes('DISCIPLINED')) {
-        newBadges.push('DISCIPLINED');
-        newUnlockedItemsQueue.push({ type: 'badge', id: 'DISCIPLINED' });
-      }
-
-      // Streak logic
-      const today = new Date().toDateString();
-      const todayISO = new Date().toISOString().split('T')[0];
-      let newStreak = prev.streak || 0;
-      let shouldShowStreakAnimation = false;
-      let newStreakFreezes = prev.streakFreezes || 0;
-      let streakFreezeUsedToday = false;
-      
-    let newDailyStats = prev.dailyStats ? { ...prev.dailyStats } : {};
-    newDailyStats[todayISO] = (newDailyStats[todayISO] || 0) + 1;
-
-    let newDailyCategoryStats = prev.dailyCategoryStats ? { ...prev.dailyCategoryStats } : {};
-    if (!newDailyCategoryStats[todayISO]) newDailyCategoryStats[todayISO] = {};
-    const category = analyzeMissionPath(m.text);
-    newDailyCategoryStats[todayISO][category] = (newDailyCategoryStats[todayISO][category] || 0) + 1;
-    
-    if (prev.lastActiveDate !== today) {
-        if (prev.lastActiveDate) {
-          const lastDate = new Date(prev.lastActiveDate);
-          const currentDate = new Date(today);
-          const diffTime = Math.abs(currentDate.getTime() - lastDate.getTime());
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-          
-          if (diffDays === 1) {
-            newStreak += 1;
-            shouldShowStreakAnimation = true;
-          } else if (diffDays > 1) {
-            const missedDays = diffDays - 1;
-            if (useFreeze && newStreakFreezes >= missedDays) {
-              newStreakFreezes -= missedDays;
-              newStreak += 1; // Increment from the frozen streak
-              shouldShowStreakAnimation = true;
-              streakFreezeUsedToday = true;
-            } else {
-              newStreak = 1;
-              shouldShowStreakAnimation = true;
-            }
-          }
-        } else {
-          newStreak = 1;
-          shouldShowStreakAnimation = true;
-        }
-      }
-
-      // Badges logic
-      const addBadge = (badgeId: string) => {
-        if (!newBadges.includes(badgeId)) {
-          newBadges.push(badgeId);
-          newUnlockedItemsQueue.push({ type: 'badge', id: badgeId });
-        }
-      };
-
-      addBadge('FIRST_STEP');
-      if (newDailyStats[todayISO] >= 2) addBadge('DOUBLE_TROUBLE');
-      if (newDailyStats[todayISO] >= 3) addBadge('TRIPLE_THREAT');
-      if ((prev.missionsCompleted || 0) + 1 >= 5) addBadge('DEDICATED');
-      if ((prev.missionsCompleted || 0) + 1 >= 10) addBadge('TENACIOUS');
-      
-      const currentHour = new Date().getHours();
-      if (currentHour >= 12 && currentHour < 17) addBadge('AFTERNOON_HUSTLE');
-      
-      if (newStreak >= 3) addBadge('STREAK_3');
-      
-      if (newStreak >= 7 && !newUnlockedFrames.includes('frame-rgb')) {
-        newUnlockedFrames.push('frame-rgb');
-        newUnlockedItemsQueue.push({ type: 'frame', id: 'frame-rgb' });
-      }
-      if (newStreak >= 7) addBadge('STREAK_7');
-      if (newStreak >= 30) addBadge('STREAK_30');
-      if (newLevel >= 10) addBadge('LEVEL_10');
-      if (newLevel >= 25) addBadge('LEVEL_25');
-      if (newLevel >= 50) addBadge('LEVEL_50');
-
-      const currentDay = new Date().getDay(); // 0 is Sunday, 6 is Saturday
-
-      if (currentHour >= 4 && currentHour <= 7) addBadge('EARLY_BIRD');
-      if (currentHour >= 22 || currentHour <= 2) addBadge('NIGHT_OWL');
-      if (currentDay === 0 || currentDay === 6) addBadge('WEEKEND_WARRIOR');
-
-      // Titles logic
-      if (currentHour >= 4 && currentHour <= 7 && !newTitles.includes('The Early Bird')) {
-        newTitles.push('The Early Bird');
-      }
-      if ((currentHour >= 22 || currentHour <= 2) && !newTitles.includes('Night Owl')) {
-        newTitles.push('Night Owl');
-      }
-      if (newStreak >= 5 && !newTitles.includes('Unstoppable')) {
-        newTitles.push('Unstoppable');
-      }
-      if (newStreak >= 30 && !newTitles.includes('Legend')) {
-        newTitles.push('Legend');
-      }
-      if (newLevel >= 10 && !newTitles.includes('Veteran')) {
-        newTitles.push('Veteran');
-      }
-      if (newLevel >= 50 && !newTitles.includes('Master')) {
-        newTitles.push('Master');
-      }
-
-      // Check if rival crushed
-      let rivalCrushed = false;
-      if (prev.rivalId) {
-        // We can't directly check rival's total XP here synchronously without fetching, 
-        // but we can trigger a check in the component or assume we'll handle it via an action.
-        // For now, we'll just expose a function to trigger the crush.
-      }
-
-      return {
-        ...prev,
-        missions: newMissions,
-        xp: newXp,
-        level: newLevel,
-        pathProgress: newPathProgress,
-        badges: newBadges,
-        streak: newStreak,
-        lastActiveDate: today,
-        showStreakAnimation: prev.showStreakAnimation || shouldShowStreakAnimation,
-        animatingLevelUp: leveledUp ? true : prev.animatingLevelUp,
-        previousLevel: leveledUp ? prev.level : prev.previousLevel,
-        highestRankAchieved: getRankForLevel(newLevel).name,
-        dailyStats: newDailyStats,
-        dailyCategoryStats: newDailyCategoryStats,
-        unlockedFrames: newUnlockedFrames,
-        titles: newTitles,
-        unlockedItemsQueue: newUnlockedItemsQueue,
-        missionsCompleted: (prev.missionsCompleted || 0) + 1,
-        streakFreezes: newStreakFreezes,
-        streakFreezeUsedToday: streakFreezeUsedToday || prev.streakFreezeUsedToday,
-        zoneCoins: newZoneCoins,
-      };
-    });
-
-    if (!leveledUp) {
-      sounds.playMissionComplete();
-    }
-
-    if (isRegular) {
-      setTimeout(() => {
-        setState(s => {
-          if (!s) return s;
-          
-          const hasCompletedMission = s.missions.some(m => m.id === id && m.completed);
-          if (!hasCompletedMission) return s;
-
-          const pathMissions = s.chosenPath === 'OTHER'
-            ? (s.customMissions?.REGULAR || [])
-            : PATH_MISSIONS[s.chosenPath!].REGULAR;
-            
-          const filtered = s.missions.filter(m => m.id !== id);
-          
-          if (pathMissions.length > 0) {
-            const existingTexts = filtered.filter(m => m.type === 'REGULAR').map(m => m.text);
-            const unassigned = pathMissions.filter(text => !existingTexts.includes(text));
-            
-            if (unassigned.length > 0) {
-              let randomText = unassigned[Math.floor(Math.random() * unassigned.length)];
-              const scaledText = scaleMissionText(randomText, s.level);
-              
-              const timerKeywords = ['focus', 'hold', 'plank', 'meditate', 'wait', 'timer', 'duration', 'minutes', 'hours', 'seconds', 'menit', 'jam', 'detik', 'minute', 'hour', 'second', 'dkt', 'dtk', 'mins', 'secs'];
-              const hasTimer = timerKeywords.some(k => randomText.toLowerCase().includes(k)) && 
-                               !randomText.toLowerCase().includes('squats') && 
-                               !randomText.toLowerCase().includes('push-ups') &&
-                               !randomText.toLowerCase().includes('jumping jacks');
-
-              return {
-                ...s,
-                missions: [...filtered, {
-                  id: `${Date.now()}-${Math.random()}`,
-                  text: scaledText,
-                  completed: false,
-                  type: 'REGULAR',
-                  hasTimer
-                }]
-              };
-            }
-          }
-          
-          return {
-            ...s,
-            missions: filtered
-          };
-        });
-      }, 1000);
-    }
-  };
-
-  const dismissUnlockedItem = () => {
-    setState((prev) => {
-      if (!prev || !prev.unlockedItemsQueue || prev.unlockedItemsQueue.length === 0) return prev;
-      return {
-        ...prev,
-        unlockedItemsQueue: prev.unlockedItemsQueue.slice(1)
-      };
-    });
-  };
-
-  const addNotification = (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
-    sounds.playNotification();
-    setState(prev => {
-      if (!prev) return prev;
-      const newNotification: Notification = {
-        ...notification,
-        id: `notif-${Date.now()}-${Math.random()}`,
-        timestamp: Date.now(),
-        read: false
-      };
-      return {
-        ...prev,
-        notifications: [newNotification, ...(prev.notifications || [])]
-      };
-    });
-  };
-
-  const markNotificationRead = (id: string) => {
-    setState(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        notifications: (prev.notifications || []).map(n => 
-          n.id === id ? { ...n, read: true } : n
-        )
-      };
-    });
-  };
-
-  const markAllNotificationsRead = () => {
-    setState(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        notifications: (prev.notifications || []).map(n => ({ ...n, read: true }))
-      };
-    });
-  };
-
-  const incrementShareCount = () => {
-    setState(prev => {
-      if (!prev) return prev;
-      
-      const newShareCount = (prev.shareCount || 0) + 1;
-      const newUnlockedFrames = [...(prev.unlockedFrames || [])];
-      let newUnlockedItemsQueue = [...(prev.unlockedItemsQueue || [])];
-      
-      if (newShareCount >= 5 && !newUnlockedFrames.includes('frame-viral')) {
-        newUnlockedFrames.push('frame-viral');
-        newUnlockedItemsQueue.push({ type: 'frame', id: 'frame-viral' });
-      }
-      
-      return {
-        ...prev,
-        shareCount: newShareCount,
-        unlockedFrames: newUnlockedFrames,
-        unlockedItemsQueue: newUnlockedItemsQueue
-      };
-    });
-  };
-
-  const crushRival = () => {
-    setState((prev) => {
-      if (!prev || !prev.rivalId) return prev;
-      
-      const newTitles = [...(prev.titles || [])];
-      let newUnlockedItemsQueue = [...(prev.unlockedItemsQueue || [])];
-      
-      if (!newTitles.includes('Rival Crusher')) {
-        newTitles.push('Rival Crusher');
-        newUnlockedItemsQueue.push({ type: 'title', id: 'Rival Crusher' });
-      }
-
-      const newBeatenRivals = prev.beatenRivals?.includes(prev.rivalId) 
-        ? prev.beatenRivals 
-        : [...(prev.beatenRivals || []), prev.rivalId];
-
-      let newXp = prev.xp + 500;
-      let newLevel = prev.level;
-      let leveledUp = false;
-      let newUnlockedFrames = [...(prev.unlockedFrames || [])];
-
-      while (newXp >= newLevel * 100 && newLevel < 50) {
-        newXp = newXp - newLevel * 100;
-        newLevel += 1;
-        leveledUp = true;
-        
-        const newRank = getRankForLevel(newLevel);
-        const frameName = `frame-${newRank.name.toLowerCase()}`;
-        if (!newUnlockedFrames.includes(frameName)) {
-          newUnlockedFrames.push(frameName);
-          newUnlockedItemsQueue.push({ type: 'frame', id: frameName });
-        }
-      }
-
-      if (newLevel >= 50) {
-        newXp = Math.min(newXp, newLevel * 100 - 1);
-      }
-
-      return {
-        ...prev,
-        xp: newXp,
-        level: newLevel,
-        animatingLevelUp: leveledUp ? true : prev.animatingLevelUp,
-        unlockedFrames: newUnlockedFrames,
-        titles: newTitles,
-        unlockedItemsQueue: newUnlockedItemsQueue,
-        rivalId: null, // Clear rival after crushing
-        beatenRivals: newBeatenRivals,
-      };
-    });
-  };
-
-  const replaceMission = (id: string) => {
-    setState(prev => {
-      if (!prev || !prev.chosenPath) return prev;
-      const missionIndex = prev.missions.findIndex(m => m.id === id);
-      if (missionIndex === -1) return prev;
-      
-      const mission = prev.missions[missionIndex];
-      const pathMissions = prev.chosenPath === 'OTHER'
-        ? (prev.customMissions?.[mission.type] || [])
-        : PATH_MISSIONS[prev.chosenPath][mission.type];
-      
-      const existingTexts = prev.missions.filter(m => m.type === mission.type && m.id !== id).map(m => m.text);
-      const unassigned = pathMissions.filter(text => !existingTexts.includes(text) && text !== mission.text);
-      
-      if (unassigned.length > 0) {
-        let originalText = unassigned[Math.floor(Math.random() * unassigned.length)];
-        const translatedBase = translateMissionText(originalText, prev.language);
-        const scaledText = scaleMissionText(translatedBase, prev.level);
-        
-        const duration = extractDuration(originalText);
-        const hasTimer = duration !== null;
-
-        const newMissions = [...prev.missions];
-        newMissions[missionIndex] = {
-          ...mission,
-          id: `${Date.now()}-${Math.random()}`,
-          text: scaledText,
-          originalText: originalText,
-          hasTimer
-        };
-        return {
-          ...prev,
-          missions: newMissions,
-        };
-      }
-      
-      return prev;
-    });
-  };
-
-  const addCustomMission = (type: MissionType, text: string) => {
-    setState(prev => {
-      if (!prev) return prev;
-      const newCustomMissions = {
-        ...(prev.customMissions || { REGULAR: [], DAILY: [], WEEKLY: [] })
-      };
-      newCustomMissions[type] = [...(newCustomMissions[type] || []), text];
-      return { ...prev, customMissions: newCustomMissions };
-    });
-  };
-
-  const removeCustomMission = (type: MissionType, text: string) => {
-    setState(prev => {
-      if (!prev) return prev;
-      const newCustomMissions = {
-        ...(prev.customMissions || { REGULAR: [], DAILY: [], WEEKLY: [] })
-      };
-      newCustomMissions[type] = newCustomMissions[type].filter(m => m !== text);
-      return { ...prev, customMissions: newCustomMissions };
-    });
-  };
-
-  const changePath = (newPath: PathType) => {
-    setState(prev => {
-      if (!prev) return prev;
-      
-      const currentPath = prev.chosenPath;
-      const newPathProgress = { ...prev.pathProgress };
-      
-      // Save current path progress
-      if (currentPath) {
-        newPathProgress[currentPath] = {
-          xp: prev.xp,
-          level: prev.level,
-          missions: prev.missions,
-          lastMissionDate: prev.lastMissionDate,
-          lastWeeklyDate: prev.lastWeeklyDate,
-          badges: prev.badges,
-          highestRankAchieved: prev.highestRankAchieved,
-        };
-      }
-
-      // Load or initialize new path progress
-      const savedProgress = newPathProgress[newPath];
-      
-      if (savedProgress) {
-        return {
-          ...prev,
-          chosenPath: newPath,
-          pathProgress: newPathProgress,
-          missions: savedProgress.missions,
-          lastMissionDate: savedProgress.lastMissionDate,
-          lastWeeklyDate: savedProgress.lastWeeklyDate,
-          badges: savedProgress.badges,
-          highestRankAchieved: savedProgress.highestRankAchieved,
-        };
-      } else {
-        // Initialize new path
-        const today = new Date().toDateString();
-        const d = new Date();
-        d.setHours(0, 0, 0, 0);
-        d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-        const yearStart = new Date(d.getFullYear(), 0, 1);
-        const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-        const currentWeek = `${d.getFullYear()}-W${weekNo}`;
-
-        const newMissions: Mission[] = [];
-        const pathMissions = newPath === 'OTHER'
-          ? (prev.customMissions || { REGULAR: [], DAILY: [], WEEKLY: [] })
-          : PATH_MISSIONS[newPath];
-        
-        (['REGULAR', 'DAILY', 'WEEKLY'] as MissionType[]).forEach((type) => {
-          const availableTexts = pathMissions[type];
-          if (availableTexts && availableTexts.length > 0) {
-            const randomText = availableTexts[Math.floor(Math.random() * availableTexts.length)];
-            newMissions.push({
-              id: `${Date.now()}-${type}-${Math.random()}`,
-              text: randomText,
-              completed: false,
-              type,
-            });
-          }
-        });
-
-        return {
-          ...prev,
-          chosenPath: newPath,
-          pathProgress: newPathProgress,
-          missions: newMissions,
-          lastMissionDate: today,
-          lastWeeklyDate: currentWeek,
-        };
-      }
-    });
-  };
-
-  // Migrasi untuk memperbaiki timer misi saat load (mengurangi jumlah timer)
-  useEffect(() => {
-    if (state?.isLoggedIn && state.missions.length > 0) {
-      const strictTimerKeywords = ['timer', 'meditate', 'meditasi', 'plank', 'breathe', 'nafas', 'hold'];
-      
-      const fixedMissions = state.missions.map(m => {
-        if (m.hasTimer && !m.completed) {
-          // Jika tidak ada kata kunci timer ketat, hapus timernya
-          const shouldHaveTimer = strictTimerKeywords.some(k => m.text.toLowerCase().includes(k));
-          if (!shouldHaveTimer) {
-            return { ...m, hasTimer: false };
-          }
-        }
-        return m;
-      });
-
-      if (JSON.stringify(fixedMissions) !== JSON.stringify(state.missions)) {
-        console.log('Migration: Reducing mission timers...');
-        updateState({ missions: fixedMissions });
-      }
-    }
-  }, [state?.isLoggedIn, state?.missions?.length]);
-
-  return {
-    state,
-    login,
-    logout,
-    updateState,
-    generateMissions,
-    checkStreakFreezeNeeded,
-    completeMission,
-    replaceMission,
-    changePath,
-    addCustomMission,
-    removeCustomMission,
-    dismissUnlockedItem,
-    addNotification,
-    markNotificationRead,
-    markAllNotificationsRead,
-    incrementShareCount,
-    crushRival,
-  };
-}

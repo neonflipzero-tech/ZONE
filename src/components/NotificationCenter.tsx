@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Bell, CheckCircle2, Info, AlertCircle, Swords, ArrowUpCircle } from 'lucide-react';
 import { useAppState } from '../store';
@@ -10,13 +10,13 @@ interface NotificationCenterProps {
   onClose: () => void;
 }
 
-export default function NotificationCenter({ isOpen, onClose }: NotificationCenterProps) {
+const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
   const { state, markAllNotificationsRead, markNotificationRead } = useAppState();
 
   if (!state) return null;
 
   const notifications = state.notifications || [];
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
   const getIcon = (iconName: string) => {
     switch (iconName) {
@@ -135,4 +135,6 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
       )}
     </AnimatePresence>
   );
-}
+};
+
+export default React.memo(NotificationCenter);
