@@ -43,7 +43,8 @@ export const analyzeOnboardingAnswers = async (answers: string[], language: 'en'
       Paths: PRODUCTIVE, STRONGER, EXTROVERT, DISCIPLINE, MENTAL_HEALTH, OTHER.
       
       Also suggest stat adjustments for: intellect, physical, social, ambition, discipline, mental.
-      Total adjustments should sum to roughly 20-30 points.`,
+      Total adjustments should sum to roughly 20-30 points.
+      IMPORTANT: Return ALL 6 stats in the statAdjustments object.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -62,7 +63,8 @@ export const analyzeOnboardingAnswers = async (answers: string[], language: 'en'
                 ambition: { type: Type.NUMBER },
                 discipline: { type: Type.NUMBER },
                 mental: { type: Type.NUMBER }
-              }
+              },
+              required: ['intellect', 'physical', 'social', 'ambition', 'discipline', 'mental']
             },
             feedback: { type: Type.STRING }
           },
@@ -71,7 +73,15 @@ export const analyzeOnboardingAnswers = async (answers: string[], language: 'en'
       }
     });
 
-    return JSON.parse(response.text);
+    const parsed = JSON.parse(response.text);
+    
+    // Final safety check to ensure all stats are numeric
+    const stats = parsed.statAdjustments;
+    ['intellect', 'physical', 'social', 'ambition', 'discipline', 'mental'].forEach(s => {
+      if (typeof stats[s] !== 'number') stats[s] = 0;
+    });
+    
+    return parsed;
   } catch (error) {
     console.error("Error analyzing onboarding answers:", error);
     // Fallback

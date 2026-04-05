@@ -337,6 +337,21 @@ export const useAppState = create<AppStore>((set, get) => ({
 
       setState(parsed);
     } else {
+      // Try to fetch from Firestore if local storage is empty
+      if (db && uid) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', uid));
+          if (userDoc.exists()) {
+            const firestoreData = userDoc.data() as UserState;
+            setState(firestoreData);
+            localStorage.setItem(`lockin_user_${email}`, JSON.stringify(firestoreData));
+            return;
+          }
+        } catch (e) {
+          console.error("Error fetching user from Firestore:", e);
+        }
+      }
+
       const newState = createDefaultState(username, email, uid);
       if (isOg && !newState.unlockedTitles.includes('OG')) {
         newState.unlockedTitles.push('OG');
@@ -359,29 +374,7 @@ export const useAppState = create<AppStore>((set, get) => ({
         const email = result.user.email;
         const uid = result.user.uid;
         
-        // Check if user exists locally or in Firestore
-        const localSaved = localStorage.getItem(`lockin_user_${email}`);
-        let existsInFirestore = false;
-        
-        if (db) {
-          try {
-            const userDoc = await getDoc(doc(db, 'users', uid));
-            if (userDoc.exists()) {
-              existsInFirestore = true;
-            }
-          } catch (e) {
-            console.error("Error checking firestore user:", e);
-          }
-        }
-
-        if (!localSaved && !existsInFirestore) {
-          // Check if this is the dev account (bypass)
-          if (email !== 'zaikiwildan@gmail.com') {
-            await signOut(auth);
-            throw new Error(localStorage.getItem('lockin_language') === 'id' ? 'Akun tidak ditemukan. Silakan daftar terlebih dahulu.' : 'Account not found. Please sign up first.');
-          }
-        }
-
+        // Allow automatic sign up with Google
         login(email, result.user.displayName || 'User', uid);
       }
     } catch (error: any) {
@@ -1354,8 +1347,13 @@ export function calculateOVR(state: UserState, activeUserEmail?: string | null) 
     const p = state.chosenPath === path 
       ? { level: state.level, xp: state.xp } 
       : (state.pathProgress[path] || { level: 1, xp: 0 });
-    const base = state.baseStats?.[statKey] || 0;
-    return Math.floor(Math.min(99, 40 + base + (p.level * 1.5) + (p.xp / 100)));
+    
+    // Ensure numeric values to prevent NaN
+    const base = Number(state.baseStats?.[statKey]) || 0;
+    const level = Number(p.level) || 1;
+    const xp = Number(p.xp) || 0;
+    
+    return Math.floor(Math.min(99, 40 + base + (level * 1.5) + (xp / 100)));
   };
 
   const physical = getPathScore('STRONGER', 'physical');
@@ -1365,38 +1363,34 @@ export function calculateOVR(state: UserState, activeUserEmail?: string | null) 
   const other = getPathScore('OTHER', 'other');
   
   // Discipline: streak
-  const baseDiscipline = state.baseStats?.['discipline'] || 0;
-  const discipline = Math.floor(Math.min(99, 40 + baseDiscipline + (state.streak * 1.5)));
+  const baseDiscipline = Number(state.baseStats?.['discipline']) || 0;
+  const streak = Number(state.streak) || 0;
+  const discipline = Math.floor(Math.min(99, 40 + baseDiscipline + (streak * 1.5)));
 
   // Ambition: total levels across all paths + badges
-  const baseAmbition = state.baseStats?.['ambition'] || 0;
-  let totalLevels = state.level;
+  const baseAmbition = Number(state.baseStats?.['ambition']) || 0;
+  let totalLevels = Number(state.level) || 1;
   Object.keys(state.pathProgress).forEach(k => {
     if (k !== state.chosenPath) {
-      totalLevels += state.pathProgress[k as PathType]?.level || 1;
+      totalLevels += Number(state.pathProgress[k as PathType]?.level) || 1;
     }
   });
-  const ambition = Math.floor(Math.min(99, 40 + baseAmbition + (totalLevels * 1.5) + (state.badges.length * 1.5)));
+  const badgesCount = Array.isArray(state.badges) ? state.badges.length : 0;
+  const ambition = Math.floor(Math.min(99, 40 + baseAmbition + (totalLevels * 1.5) + (badgesCount * 1.5)));
 
   // Weighted average (excluding 'other' from main OVR calculation as requested)
   let ovr = Math.floor((physical + discipline + mental + ambition + intellect + social) / 6);
 
-  // Hardcode OVR 100 for Elite users (Zaiki)
-  const isElite = state.isPremium || activeUserEmail === 'zaikiwildan@gmail.com' || state.userId === 'zaikiwildan@gmail.com';
-  if (isElite) {
-    ovr = 100;
-  }
-
   return {
     ovr,
     stats: {
-      physical: isElite ? 100 : physical,
-      discipline: isElite ? 100 : discipline,
-      mental: isElite ? 100 : mental,
-      ambition: isElite ? 100 : ambition,
-      intellect: isElite ? 100 : intellect,
-      social: isElite ? 100 : social,
-      other: isElite ? 100 : other
+      physical,
+      discipline,
+      mental,
+      ambition,
+      intellect,
+      social,
+      other
     }
   };
 }
@@ -1505,22 +1499,22 @@ export const createDefaultState = (username: string, email?: string, uid?: strin
       lastEncounterDate: null
     },
     baseStats: {
-      intellect: 0,
-      physical: 0,
-      social: 0,
-      ambition: 0,
-      discipline: 0,
-      mental: 0,
-      other: 0
+      intellect: 3,
+      physical: 3,
+      social: 3,
+      ambition: 3,
+      discipline: 4,
+      mental: 3,
+      other: 3
     },
     stats: {
-      intellect: 0,
-      physical: 0,
-      social: 0,
-      ambition: 0,
-      discipline: 0,
-      mental: 0,
-      other: 0
+      intellect: 3,
+      physical: 3,
+      social: 3,
+      ambition: 3,
+      discipline: 4,
+      mental: 3,
+      other: 3
     },
     notificationsEnabled: false,
     notificationTime: '09:00',

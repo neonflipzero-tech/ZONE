@@ -149,7 +149,24 @@ export default function OnboardingScreen({ onSelectPath, language }: OnboardingS
     const analysis = await analyzeOnboardingAnswers(answers, language);
     
     if (analysis) {
-      setBaseStats(analysis.statAdjustments);
+      // Ensure all stats have numeric values to prevent NaN
+      const defaultStats = {
+        intellect: 0,
+        physical: 0,
+        social: 0,
+        ambition: 0,
+        discipline: 0,
+        mental: 0
+      };
+      
+      const mergedStats = { ...defaultStats };
+      Object.entries(analysis.statAdjustments).forEach(([stat, value]) => {
+        if (stat in mergedStats) {
+          mergedStats[stat as keyof typeof defaultStats] = Number(value) || 0;
+        }
+      });
+
+      setBaseStats(mergedStats);
       setSelectedPath(analysis.suggestedPath);
       setAiFeedback(analysis.feedback);
     }
@@ -225,15 +242,26 @@ export default function OnboardingScreen({ onSelectPath, language }: OnboardingS
 
   const currentQuestion = QUESTIONS[step];
   const recommendedPath = getRecommendation();
-  const ovr = Math.floor((baseStats.physical + baseStats.discipline + baseStats.mental + baseStats.ambition + baseStats.intellect + baseStats.social) / 6) + 40;
+  
+  // Ensure numeric values for OVR calculation
+  const safeStats = {
+    physical: Number(baseStats.physical) || 0,
+    discipline: Number(baseStats.discipline) || 0,
+    mental: Number(baseStats.mental) || 0,
+    ambition: Number(baseStats.ambition) || 0,
+    intellect: Number(baseStats.intellect) || 0,
+    social: Number(baseStats.social) || 0
+  };
+
+  const ovr = Math.floor((safeStats.physical + safeStats.discipline + safeStats.mental + safeStats.ambition + safeStats.intellect + safeStats.social) / 6) + 40;
 
   const radarData = [
-    { id: 'physical', subject: t('profile.stat.physical', language), A: baseStats.physical + 40, fullMark: 99 },
-    { id: 'discipline', subject: t('profile.stat.discipline', language), A: baseStats.discipline + 40, fullMark: 99 },
-    { id: 'mental', subject: t('profile.stat.mental', language), A: baseStats.mental + 40, fullMark: 99 },
-    { id: 'ambition', subject: t('profile.stat.ambition', language), A: baseStats.ambition + 40, fullMark: 99 },
-    { id: 'intellect', subject: t('profile.stat.intellect', language), A: baseStats.intellect + 40, fullMark: 99 },
-    { id: 'social', subject: t('profile.stat.social', language), A: baseStats.social + 40, fullMark: 99 },
+    { id: 'physical', subject: t('profile.stat.physical', language), A: safeStats.physical + 40, fullMark: 99 },
+    { id: 'discipline', subject: t('profile.stat.discipline', language), A: safeStats.discipline + 40, fullMark: 99 },
+    { id: 'mental', subject: t('profile.stat.mental', language), A: safeStats.mental + 40, fullMark: 99 },
+    { id: 'ambition', subject: t('profile.stat.ambition', language), A: safeStats.ambition + 40, fullMark: 99 },
+    { id: 'intellect', subject: t('profile.stat.intellect', language), A: safeStats.intellect + 40, fullMark: 99 },
+    { id: 'social', subject: t('profile.stat.social', language), A: safeStats.social + 40, fullMark: 99 },
   ];
 
   return (

@@ -58,7 +58,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
   const crushRival = useAppState(s => s.crushRival);
 
   const handleResetProgress = () => {
-    const defaultState = createDefaultState(state.username, undefined, state.userId);
+    const defaultState = createDefaultState(state.username, activeUserEmail || undefined, state.userId);
     updateState({
       ...defaultState,
       isLoggedIn: true,

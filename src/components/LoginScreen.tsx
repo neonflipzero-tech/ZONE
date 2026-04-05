@@ -48,6 +48,15 @@ const LoginScreen = ({ onLogin, language }: LoginScreenProps) => {
         return;
       }
 
+      // Handle disallowed_useragent (WebView block)
+      if (err.message?.includes('disallowed_useragent') || err.code === 'auth/web-storage-unsupported') {
+        setError(language === 'id'
+          ? 'Google memblokir login dari aplikasi ini. Silakan buka link aplikasi langsung di browser Chrome atau Safari Anda.'
+          : 'Google blocks login from this app wrapper. Please open the app link directly in your Chrome or Safari browser.');
+        setIsGoogleLoading(false);
+        return;
+      }
+
       setError(err.message || 'Google login failed');
       setIsGoogleLoading(false);
     }
