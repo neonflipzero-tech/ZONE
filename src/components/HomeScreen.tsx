@@ -409,7 +409,10 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                 <span className="text-[10px] font-bold text-accent tracking-tight">{state.xp} XP</span>
               </div>
               <button 
-                onClick={() => setIsNotificationCenterOpen(true)}
+                onClick={() => {
+                  sounds.playClick();
+                  setIsNotificationCenterOpen(true);
+                }}
                 className="p-1.5 bg-surface rounded-full border border-white/10 hover:bg-white/10 transition-colors relative"
               >
                 <Bell className="w-4 h-4 text-secondary" />
@@ -513,7 +516,10 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
             <div className="flex items-center gap-3">
               {state.chosenPath === 'OTHER' && (
                 <button 
-                  onClick={() => setIsCustomMissionsModalOpen(true)}
+                  onClick={() => {
+                    sounds.playClick();
+                    setIsCustomMissionsModalOpen(true);
+                  }}
                   className="p-1.5 rounded-lg bg-surface border border-white/10 hover:bg-white/10 transition-colors text-accent"
                   title={t('home.manage_custom_missions', state.language)}
                 >
@@ -597,7 +603,12 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                     initial={{ y: 10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: index * 0.1 }}
-                    onClick={() => !isLocked && handleMissionClick(mission)}
+                    onClick={() => {
+                      if (!isLocked) {
+                        sounds.playClick();
+                        handleMissionClick(mission);
+                      }
+                    }}
                     className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all ${
                       mission.completed 
                         ? 'bg-surface/30 border-white/5 opacity-50' 

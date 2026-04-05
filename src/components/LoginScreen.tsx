@@ -309,6 +309,12 @@ const LoginScreen = ({ onLogin, language }: LoginScreenProps) => {
               </>
             )}
           </button>
+
+          <p className="text-[10px] text-zinc-500 text-center px-4 leading-relaxed">
+            {language === 'id' 
+              ? 'Jika Google Login terblokir di APK, silakan gunakan metode Email & Password di atas.' 
+              : 'If Google Login is blocked in the APK, please use the Email & Password method above.'}
+          </p>
           
           <div className="text-center pt-4 space-y-4">
             <button 

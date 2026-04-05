@@ -64,126 +64,79 @@ export const useAppState = create<AppStore>((set, get) => ({
       setAuthReady(true);
       return () => {};
     }
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user && user.email) {
-        setActiveUserEmail(user.email);
-        const saved = localStorage.getItem(`lockin_user_${user.email}`);
+        const email = user.email;
+        const uid = user.uid;
+        const username = user.displayName || email.split('@')[0];
+
+        setActiveUserEmail(email);
+        const saved = localStorage.getItem(`lockin_user_${email}`);
+        
         if (saved) {
           try {
-            const parsed = JSON.parse(saved);
-            // Ensure userId matches Firebase Auth UID for Firestore permissions
-            if (user.uid && parsed.userId !== user.uid) {
-              parsed.userId = user.uid;
-              localStorage.setItem(`lockin_user_${user.email}`, JSON.stringify(parsed));
-            }
-            // Migration: remove timers from missions that don't strictly require them
-            if (parsed.missions) {
-              parsed.missions = parsed.missions.map((m: any) => ({
-                ...m,
-                hasTimer: extractDuration(m.originalText || m.text) !== null
-              }));
-            }
-            // Auto-grant Elite to Zaiki if not already set
-            if (!parsed.isPremium && user.email === 'zaikiwildan@gmail.com') {
-              parsed.isPremium = true;
-            }
-            
-            // Check for boss expiration
-            const today = getTodayISO();
-            
-            // Check for streak reset
-            if (parsed.lastActiveDate) {
-              const lastDate = new Date(parsed.lastActiveDate);
-              const todayDate = new Date(today);
-              const diff = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-              
-              if (diff > 1) {
-                // Streak broken!
-                if ((parsed.streakFreezes || 0) > 0) {
-                  parsed.streakFreezes -= 1;
-                  // Streak saved by freeze!
-                  if (!parsed.notifications) parsed.notifications = [];
-                  parsed.notifications.unshift({
-                    id: Math.random().toString(36).substring(2, 9),
-                    title: parsed.language === 'id' ? 'STREAK DISELAMATKAN!' : 'STREAK SAVED!',
-                    description: parsed.language === 'id' 
-                      ? 'Streak-mu diselamatkan oleh Streak Freeze!' 
-                      : 'Your streak was saved by a Streak Freeze!',
-                    icon: 'Shield',
-                    read: false,
-                    timestamp: Date.now()
-                  });
-                } else {
-                  parsed.streak = 0;
-                  if (!parsed.notifications) parsed.notifications = [];
-                  parsed.notifications.unshift({
-                    id: Math.random().toString(36).substring(2, 9),
-                    title: parsed.language === 'id' ? 'STREAK TERPUTUS' : 'STREAK BROKEN',
-                    description: parsed.language === 'id' 
-                      ? 'Kamu melewatkan satu hari. Streak kembali ke 0.' 
-                      : 'You missed a day. Streak reset to 0.',
-                    icon: 'Flame',
-                    read: false,
-                    timestamp: Date.now()
-                  });
-                }
-              }
+            let parsed = JSON.parse(saved);
+
+            // Data Reset Logic: Reset everyone except Zaiki if version is old
+            if (parsed.dataVersion !== 2 && email !== 'zaikiwildan@gmail.com') {
+              parsed = createDefaultState(username, email, uid);
+              setState(parsed);
+              localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
+              return;
             }
 
-            // Check for boss expiration - only if week has changed
-            const now = new Date();
-            const currentWeek = Math.floor(now.getTime() / (7 * 24 * 60 * 60 * 1000));
-            
-            if (parsed.bossState && parsed.bossState.status === 'active') {
-              const lastEncounter = parsed.bossState.lastEncounterDate ? new Date(parsed.bossState.lastEncounterDate) : null;
-              const lastWeek = lastEncounter ? Math.floor(lastEncounter.getTime() / (7 * 24 * 60 * 60 * 1000)) : currentWeek;
-              
-              if (lastWeek < currentWeek) {
-                // Boss escaped because the week ended!
-                parsed.bossState.status = 'escaped';
-                parsed.bossState.isActive = false;
-                parsed.xp = Math.max(0, (parsed.xp || 0) - 500);
-                parsed.totalXp = Math.max(0, (parsed.totalXp || 0) - 500);
-                parsed.zoneCoins = Math.max(0, (parsed.zoneCoins || 0) - 100);
-                
-                if (!parsed.notifications) parsed.notifications = [];
-                parsed.notifications.unshift({
-                  id: Math.random().toString(36).substring(2, 9),
-                  title: parsed.language === 'id' ? 'BOSS KABUR!' : 'BOSS ESCAPED!',
-                  description: parsed.language === 'id' 
-                    ? 'Minggu telah berakhir. Boss melarikan diri dan mencuri 500 XP & 100 ZoneCoins!' 
-                    : 'The week has ended. The boss escaped and stole 500 XP & 100 ZoneCoins!',
-                  icon: 'Skull',
-                  read: false,
-                  timestamp: Date.now()
-                });
-  
-                // External Notification
-                if (typeof window !== 'undefined' && 'Notification' in window && (Notification as any).permission === 'granted') {
-                  try {
-                    new Notification(parsed.language === 'id' ? 'BOSS KABUR!' : 'BOSS ESCAPED!', {
-                      body: parsed.language === 'id' 
-                        ? 'Minggu telah berakhir. Boss melarikan diri!' 
-                        : 'The week has ended. The boss escaped!',
-                      icon: '/favicon.ico'
-                    });
-                  } catch (e) {
-                    console.warn('External notification failed:', e);
-                  }
-                }
-              }
+            // Ensure Zaiki has the latest version without resetting
+            if (email === 'zaikiwildan@gmail.com' && parsed.dataVersion !== 2) {
+              parsed.dataVersion = 2;
+              localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
             }
+
+            // Ensure userId matches Firebase Auth UID for Firestore permissions
+            if (uid && parsed.userId !== uid) {
+              parsed.userId = uid;
+              localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
+            }
+            
+            // Auto-grant Elite to Zaiki
+            if (!parsed.isPremium && (email === 'zaikiwildan@gmail.com' || username.toLowerCase().includes('zaiki'))) {
+              parsed.isPremium = true;
+            }
+
+            // Migration: ensure pathProgress exists
+            if (!parsed.pathProgress) parsed.pathProgress = {};
 
             setState(parsed);
           } catch (e) {
             console.error("Error parsing saved state:", e);
+            setState(null);
           }
         } else {
-          const newState = createDefaultState(user.displayName || 'User', user.email);
-          newState.userId = user.uid;
+          // Try to fetch from Firestore if local storage is empty
+          if (db && uid) {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', uid));
+              if (userDoc.exists()) {
+                const firestoreData = userDoc.data() as UserState;
+                // Ensure the state shows they are logged in
+                setState({
+                  ...firestoreData,
+                  isLoggedIn: true
+                });
+                localStorage.setItem(`lockin_user_${email}`, JSON.stringify(firestoreData));
+                return;
+              }
+            } catch (e) {
+              console.error("Error fetching user from Firestore:", e);
+            }
+          }
+
+          const newState = createDefaultState(username, email, uid);
           setState(newState);
-          localStorage.setItem(`lockin_user_${user.email}`, JSON.stringify(newState));
+          localStorage.setItem(`lockin_user_${email}`, JSON.stringify(newState));
         }
+      } else {
+        setActiveUserEmail(null);
+        setState(null);
       }
       setAuthReady(true);
     });
@@ -338,12 +291,20 @@ export const useAppState = create<AppStore>((set, get) => ({
       setState(parsed);
     } else {
       // Try to fetch from Firestore if local storage is empty
-      if (db && uid) {
+      if (db) {
         try {
-          const userDoc = await getDoc(doc(db, 'users', uid));
+          // If we have a UID, use it. Otherwise, we might need to query by email if we were using a real DB.
+          // For now, let's try to find the user by a consistent ID if possible.
+          const docId = uid || email.replace(/[.@]/g, '_'); 
+          const userDoc = await getDoc(doc(db, 'users', docId));
+          
           if (userDoc.exists()) {
             const firestoreData = userDoc.data() as UserState;
-            setState(firestoreData);
+            // Ensure the state shows they are logged in and onboarding is done if it was done before
+            setState({
+              ...firestoreData,
+              isLoggedIn: true
+            });
             localStorage.setItem(`lockin_user_${email}`, JSON.stringify(firestoreData));
             return;
           }
@@ -1370,7 +1331,7 @@ export function calculateOVR(state: UserState, activeUserEmail?: string | null) 
   // Ambition: total levels across all paths + badges
   const baseAmbition = Number(state.baseStats?.['ambition']) || 0;
   let totalLevels = Number(state.level) || 1;
-  Object.keys(state.pathProgress).forEach(k => {
+  Object.keys(state.pathProgress || {}).forEach(k => {
     if (k !== state.chosenPath) {
       totalLevels += Number(state.pathProgress[k as PathType]?.level) || 1;
     }

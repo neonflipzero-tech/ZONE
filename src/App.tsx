@@ -151,6 +151,8 @@ export default function App() {
         missionsCompleted: state.missionsCompleted || 0,
         isProfilePublic: state.isProfilePublic !== false,
         isPremium: state.isPremium || false,
+        onboardingCompleted: state.onboardingCompleted || false,
+        chosenPath: state.chosenPath || null,
         ovr: ovrData.ovr,
         stats: ovrData.stats,
         missionAffinity: state.missionAffinity || {},
@@ -729,35 +731,50 @@ export default function App() {
         <div className="fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-md border-t border-white/5 pb-safe z-50">
           <div className="flex justify-around items-center h-16 max-w-md mx-auto px-2">
             <button 
-              onClick={() => setActiveTab('home')}
+              onClick={() => {
+                sounds.playClick();
+                setActiveTab('home');
+              }}
               className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'home' ? 'text-primary' : 'text-secondary hover:text-primary/70'}`}
             >
               <Target className="w-6 h-6 mb-1" />
               <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Misi' : 'Missions'}</span>
             </button>
             <button 
-              onClick={() => setActiveTab('leaderboard')}
+              onClick={() => {
+                sounds.playClick();
+                setActiveTab('leaderboard');
+              }}
               className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'leaderboard' ? 'text-rose-500' : 'text-secondary hover:text-rose-500/70'}`}
             >
               <BarChart2 className="w-6 h-6 mb-1" />
               <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Peringkat' : 'Global'}</span>
             </button>
             <button 
-              onClick={() => setActiveTab('journey')}
+              onClick={() => {
+                sounds.playClick();
+                setActiveTab('journey');
+              }}
               className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'journey' ? 'text-amber-500' : 'text-secondary hover:text-amber-500/70'}`}
             >
               <Map className="w-6 h-6 mb-1" />
               <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Perjalanan' : 'Journey'}</span>
             </button>
             <button 
-              onClick={() => setActiveTab('rank')}
+              onClick={() => {
+                sounds.playClick();
+                setActiveTab('rank');
+              }}
               className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'rank' ? 'text-primary' : 'text-secondary hover:text-primary/70'}`}
             >
               <Trophy className="w-6 h-6 mb-1" />
               <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Pangkat' : 'Rank'}</span>
             </button>
             <button 
-              onClick={() => setActiveTab('profile')}
+              onClick={() => {
+                sounds.playClick();
+                setActiveTab('profile');
+              }}
               className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'profile' ? 'text-primary' : 'text-secondary hover:text-primary/70'}`}
             >
               <User className="w-6 h-6 mb-1" />
