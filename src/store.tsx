@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { create } from 'zustand';
 import { sounds } from './utils/sounds';
+import { NotificationService } from './services/NotificationService';
 import { auth, googleProvider, db } from './firebase';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { getDoc, doc, setDoc } from 'firebase/firestore';
@@ -76,6 +77,10 @@ export const useAppState = create<AppStore>((set, get) => ({
         if (saved) {
           try {
             let parsed = JSON.parse(saved);
+            
+            if (!parsed || typeof parsed !== 'object') {
+              throw new Error("Invalid state in local storage");
+            }
 
             // Data Reset Logic: Reset everyone except Zaiki if version is old
             if (parsed.dataVersion !== 2 && email !== 'zaikiwildan@gmail.com') {
@@ -359,11 +364,13 @@ export const useAppState = create<AppStore>((set, get) => ({
     if (!state) return;
 
     const missions: Mission[] = [];
-    const types: MissionType[] = ['REGULAR', 'DAILY', 'WEEKLY'];
+    const types: MissionType[] = ['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'];
     
     types.forEach(type => {
-      const pool = PATH_MISSIONS[path][type];
-      const count = 3;
+      const pool = [...(PATH_MISSIONS[path]?.[type] || []), ...(state.customMissions?.[type] || [])];
+      
+      // For Routine, we take ALL of them. For others, we pick 3.
+      const count = type === 'ROUTINE' ? pool.length : 3;
       
       // Calculate weights for each mission in the pool
       const weightedPool = pool.map(text => {
@@ -455,7 +462,7 @@ export const useAppState = create<AppStore>((set, get) => ({
 
     // Auto-replace regular missions immediately so there's always a fresh stream
     if (mission.type === 'REGULAR') {
-      const pool = PATH_MISSIONS[state.chosenPath || 'PRODUCTIVE']['REGULAR'];
+      const pool = [...(PATH_MISSIONS[state.chosenPath || 'PRODUCTIVE']?.['REGULAR'] || []), ...(state.customMissions?.['REGULAR'] || [])];
       const currentMissions = state.missions.map(m => m.originalText);
       const filteredPool = pool.filter(t => !currentMissions.includes(t));
       
@@ -526,15 +533,6 @@ export const useAppState = create<AppStore>((set, get) => ({
     const newCoins = state.zoneCoins + coinGain;
     const newMissionsCompleted = state.missionsCompleted + 1;
 
-    // Integrity Score Logic
-    let newIntegrityScore = Math.max(0, state.integrityScore - integrityPenalty);
-    let newConsecutiveCleanMissions = isPenaltyTriggered ? 0 : state.consecutiveCleanMissions + 1;
-    
-    if (newConsecutiveCleanMissions >= 5) {
-      newIntegrityScore = Math.min(100, newIntegrityScore + 5);
-      newConsecutiveCleanMissions = 0;
-    }
-
     let newLevel = state.level;
     let currentXp = newXp;
     let animatingLevelUp = false;
@@ -567,7 +565,7 @@ export const useAppState = create<AppStore>((set, get) => ({
     let burstLockUntil = state.burstLockUntil || 0;
     if (recentCompletions.length === 5) {
       burstLockUntil = now + 10000; // 10 seconds lock
-      integrityPenalty += 10; // Reduced from 20
+      integrityPenalty += 15; // Increased from 10
       isPenaltyTriggered = true;
       
       const msg = state.language === 'id'
@@ -583,7 +581,7 @@ export const useAppState = create<AppStore>((set, get) => ({
 
     if (recentCompletions.length > 5) {
       burstLockUntil = now + 15000; // Longer lock for repeated spam
-      integrityPenalty += 5; // Reduced from 10
+      integrityPenalty += 10; // Increased from 5
       isPenaltyTriggered = true;
     }
 
@@ -654,6 +652,16 @@ export const useAppState = create<AppStore>((set, get) => ({
     const currentAffinity = newMissionAffinity[category] || 1.0;
     newMissionAffinity[category] = Math.min(5.0, currentAffinity + 0.1); // Max weight 5.0
 
+    // Integrity Score Logic (Calculated at the end to catch all penalties)
+    let newIntegrityScore = Math.max(0, state.integrityScore - integrityPenalty);
+    let newConsecutiveCleanMissions = isPenaltyTriggered ? 0 : state.consecutiveCleanMissions + 1;
+    
+    // Recovery: 3 clean missions = +5 integrity
+    if (newConsecutiveCleanMissions >= 3) {
+      newIntegrityScore = Math.min(100, newIntegrityScore + 5);
+      newConsecutiveCleanMissions = 0;
+    }
+
     updateState({
       missions: newMissions,
       xp: currentXp,
@@ -685,8 +693,11 @@ export const useAppState = create<AppStore>((set, get) => ({
     const mission = state.missions.find(m => m.id === id);
     if (!mission || mission.completed) return;
 
-    const pool = PATH_MISSIONS[state.chosenPath || 'PRODUCTIVE'][mission.type];
+    const pool = [...(PATH_MISSIONS[state.chosenPath || 'PRODUCTIVE']?.[mission.type] || []), ...(state.customMissions?.[mission.type] || [])];
     const filteredPool = pool.filter(t => !state.missions.some(m => m.originalText === t));
+    
+    if (filteredPool.length === 0) return; // No missions left to replace with
+    
     const newText = filteredPool[Math.floor(Math.random() * filteredPool.length)];
 
     const newMissions = state.missions.map(m => 
@@ -761,11 +772,44 @@ export const useAppState = create<AppStore>((set, get) => ({
     const { state, updateState } = get();
     if (!state) return;
     const current = state.customMissions[type] || [];
-    updateState({
-      customMissions: {
-        ...state.customMissions,
-        [type]: [...current, text]
+    const newCustomMissions = {
+      ...state.customMissions,
+      [type]: [...current, text]
+    };
+
+    const newMission = {
+      id: Math.random().toString(36).substring(2, 9),
+      text: translateMissionText(scaleMissionText(text, state.level), state.language),
+      originalText: text,
+      completed: false,
+      type,
+      hasTimer: extractDuration(text) !== null
+    };
+
+    let newMissions = [...state.missions];
+    if (type === 'ROUTINE') {
+      newMissions.push(newMission);
+    } else {
+      const missionsOfType = newMissions.filter(m => m.type === type);
+      if (missionsOfType.length < 3) {
+        newMissions.push(newMission);
+      } else {
+        // Replace the oldest completed mission of this type first
+        let indexToReplace = newMissions.findIndex(m => m.type === type && m.completed);
+        // If no completed ones, replace the oldest one of this type
+        if (indexToReplace === -1) {
+          indexToReplace = newMissions.findIndex(m => m.type === type);
+        }
+        
+        if (indexToReplace !== -1) {
+          newMissions[indexToReplace] = newMission;
+        }
       }
+    }
+
+    updateState({
+      customMissions: newCustomMissions,
+      missions: newMissions
     });
   },
 
@@ -773,11 +817,16 @@ export const useAppState = create<AppStore>((set, get) => ({
     const { state, updateState } = get();
     if (!state) return;
     const current = state.customMissions[type] || [];
+    const newCustomMissions = {
+      ...state.customMissions,
+      [type]: current.filter(t => t !== text)
+    };
+
+    const newMissions = state.missions.filter(m => !(m.originalText === text && m.type === type && !m.completed));
+
     updateState({
-      customMissions: {
-        ...state.customMissions,
-        [type]: current.filter(t => t !== text)
-      }
+      customMissions: newCustomMissions,
+      missions: newMissions
     });
   },
 
@@ -792,15 +841,35 @@ export const useAppState = create<AppStore>((set, get) => ({
   addNotification: (notif) => {
     const { state, updateState } = get();
     if (!state) return;
+    
+    // Check for uniqueId to prevent duplicates
+    if (notif.uniqueId && state.shownNotifications?.includes(notif.uniqueId)) {
+      return;
+    }
+
     const newNotif: AppNotification = {
       ...notif,
       id: Math.random().toString(36).substring(2, 9),
       read: false,
       timestamp: Date.now()
     };
+
+    const newShownNotifications = notif.uniqueId 
+      ? [...(state.shownNotifications || []), notif.uniqueId]
+      : (state.shownNotifications || []);
+
     updateState({
-      notifications: [newNotif, ...state.notifications].slice(0, 50)
+      notifications: [newNotif, ...state.notifications].slice(0, 50),
+      shownNotifications: newShownNotifications
     });
+
+    // Play notification sound
+    sounds.playNotification();
+
+    // Send native notification if enabled
+    if (state.notificationsEnabled) {
+      NotificationService.sendNotification(notif.title, notif.description);
+    }
   },
 
   markNotificationRead: (id) => {
@@ -1096,6 +1165,7 @@ export interface UnlockedItem {
 
 export interface AppNotification {
   id: string;
+  uniqueId?: string;
   title: string;
   description: string;
   icon: string;
@@ -1165,6 +1235,7 @@ export interface UserState {
   doubleCoinPotions: number;
   doubleCoinActiveUntil: string | null;
   isPremium: boolean;
+  shownNotifications: string[];
   lastRestNotificationTime: number;
   recentCompletions?: number[]; // Timestamps of recent completions
   burstLockUntil?: number; // Timestamp until which mission completion is locked
@@ -1304,15 +1375,17 @@ export function getIntegrityRating(score: number) {
 }
 
 export function calculateOVR(state: UserState, activeUserEmail?: string | null) {
+  if (!state) return { ovr: 44, stats: { physical: 40, discipline: 40, mental: 40, ambition: 40, intellect: 40, social: 40, other: 40 } };
+
   const getPathScore = (path: PathType, statKey: string) => {
     const p = state.chosenPath === path 
-      ? { level: state.level, xp: state.xp } 
-      : (state.pathProgress[path] || { level: 1, xp: 0 });
+      ? { level: state.level || 1, xp: state.xp || 0 } 
+      : (state.pathProgress?.[path] || { level: 1, xp: 0 });
     
     // Ensure numeric values to prevent NaN
     const base = Number(state.baseStats?.[statKey]) || 0;
-    const level = Number(p.level) || 1;
-    const xp = Number(p.xp) || 0;
+    const level = Number(p?.level) || 1;
+    const xp = Number(p?.xp) || 0;
     
     return Math.floor(Math.min(99, 40 + base + (level * 1.5) + (xp / 100)));
   };
@@ -1331,11 +1404,13 @@ export function calculateOVR(state: UserState, activeUserEmail?: string | null) 
   // Ambition: total levels across all paths + badges
   const baseAmbition = Number(state.baseStats?.['ambition']) || 0;
   let totalLevels = Number(state.level) || 1;
-  Object.keys(state.pathProgress || {}).forEach(k => {
-    if (k !== state.chosenPath) {
-      totalLevels += Number(state.pathProgress[k as PathType]?.level) || 1;
-    }
-  });
+  if (state.pathProgress) {
+    Object.keys(state.pathProgress).forEach(k => {
+      if (k !== state.chosenPath) {
+        totalLevels += Number(state.pathProgress?.[k as PathType]?.level) || 1;
+      }
+    });
+  }
   const badgesCount = Array.isArray(state.badges) ? state.badges.length : 0;
   const ambition = Math.floor(Math.min(99, 40 + baseAmbition + (totalLevels * 1.5) + (badgesCount * 1.5)));
 
@@ -1448,6 +1523,7 @@ export const createDefaultState = (username: string, email?: string, uid?: strin
     doubleCoinPotions: 0,
     doubleCoinActiveUntil: null,
     isPremium: isZaiki,
+    shownNotifications: [],
     lastRestNotificationTime: 0,
     recentCompletions: [],
     burstLockUntil: 0,

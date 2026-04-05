@@ -38,6 +38,7 @@ function getRankIcon(rankName: string, className: string) {
 }
 
 const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
+  if (!state) return null;
   const [users, setUsers] = useState<LeaderboardUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUsingFirebase, setIsUsingFirebase] = useState(!!db);
@@ -169,23 +170,7 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
       return bTotal - aTotal;
     });
 
-    // Integrity Restriction: Users with score < 50 cannot be in Top 3
-    const top3: LeaderboardUser[] = [];
-    const others: LeaderboardUser[] = [];
-    
-    let i = 0;
-    while (top3.length < 3 && i < finalUsers.length) {
-      const user = finalUsers[i];
-      const score = user.integrityScore ?? 90;
-      if (score >= 50) {
-        top3.push(user);
-        finalUsers.splice(i, 1);
-      } else {
-        i++;
-      }
-    }
-    
-    return [...top3, ...finalUsers];
+    return finalUsers;
   }, [users, state]);
 
   const currentUserRank = useMemo(() => 

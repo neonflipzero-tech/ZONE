@@ -11,9 +11,10 @@ import CustomMissionsModal from './CustomMissionsModal';
 import NotificationCenter from './NotificationCenter';
 import ZoneCoinInfoModal from './ZoneCoinInfoModal';
 import ZoneStoreModal from './ZoneStoreModal';
-import { calculateOVR } from '../store';
+import { calculateOVR, getIntegrityRating } from '../store';
 import { BossEncounter } from './BossEncounter';
 import { BossBattle } from './BossBattle';
+import IntegrityExplanationModal from './IntegrityExplanationModal';
 
 interface HomeScreenProps {
   state: UserState;
@@ -38,6 +39,7 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [isCustomMissionsModalOpen, setIsCustomMissionsModalOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
+  const [isIntegrityHelpOpen, setIsIntegrityHelpOpen] = useState(false);
   const [isCoinInfoModalOpen, setIsCoinInfoModalOpen] = useState(false);
   const [isZoneStoreModalOpen, setIsZoneStoreModalOpen] = useState(false);
   const [showCompletionOverlay, setShowCompletionOverlay] = useState(false);
@@ -65,8 +67,9 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
     if (preCompletionStats && state) {
       const rewards: { type: 'badge' | 'level' | 'none', value?: string | number }[] = [];
       
-      if (state.level > preCompletionStats.level) {
-        rewards.push({ type: 'level', value: state.level });
+      const currentLevel = state.level || 1;
+      if (currentLevel > preCompletionStats.level) {
+        rewards.push({ type: 'level', value: currentLevel });
       }
       
       const currentBadges = Array.isArray(state.badges) ? state.badges : [];
@@ -98,6 +101,8 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
     }
   }, [state?.level, state?.badges?.length, preCompletionStats]);
 
+  if (!state) return null;
+
   const hasCompletedQuestToday = state.lastActiveDate === getTodayISO();
   const streakColorClass = hasCompletedQuestToday ? "text-orange-500" : "text-gray-400";
   const streakBgClass = hasCompletedQuestToday 
@@ -124,11 +129,15 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
   const handleMissionComplete = (missionId: string) => {
     // Capture state before completion to detect rewards in useEffect
     setPreCompletionStats({
-      level: state.level,
-      badgesCount: state.badges.length
+      level: state.level || 1,
+      badgesCount: (state.badges || []).length
     });
 
-    onCompleteMission(missionId);
+    try {
+      onCompleteMission(missionId);
+    } catch (e) {
+      console.error("Failed to complete mission", e);
+    }
     handleCloseModal();
   };
 
@@ -141,7 +150,25 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
     }
   }, [timeLeft, isTimerRunning, selectedMission, onCompleteMission]);
 
-  const isBurstLocked = state.burstLockUntil ? Date.now() < state.burstLockUntil : false;
+  const [burstLockRemaining, setBurstLockRemaining] = useState<number>(0);
+
+  useEffect(() => {
+    if (!state.burstLockUntil) {
+      setBurstLockRemaining(0);
+      return;
+    }
+
+    const updateRemaining = () => {
+      const remaining = Math.max(0, Math.ceil((state.burstLockUntil! - Date.now()) / 1000));
+      setBurstLockRemaining(remaining);
+    };
+
+    updateRemaining();
+    const interval = setInterval(updateRemaining, 1000);
+    return () => clearInterval(interval);
+  }, [state.burstLockUntil]);
+
+  const isBurstLocked = burstLockRemaining > 0;
 
   const handleMissionClick = (mission: Mission) => {
     if (mission.completed) return;
@@ -273,10 +300,10 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
             <div className="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0">
               <Zap className="w-4 h-4 text-rose-400 animate-pulse" />
             </div>
-            <p className="text-sm font-medium text-rose-100">
+            <p className="text-sm font-medium text-rose-100 flex-1">
               {state.language === 'id' 
-                ? "Neural Overheat. Tarik napas. Progres nyata bukanlah balapan." 
-                : "Neural Overheat. Take a breath. Real progress isn't a race."}
+                ? `Neural Overheat. Tunggu ${burstLockRemaining} detik.` 
+                : `Neural Overheat. Wait ${burstLockRemaining} seconds.`}
             </p>
           </motion.div>
         )}
@@ -390,6 +417,16 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
               <div className="flex items-center space-x-1 mt-0.5">
                 <Shield className={`w-3 h-3 flex-shrink-0 ${currentRank.color}`} />
                 <p className={`text-[12px] font-mono uppercase tracking-wider truncate ${currentRank.color}`}>{currentRank.name} • Lvl {state.level}</p>
+                <button 
+                  onClick={() => {
+                    sounds.playClick();
+                    setIsIntegrityHelpOpen(true);
+                  }}
+                  className={`ml-2 px-1.5 py-0.5 rounded-md text-[10px] font-black border border-white/10 ${getIntegrityRating(state.integrityScore).glow}`}
+                  style={{ color: getIntegrityRating(state.integrityScore).color, backgroundColor: `${getIntegrityRating(state.integrityScore).color}10` }}
+                >
+                  {getIntegrityRating(state.integrityScore).letter}
+                </button>
               </div>
               {state.equippedTitle && (() => {
                 const titleDef = TITLES.find(t => t.id === state.equippedTitle);
@@ -534,15 +571,11 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
 
           {/* Tabs */}
           <div className="flex bg-surface rounded-xl p-1 mb-6 border border-white/5 overflow-x-auto no-scrollbar">
-            {(() => {
-              return state.chosenPath === 'OTHER' 
-                ? ['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] as MissionType[]
-                : ['REGULAR', 'DAILY', 'WEEKLY'] as MissionType[];
-            })().map((tab) => (
+            {['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'].map((tab) => (
               <button
                 key={tab}
                 id={`tab-${tab.toLowerCase()}`}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => setActiveTab(tab as MissionType)}
                 className={`flex-1 min-w-[70px] py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-colors ${
                   activeTab === tab 
                     ? 'bg-gradient-to-r from-accent to-rose-600 text-white shadow-md' 
@@ -835,7 +868,7 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
         isOpen={isZoneStoreModalOpen}
         onClose={() => setIsZoneStoreModalOpen(false)}
         state={state}
-        ovr={calculateOVR(state).ovr}
+        ovr={state ? calculateOVR(state).ovr : 44}
         updateState={updateState}
       />
 
@@ -880,6 +913,12 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
           </motion.div>
         )}
       </AnimatePresence>
+      <IntegrityExplanationModal 
+        isOpen={isIntegrityHelpOpen} 
+        onClose={() => setIsIntegrityHelpOpen(false)} 
+        language={state.language} 
+      />
+
     </motion.div>
   );
 };

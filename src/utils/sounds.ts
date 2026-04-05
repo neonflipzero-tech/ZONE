@@ -2,12 +2,24 @@ export class SoundManager {
   private ctx: AudioContext | null = null;
 
   private init() {
-    if (!this.ctx) {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContextClass) {
-        this.ctx = new AudioContextClass();
+    try {
+      if (!this.ctx || this.ctx.state === 'closed') {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          this.ctx = new AudioContextClass();
+        }
       }
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(e => console.warn("AudioContext resume failed", e));
+      }
+    } catch (e) {
+      console.error("AudioContext initialization failed", e);
     }
+  }
+
+  // Call this on first user interaction to unlock audio
+  unlock() {
+    this.init();
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }

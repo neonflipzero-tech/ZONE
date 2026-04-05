@@ -44,17 +44,10 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
   };
 
   const getTabLabel = (type: MissionType) => {
-    switch(type) {
-      case 'REGULAR': return t('custom_missions.tab.regular', state.language);
-      case 'DAILY': return t('custom_missions.tab.daily', state.language);
-      case 'WEEKLY': return t('custom_missions.tab.weekly', state.language);
-      case 'ROUTINE': return t('custom_missions.tab.routine', state.language);
-    }
+    return t(`home.tab.${type.toLowerCase()}`, state.language);
   };
 
-  const tabs = state.chosenPath === 'OTHER' 
-    ? ['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] as MissionType[]
-    : ['REGULAR', 'DAILY', 'WEEKLY'] as MissionType[];
+  const tabs = ['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] as MissionType[];
 
   return (
     <AnimatePresence>
@@ -105,7 +98,7 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
 
           <div className="flex justify-between items-center mb-2 shrink-0">
             <label className="text-sm font-bold text-secondary">
-              {state.language === 'id' ? 'Misi Baru' : 'New Mission'}
+              {t('custom_missions.new_mission', state.language)}
             </label>
             <span className={`text-xs font-bold ${currentMissions.length >= 10 && !state.isPremium ? 'text-rose-400' : 'text-white/30'}`}>
               {currentMissions.length} {state.isPremium ? '' : '/ 10'}

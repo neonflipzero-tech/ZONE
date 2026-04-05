@@ -13,6 +13,7 @@ interface JourneyScreenProps {
 }
 
 const JourneyScreen = ({ state, updateState }: JourneyScreenProps) => {
+  if (!state) return null;
   const scrollRef = useRef<HTMLDivElement>(null);
   const incrementShareCount = useAppState(s => s.incrementShareCount);
   const [displayLevelCharacter, setDisplayLevelCharacter] = useState(state.animatingLevelUp ? state.previousLevel : state.level);

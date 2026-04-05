@@ -23,6 +23,8 @@ import { NotificationService } from './services/NotificationService';
 
 type Tab = 'home' | 'leaderboard' | 'journey' | 'rank' | 'profile';
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 export default function App() {
   const { 
     state, 
@@ -123,14 +125,32 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const unlockAudio = () => {
+      sounds.unlock();
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+    window.addEventListener('click', unlockAudio);
+    window.addEventListener('touchstart', unlockAudio);
+    return () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+  }, []);
+
+  useEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
 
   useEffect(() => {
     if (state?.isLoggedIn && state?.onboardingCompleted && state?.chosenPath && !isChangingGoal) {
-      generateMissions(state.chosenPath);
+      // Only generate if we don't have missions or if it's a new day
+      const today = new Date().toISOString().split('T')[0];
+      if (!state.missions || state.missions.length === 0 || state.lastMissionDate !== today) {
+        generateMissions(state.chosenPath);
+      }
     }
-  }, [state?.isLoggedIn, state?.onboardingCompleted, state?.chosenPath, state?.customMissions, isChangingGoal, state?.username, activeUserEmail]);
+  }, [state?.isLoggedIn, state?.onboardingCompleted, state?.chosenPath, isChangingGoal, state?.username, activeUserEmail]);
 
   useEffect(() => {
     if (state?.isLoggedIn && state?.username && state?.userId && isAuthReady && auth && auth.currentUser) {
@@ -262,7 +282,22 @@ export default function App() {
       const prevRank = getRankForLevel(prevLevelRef.current);
       const currentRank = getRankForLevel(state.level);
       if (currentRank.name !== prevRank.name && state.level > prevLevelRef.current) {
-        NotificationService.notifyRankAchieved(currentRank.name, state.language);
+        const uniqueId = `rank-up-${currentRank.name.toLowerCase()}`;
+        
+        if (!state.shownNotifications?.includes(uniqueId)) {
+          // Internal notification
+          addNotification({
+            uniqueId,
+            title: state.language === 'id' ? `Pangkat Baru: ${currentRank.name}! ✨` : `New Rank: ${currentRank.name}! ✨`,
+            description: state.language === 'id'
+              ? `Gila, lu makin elit! Sekarang lu udah jadi "${currentRank.name}".`
+              : `You're becoming elite! You are now a "${currentRank.name}".`,
+            icon: 'Trophy'
+          });
+
+          // Push Notification
+          NotificationService.notifyRankAchieved(currentRank.name, state.language);
+        }
       }
       prevLevelRef.current = state.level;
 
@@ -317,6 +352,7 @@ export default function App() {
       
       if (!hasSeenUpdate) {
         addNotification({
+          uniqueId: updateKey,
           title: state.language === 'id' ? 'Update Baru!' : 'New Update!',
           description: state.language === 'id' 
             ? '• Reset Progress: Sekarang kamu bisa reset progres dari Settings.\n• Journey Map: Level maksimal sekarang dibatasi sampai 50 (Mythic).\n• Onboarding: Tambahan layar konfirmasi sebelum masuk ke ZONE.\n• Focus Timer: Tampilan timer misi sekarang penuh di layar.'
@@ -399,21 +435,41 @@ export default function App() {
           const lastRivalLevel = localStorage.getItem(`lockin_last_rival_level_${state.rivalId}`);
           
           if (lastRivalLevel && parseInt(lastRivalLevel) < fetchedRivalData.level) {
-            addNotification({
-              title: 'Rival Level Up!',
-              description: `${fetchedRivalData.username} baru naik ke Level ${fetchedRivalData.level} — kamu masih Level ${state.level}`,
-              icon: 'Swords'
-            });
-            // Push Notification
-            if (state.notificationsEnabled) {
-              NotificationService.notifyRivalLevelUp(fetchedRivalData.username, fetchedRivalData.level, state.level, state.language);
+            const uniqueId = `rival-level-up-${state.rivalId}-${fetchedRivalData.level}`;
+            if (!state.shownNotifications?.includes(uniqueId)) {
+              addNotification({
+                uniqueId,
+                title: 'Rival Level Up!',
+                description: `${fetchedRivalData.username} baru naik ke Level ${fetchedRivalData.level} — kamu masih Level ${state.level}`,
+                icon: 'Swords'
+              });
+              // Push Notification
+              if (state.notificationsEnabled) {
+                NotificationService.notifyRivalLevelUp(fetchedRivalData.username, fetchedRivalData.level, state.level, state.language);
+              }
             }
           } else if (fetchedRivalData.level > state.level && !lastRivalLevel) {
-             addNotification({
-              title: 'Rival Ahead!',
-              description: `${fetchedRivalData.username} ada di Level ${fetchedRivalData.level} — kamu masih Level ${state.level}`,
-              icon: 'Swords'
-            });
+             const isClosingIn = fetchedRivalData.level - state.level <= 2;
+             const uniqueId = isClosingIn 
+               ? `rival-closing-${state.rivalId}-${fetchedRivalData.level}`
+               : `rival-ahead-${state.rivalId}-${fetchedRivalData.level}`;
+               
+             if (!state.shownNotifications?.includes(uniqueId)) {
+               addNotification({
+                uniqueId,
+                title: isClosingIn 
+                  ? (state.language === 'id' ? 'Hampir Terkejar!' : 'Closing In!')
+                  : (state.language === 'id' ? 'Rival di Depan!' : 'Rival Ahead!'),
+                description: isClosingIn
+                  ? (state.language === 'id' 
+                      ? `Kamu cuma beda ${fetchedRivalData.level - state.level} level sama ${fetchedRivalData.username}! Sikat!`
+                      : `You're only ${fetchedRivalData.level - state.level} levels behind ${fetchedRivalData.username}! Push now!`)
+                  : (state.language === 'id'
+                      ? `${fetchedRivalData.username} ada di Level ${fetchedRivalData.level} — kamu masih Level ${state.level}`
+                      : `${fetchedRivalData.username} is at Level ${fetchedRivalData.level} — you're still Level ${state.level}`),
+                icon: 'Target'
+              });
+             }
           }
           
           localStorage.setItem(`lockin_last_rival_level_${state.rivalId}`, fetchedRivalData.level.toString());
@@ -787,13 +843,15 @@ export default function App() {
   }
 
   return (
-    <div className="w-full h-screen bg-background text-primary flex justify-center overflow-hidden">
-      {/* Mobile container constraint for web view */}
-      <div className="w-full max-w-md h-full relative flex flex-col shadow-2xl bg-background border-x border-white/5">
-        <AnimatePresence>
-          {content}
-        </AnimatePresence>
+    <ErrorBoundary>
+      <div className="w-full h-screen bg-background text-primary flex justify-center overflow-hidden">
+        {/* Mobile container constraint for web view */}
+        <div className="w-full max-w-md h-full relative flex flex-col shadow-2xl bg-background border-x border-white/5">
+          <AnimatePresence>
+            {content}
+          </AnimatePresence>
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }

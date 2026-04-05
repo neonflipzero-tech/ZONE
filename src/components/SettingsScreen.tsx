@@ -55,10 +55,10 @@ export default function SettingsScreen({
       const permission = await NotificationService.requestPermission();
       if (permission === 'unsupported') {
         const message = state.language === 'id' 
-          ? 'Browser/APK ini tidak mendukung notifikasi sistem. Coba buka di Chrome atau tab baru.' 
-          : 'This browser/APK does not support system notifications. Try Chrome or a new tab.';
+          ? 'APK WebView tidak mendukung notifikasi sistem. Untuk Play Store, fitur ini akan menggunakan sistem native Android agar berfungsi 100%.' 
+          : 'APK WebView does not support system notifications. For Play Store, this will use the native Android system to work 100%.';
         setToastMessage(message);
-        setTimeout(() => setToastMessage(null), 5000);
+        setTimeout(() => setToastMessage(null), 6000);
         return;
       }
       

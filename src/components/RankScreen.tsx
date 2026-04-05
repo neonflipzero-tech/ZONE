@@ -15,6 +15,7 @@ interface RankScreenProps {
 }
 
 const RankScreen = ({ state }: RankScreenProps) => {
+  if (!state) return null;
   const currentRank = useMemo(() => getRankForLevel(state.level), [state.level]);
   
   const isMaxLevel = useMemo(() => state.level >= 50, [state.level]);

@@ -17,6 +17,7 @@ import InventoryModal from './InventoryModal';
 import SettingsScreen from './SettingsScreen';
 import ZoneStoreModal from './ZoneStoreModal';
 import PremiumModal from './PremiumModal';
+import IntegrityExplanationModal from './IntegrityExplanationModal';
 import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -39,6 +40,7 @@ function getRankIcon(rankName: string, className: string) {
 }
 
 const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, isFlashSale = false }: ProfileScreenProps) => {
+  if (!state) return null;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ovrStatsRef = useRef<HTMLDivElement>(null);
   const [isGoalDropdownOpen, setIsGoalDropdownOpen] = useState(false);
@@ -53,6 +55,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
   const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isConsistencyHelpOpen, setIsConsistencyHelpOpen] = useState(false);
+  const [isIntegrityHelpOpen, setIsIntegrityHelpOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const activeUserEmail = useAppState(s => s.activeUserEmail);
   const crushRival = useAppState(s => s.crushRival);
@@ -802,17 +805,31 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
               {/* Status Banner */}
               {(() => {
                 const rivalOvr = rivalData.ovr || 0;
+                const rivalLevel = rivalData.level || 1;
                 let bannerColor = '';
                 let bannerText = '';
-                if (rivalOvr > ovr) {
-                  bannerColor = 'bg-rose-500/20 text-rose-500 border-rose-500/30';
-                  bannerText = '⚠️ RIVAL IS AHEAD — CATCH UP!';
-                } else if (ovr > rivalOvr) {
+                
+                if (state.level > rivalLevel) {
                   bannerColor = 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30';
-                  bannerText = '🔥 YOU\'RE WINNING — STAY ON TOP!';
-                } else {
+                  bannerText = state.language === 'id' ? '🔥 KAMU UNGGUL — TETAP DI ATAS!' : '🔥 YOU\'RE WINNING — STAY ON TOP!';
+                } else if (rivalLevel - state.level <= 2 && rivalLevel > state.level) {
+                  bannerColor = 'bg-amber-500/20 text-amber-500 border-amber-500/30';
+                  bannerText = state.language === 'id' ? '🎯 HAMPIR TERKEJAR — JANGAN BERHENTI!' : '🎯 CLOSING IN — DON\'T STOP NOW!';
+                } else if (state.level < rivalLevel) {
                   bannerColor = 'bg-rose-500/20 text-rose-500 border-rose-500/30';
-                  bannerText = '⚡ DEAD EVEN — MAKE YOUR MOVE!';
+                  bannerText = state.language === 'id' ? '⚠️ RIVAL DI DEPAN — KEJAR!' : '⚠️ RIVAL IS AHEAD — CATCH UP!';
+                } else {
+                  // Levels are equal, compare OVR
+                  if (ovr > rivalOvr) {
+                    bannerColor = 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30';
+                    bannerText = state.language === 'id' ? '🔥 KAMU UNGGUL — TETAP DI ATAS!' : '🔥 YOU\'RE WINNING — STAY ON TOP!';
+                  } else if (ovr < rivalOvr) {
+                    bannerColor = 'bg-rose-500/20 text-rose-500 border-rose-500/30';
+                    bannerText = state.language === 'id' ? '⚠️ RIVAL DI DEPAN — KEJAR!' : '⚠️ RIVAL IS AHEAD — CATCH UP!';
+                  } else {
+                    bannerColor = 'bg-rose-500/20 text-rose-500 border-rose-500/30';
+                    bannerText = state.language === 'id' ? '⚡ SEIMBANG — AYOK GAS!' : '⚡ DEAD EVEN — MAKE YOUR MOVE!';
+                  }
                 }
                 return (
                   <div className={`w-full py-2 px-4 rounded-xl border mb-6 flex items-center justify-center text-xs font-bold tracking-wider ${bannerColor}`}>
@@ -841,7 +858,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
                   <ProfileFrame frame={rivalData.equippedFrame} src={rivalData.profilePicture} size="sm" />
                   <span className="text-xs font-bold mt-2 truncate max-w-[80px] text-fuchsia-500">{rivalData.username}</span>
                   <span className="text-[10px] text-fuchsia-500 font-mono mt-1">
-                    OVR {rivalData.ovr || calculateOVR(rivalData, null).ovr}
+                    OVR {rivalData?.ovr || (rivalData ? calculateOVR(rivalData, null).ovr : 44)}
                   </span>
                 </div>
               </div>
@@ -994,8 +1011,18 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
                       <span className="font-mono font-bold text-primary">{selectedUser.level}</span>
                     </div>
                     <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-secondary">Integrity</span>
+                      <button 
+                        onClick={() => setIsIntegrityHelpOpen(true)}
+                        className={`font-mono font-black text-lg px-2 rounded-lg ${getIntegrityRating(selectedUser.integrityScore || 100).glow}`}
+                        style={{ color: getIntegrityRating(selectedUser.integrityScore || 100).color }}
+                      >
+                        {getIntegrityRating(selectedUser.integrityScore || 100).letter}
+                      </button>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
                       <span className="text-sm text-secondary">OVR</span>
-                      <span className="font-mono font-bold text-[#F43F5E]">{selectedUser.ovr || calculateOVR({ ...selectedUser, dailyStats: {}, badges: [], missionsCompleted: selectedUser.missionsCompleted || 0, streak: selectedUser.streak || 0, unlockedFrames: [] } as any).ovr}</span>
+                      <span className="font-mono font-bold text-[#F43F5E]">{selectedUser?.ovr || (selectedUser ? calculateOVR({ ...selectedUser, dailyStats: {}, badges: [], missionsCompleted: selectedUser.missionsCompleted || 0, streak: selectedUser.streak || 0, unlockedFrames: [] } as any).ovr : 44)}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-secondary">Total XP</span>
@@ -1107,6 +1134,12 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
         state={state}
         ovr={ovr}
         updateState={updateState}
+      />
+
+      <IntegrityExplanationModal 
+        isOpen={isIntegrityHelpOpen} 
+        onClose={() => setIsIntegrityHelpOpen(false)} 
+        language={state.language} 
       />
 
       <AnimatePresence>

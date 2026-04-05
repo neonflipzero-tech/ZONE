@@ -37,6 +37,13 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
     'home.cant_do_it': { en: "I can't do it", id: 'Ganti Misi' },
     'home.cancel': { en: 'Cancel', id: 'Batal' },
 
+    'custom_missions.title': { en: 'Custom Missions', id: 'Misi Kustom' },
+    'custom_missions.new_mission': { en: 'New Mission', id: 'Misi Baru' },
+    'custom_missions.placeholder': { en: 'e.g. Drink 2L water (30m)', id: 'misal: Minum 2L air (30m)' },
+    'custom_missions.empty': { en: 'No custom missions added yet.', id: 'Belum ada misi kustom yang ditambahkan.' },
+    'custom_missions.info.routine': { en: 'Routine missions will appear every day in this exact order.', id: 'Misi rutinitas akan muncul setiap hari dalam urutan yang sama.' },
+    'custom_missions.info.other': { en: 'These missions will be added to the pool for random selection.', id: 'Misi ini akan ditambahkan ke kumpulan untuk dipilih secara acak.' },
+
     // JourneyScreen.tsx
     'journey.title': { en: 'Journey Map', id: 'Peta Perjalanan' },
     'journey.subtitle': { en: 'Your path to greatness.', id: 'Jalan menuju kehebatan.' },
@@ -83,6 +90,19 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
     'profile.missions_done': { en: 'Missions Done', id: 'Misi Selesai' },
     'profile.ovr_stats': { en: 'OVR Stats', id: 'Statistik OVR' },
     'integrity.status': { en: 'INTEGRITY STATUS', id: 'SKOR KEJUJURAN' },
+    'integrity.score': { en: 'Score: {score}', id: 'Skor: {score}' },
+    'integrity.next_rank': { en: 'Next Rank: {rank} at {score}', id: 'Pangkat Selanjutnya: {rank} di {score}' },
+    'integrity.max_rank': { en: 'Maximum Integrity Reached', id: 'Integritas Maksimal Tercapai' },
+    'integrity.recovery_info': { en: 'Complete 3 clean missions to recover +5 integrity.', id: 'Selesaikan 3 misi bersih untuk memulihkan +5 integritas.' },
+    'integrity.explanation.title': { en: 'Integrity Status', id: 'Status Integritas' },
+    'integrity.explanation.desc': { en: 'Integrity reflects your honesty. Completing missions too fast is flagged as cheating by the system.', id: 'Integritas mencerminkan kejujuran Anda. Menyelesaikan misi terlalu cepat ditandai sebagai kecurangan oleh sistem.' },
+    'integrity.explanation.rank_s': { en: 'S (90-100): Supreme. High integrity and honest performance.', id: 'S (90-100): Supreme. Integritas tinggi dan performa jujur.' },
+    'integrity.explanation.rank_a': { en: 'A (75-89): Honest. Reliable mission completion.', id: 'A (75-89): Honest. Penyelesaian misi yang andal.' },
+    'integrity.explanation.rank_b': { en: 'B (50-74): Average. Maintain your honesty.', id: 'B (50-74): Average. Jaga kejujuran Anda.' },
+    'integrity.explanation.rank_c': { en: 'C (25-49): Suspicious. System detected missions completed at illogical speeds.', id: 'C (25-49): Suspicious. Sistem mendeteksi misi diselesaikan dengan kecepatan tidak logis.' },
+    'integrity.explanation.rank_d': { en: 'D (0-24): Dishonest. Critical cheating detected. You are flagged as a cheater.', id: 'D (0-24): Dishonest. Terdeteksi curang secara kritis. Anda ditandai sebagai curang.' },
+    'integrity.explanation.how_to_recover': { en: 'How to Recover: Complete 3 clean missions (with logical duration) to gain +5 Integrity.', id: 'Cara Pemulihan: Selesaikan 3 misi bersih (dengan durasi logis) untuk mendapatkan +5 Integritas.' },
+    'integrity.explanation.penalty': { en: 'Penalty: Completing missions too fast or Overheat (Burst Lock) will reduce your Integrity.', id: 'Penalti: Menyelesaikan misi terlalu cepat atau Overheat (Burst Lock) akan mengurangi Integritas Anda.' },
     'integrity.rating.s': { en: 'Supreme', id: 'Supreme' },
     'integrity.rating.a': { en: 'Honest', id: 'Honest' },
     'integrity.rating.b': { en: 'Average', id: 'Average' },
@@ -269,17 +289,6 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
 
     // BadgesModal.tsx
     'badges.title': { en: 'Badge Collection', id: 'Koleksi Lencana' },
-
-    // CustomMissionsModal.tsx
-    'custom_missions.title': { en: 'Custom Missions', id: 'Misi Kustom' },
-    'custom_missions.tab.regular': { en: 'Regular', id: 'Biasa' },
-    'custom_missions.tab.daily': { en: 'Daily', id: 'Harian' },
-    'custom_missions.tab.weekly': { en: 'Weekly', id: 'Mingguan' },
-    'custom_missions.tab.routine': { en: 'Routine', id: 'Rutinitas' },
-    'custom_missions.placeholder': { en: 'Type new mission...', id: 'Ketik misi baru...' },
-    'custom_missions.empty': { en: 'No custom missions in this category yet.', id: 'Belum ada misi kustom di kategori ini.' },
-    'custom_missions.info.routine': { en: 'Routine missions will appear every day in this exact order.', id: 'Misi rutinitas akan muncul setiap hari sesuai urutan ini.' },
-    'custom_missions.info.other': { en: 'Custom missions will appear randomly when new missions are generated.', id: 'Misi kustom akan muncul secara acak saat misi baru dibuat.' },
 
     // FramesModal.tsx
     'frames.title': { en: 'Frame Collection', id: 'Koleksi Bingkai' },

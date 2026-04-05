@@ -1,8 +1,8 @@
-import React, { ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
-  language: 'en' | 'id';
+  fallback?: ReactNode;
 }
 
 interface State {
@@ -10,14 +10,11 @@ interface State {
   error: Error | null;
 }
 
-class ErrorBoundary extends React.Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: null
-    };
-  }
+export class ErrorBoundary extends Component<Props, State> {
+  public state: State = {
+    hasError: false,
+    error: null
+  };
 
   public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
@@ -29,44 +26,24 @@ class ErrorBoundary extends React.Component<Props, State> {
 
   public render() {
     if (this.state.hasError) {
-      const isId = this.props.language === 'id';
-      let errorMessage = this.state.error?.message || '';
-      let displayMessage = isId ? 'Terjadi kesalahan yang tidak terduga.' : 'An unexpected error occurred.';
-      
-      // Check if it's a Firestore error JSON
-      try {
-        if (errorMessage.startsWith('{')) {
-          const errData = JSON.parse(errorMessage);
-          if (errData.error && errData.error.includes('insufficient permissions')) {
-            displayMessage = isId 
-              ? 'Izin tidak cukup untuk melakukan operasi ini. Silakan hubungi admin.' 
-              : 'Insufficient permissions to perform this operation. Please contact an admin.';
-          }
-        }
-      } catch (e) {
-        // Not a JSON error, use default
-      }
-
-      return (
-        <div className="flex flex-col items-center justify-center h-screen bg-black p-6 text-center">
-          <div className="w-16 h-16 bg-rose-500/20 rounded-full flex items-center justify-center mb-6">
-            <span className="text-3xl">⚠️</span>
+      return this.props.fallback || (
+        <div className="flex flex-col items-center justify-center h-screen bg-black text-white p-6 text-center">
+          <div className="w-16 h-16 bg-rose-500/20 rounded-full flex items-center justify-center mb-6 border border-rose-500/30">
+            <span className="text-2xl">⚠️</span>
           </div>
-          <h1 className="text-2xl font-black text-white mb-4 uppercase tracking-tighter italic">
-            {isId ? 'WADUH, ADA MASALAH!' : 'OOPS, SOMETHING WENT WRONG!'}
-          </h1>
-          <p className="text-gray-400 mb-8 max-w-xs">
-            {displayMessage}
+          <h2 className="text-xl font-black uppercase tracking-widest mb-4">System Failure</h2>
+          <p className="text-white/60 text-sm mb-8 max-w-xs">
+            An unexpected error occurred. This might be due to a mobile browser limitation or a temporary glitch.
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="px-8 py-4 bg-white text-black font-black rounded-xl uppercase tracking-widest active:scale-95 transition-transform"
+            className="px-8 py-3 bg-white text-black font-bold rounded-xl uppercase tracking-widest text-xs"
           >
-            {isId ? 'MUAT ULANG' : 'RELOAD APP'}
+            Reboot System
           </button>
-          {process.env.NODE_ENV === 'development' && this.state.error && (
-            <pre className="mt-8 p-4 bg-zinc-900 rounded-lg text-left text-[10px] text-rose-400 overflow-auto max-w-full">
-              {this.state.error.stack}
+          {process.env.NODE_ENV === 'development' && (
+            <pre className="mt-8 p-4 bg-white/5 rounded-lg text-left text-[10px] overflow-auto max-w-full text-rose-400">
+              {this.state.error?.toString()}
             </pre>
           )}
         </div>
@@ -76,5 +53,3 @@ class ErrorBoundary extends React.Component<Props, State> {
     return this.props.children;
   }
 }
-
-export default ErrorBoundary;
