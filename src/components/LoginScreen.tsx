@@ -40,6 +40,14 @@ const LoginScreen = ({ onLogin, language }: LoginScreenProps) => {
         return;
       }
 
+      if (err.code === 'auth/unauthorized-domain') {
+        setError(language === 'id' 
+          ? 'Domain ini belum diizinkan di Firebase Console. Silakan tambahkan domain Netlify Anda ke "Authorized Domains" di Firebase Authentication.'
+          : 'This domain is not authorized in Firebase Console. Please add your Netlify domain to "Authorized Domains" in Firebase Authentication.');
+        setIsGoogleLoading(false);
+        return;
+      }
+
       setError(err.message || 'Google login failed');
       setIsGoogleLoading(false);
     }

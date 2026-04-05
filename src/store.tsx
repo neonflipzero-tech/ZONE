@@ -25,7 +25,7 @@ export interface AppStore {
   addCustomMission: (type: MissionType, text: string) => void;
   removeCustomMission: (type: MissionType, text: string) => void;
   dismissUnlockedItem: () => void;
-  addNotification: (notif: Omit<Notification, 'id' | 'read' | 'timestamp'>) => void;
+  addNotification: (notif: Omit<AppNotification, 'id' | 'read' | 'timestamp'>) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   incrementShareCount: () => void;
@@ -159,13 +159,17 @@ export const useAppState = create<AppStore>((set, get) => ({
                 });
   
                 // External Notification
-                if ('Notification' in window && Notification.permission === 'granted') {
-                  new Notification(parsed.language === 'id' ? 'BOSS KABUR!' : 'BOSS ESCAPED!', {
-                    body: parsed.language === 'id' 
-                      ? 'Minggu telah berakhir. Boss melarikan diri!' 
-                      : 'The week has ended. The boss escaped!',
-                    icon: '/favicon.ico'
-                  });
+                if (typeof window !== 'undefined' && 'Notification' in window && (Notification as any).permission === 'granted') {
+                  try {
+                    new Notification(parsed.language === 'id' ? 'BOSS KABUR!' : 'BOSS ESCAPED!', {
+                      body: parsed.language === 'id' 
+                        ? 'Minggu telah berakhir. Boss melarikan diri!' 
+                        : 'The week has ended. The boss escaped!',
+                      icon: '/favicon.ico'
+                    });
+                  } catch (e) {
+                    console.warn('External notification failed:', e);
+                  }
                 }
               }
             }
@@ -641,14 +645,32 @@ export const useAppState = create<AppStore>((set, get) => ({
       });
 
       // Browser notification
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("Lock In", { body: msg });
-      } else if ("Notification" in window && Notification.permission !== "denied") {
-        Notification.requestPermission().then(permission => {
-          if (permission === "granted") {
-            new Notification("Lock In", { body: msg });
+      if (typeof window !== 'undefined' && "Notification" in window && (Notification as any).permission === "granted") {
+        try {
+          new Notification("Lock In", { body: msg });
+        } catch (e) {
+          console.warn('External notification failed:', e);
+        }
+      } else if (typeof window !== 'undefined' && "Notification" in window && (Notification as any).permission !== "denied") {
+        try {
+          const promise = Notification.requestPermission();
+          if (promise && typeof promise.then === 'function') {
+            promise.then(permission => {
+              if (permission === "granted") {
+                new Notification("Lock In", { body: msg });
+              }
+            }).catch(() => {});
+          } else {
+            // Fallback for older browsers that use callback
+            Notification.requestPermission((permission) => {
+              if (permission === "granted") {
+                new Notification("Lock In", { body: msg });
+              }
+            });
           }
-        });
+        } catch (e) {
+          console.warn('Notification permission request failed:', e);
+        }
       }
     }
 
@@ -816,7 +838,7 @@ export const useAppState = create<AppStore>((set, get) => ({
   addNotification: (notif) => {
     const { state, updateState } = get();
     if (!state) return;
-    const newNotif: Notification = {
+    const newNotif: AppNotification = {
       ...notif,
       id: Math.random().toString(36).substring(2, 9),
       read: false,
@@ -993,19 +1015,27 @@ export const useAppState = create<AppStore>((set, get) => ({
     });
 
     // External Notification
-    if (Notification.permission === 'granted') {
-      new Notification(state.language === 'id' ? 'BOSS KABUR!' : 'BOSS ESCAPED!', {
-        body: state.language === 'id' 
-          ? `Boss melarikan diri dan mencuri ${penaltyXp} XP & ${penaltyCoins} ZoneCoins!` 
-          : `The boss escaped and stole ${penaltyXp} XP & ${penaltyCoins} ZoneCoins!`,
-        icon: '/favicon.ico'
-      });
+    if (typeof window !== 'undefined' && 'Notification' in window && (Notification as any).permission === 'granted') {
+      try {
+        new Notification(state.language === 'id' ? 'BOSS KABUR!' : 'BOSS ESCAPED!', {
+          body: state.language === 'id' 
+            ? `Boss melarikan diri dan mencuri ${penaltyXp} XP & ${penaltyCoins} ZoneCoins!` 
+            : `The boss escaped and stole ${penaltyXp} XP & ${penaltyCoins} ZoneCoins!`,
+          icon: '/favicon.ico'
+        });
+      } catch (e) {
+        console.warn('External notification failed:', e);
+      }
     }
   },
 
   requestNotificationPermission: () => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
+    if (typeof window !== 'undefined' && 'Notification' in window && (Notification as any).permission === 'default') {
+      try {
+        Notification.requestPermission();
+      } catch (e) {
+        console.warn('Notification permission request failed:', e);
+      }
     }
   },
 
@@ -1110,7 +1140,7 @@ export interface UnlockedItem {
   id: string;
 }
 
-export interface Notification {
+export interface AppNotification {
   id: string;
   title: string;
   description: string;
@@ -1167,7 +1197,7 @@ export interface UserState {
   isProfilePublic: boolean;
   missionsCompleted: number;
   manifestoAccepted?: boolean;
-  notifications: Notification[];
+  notifications: AppNotification[];
   streakFreezes: number;
   lastStreakFreezeGiven: string | null;
   streakFreezeUsedToday: boolean;

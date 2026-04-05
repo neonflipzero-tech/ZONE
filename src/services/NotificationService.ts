@@ -7,19 +7,19 @@ export class NotificationService {
     if (typeof window === 'undefined') return;
     
     console.log('NotificationService: Initializing...');
-    if ('serviceWorker' in navigator && 'Notification' in window) {
-      try {
+    try {
+      if ('serviceWorker' in navigator && 'Notification' in window) {
         const registration = await navigator.serviceWorker.register('/sw.js');
         this.swRegistration = registration;
         console.log('NotificationService: Service Worker registered successfully', registration.scope);
         
         // Check current permission
         console.log('NotificationService: Current permission:', Notification.permission);
-      } catch (error) {
-        console.error('NotificationService: Service Worker registration failed:', error);
+      } else {
+        console.warn('NotificationService: Service Worker or Notification API not supported');
       }
-    } else {
-      console.warn('NotificationService: Service Worker or Notification API not supported');
+    } catch (error) {
+      console.error('NotificationService: Service Worker registration failed:', error);
     }
   }
 
@@ -31,6 +31,11 @@ export class NotificationService {
     
     try {
       console.log('NotificationService: Requesting permission...');
+      // Some browsers might not support the promise-based requestPermission
+      if (typeof Notification.requestPermission !== 'function') {
+        return 'unsupported';
+      }
+      
       const permission = await Notification.requestPermission();
       console.log('NotificationService: Permission result:', permission);
       return permission;
@@ -41,7 +46,7 @@ export class NotificationService {
   }
 
   static async sendNotification(title: string, body: string, tag: string = 'zone-notification') {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
     
     if (Notification.permission !== 'granted') {
       console.warn('NotificationService: Cannot send notification, permission is:', Notification.permission);
@@ -54,7 +59,7 @@ export class NotificationService {
       const randomId = Math.floor(Math.random() * 1000);
       const icon = `https://i.pravatar.cc/300?u=${randomId}`;
       
-      if (this.swRegistration) {
+      if (this.swRegistration && 'showNotification' in this.swRegistration) {
         console.log('NotificationService: Using Service Worker to show notification');
         await this.swRegistration.showNotification(title, {
           body,
@@ -65,8 +70,13 @@ export class NotificationService {
           requireInteraction: true
         } as any);
       } else {
-        console.log('NotificationService: Service Worker not available, falling back to new Notification()');
-        new Notification(title, { body, tag, icon });
+        console.log('NotificationService: Service Worker not available or showNotification not supported, falling back to new Notification()');
+        try {
+          // iOS doesn't support new Notification()
+          new Notification(title, { body, tag, icon });
+        } catch (e) {
+          console.warn('NotificationService: new Notification() failed, likely unsupported on this device:', e);
+        }
       }
     } catch (error) {
       console.error('NotificationService: Error sending notification:', error);

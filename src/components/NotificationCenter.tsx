@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Bell, CheckCircle2, Info, AlertCircle, Swords, ArrowUpCircle } from 'lucide-react';
-import { useAppState } from '../store';
+import { useAppState, AppNotification } from '../store';
 import { t } from '../utils/translations';
 import { sounds } from '../utils/sounds';
 
