@@ -39,9 +39,23 @@ export default function ImageCropper({ imageSrc, onCropComplete, onCancel }: Ima
       return '';
     }
 
-    // set canvas size to match the bounding box
-    canvas.width = pixelCrop.width;
-    canvas.height = pixelCrop.height;
+    // Resize to a maximum dimension to save space in Firestore
+    const maxDimension = 400;
+    let targetWidth = pixelCrop.width;
+    let targetHeight = pixelCrop.height;
+
+    if (targetWidth > maxDimension || targetHeight > maxDimension) {
+      if (targetWidth > targetHeight) {
+        targetHeight = (maxDimension / targetWidth) * targetHeight;
+        targetWidth = maxDimension;
+      } else {
+        targetWidth = (maxDimension / targetHeight) * targetWidth;
+        targetHeight = maxDimension;
+      }
+    }
+
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
 
     ctx.drawImage(
       image,
@@ -51,11 +65,11 @@ export default function ImageCropper({ imageSrc, onCropComplete, onCancel }: Ima
       pixelCrop.height,
       0,
       0,
-      pixelCrop.width,
-      pixelCrop.height
+      targetWidth,
+      targetHeight
     );
 
-    return canvas.toDataURL('image/jpeg', 0.9);
+    return canvas.toDataURL('image/jpeg', 0.8);
   };
 
   const handleSave = async () => {

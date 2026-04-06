@@ -47,7 +47,7 @@ export default function CustomMissionsModal({ isOpen, onClose, state, addCustomM
     return t(`home.tab.${type.toLowerCase()}`, state.language);
   };
 
-  const tabs = ['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] as MissionType[];
+  const tabs = (['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] as MissionType[]).filter(type => type !== 'ROUTINE' || state.chosenPath === 'OTHER');
 
   return (
     <AnimatePresence>

@@ -156,12 +156,17 @@ export const useAppState = create<AppStore>((set, get) => ({
     const newUnlockedItems = [...(state.unlockedItemsQueue || [])];
     
     // 1. Check for Level Up Unlocks (Frames)
+    const newUnlockedFrames = [...(state.unlockedFrames || [])];
+    const newUnlockedTitles = [...(state.unlockedTitles || [])];
+    const newBadges = [...(state.badges || [])];
+
     if (updates.level && updates.level > state.level) {
       for (let lvl = state.level + 1; lvl <= updates.level; lvl++) {
         const rank = RANKS.find(r => r.minLevel === lvl);
         if (rank) {
           const frameId = `frame-${rank.name.toLowerCase()}`;
-          if (!state.unlockedFrames?.includes(frameId)) {
+          if (!newUnlockedFrames.includes(frameId)) {
+            newUnlockedFrames.push(frameId);
             newUnlockedItems.push({ type: 'frame', id: frameId });
           }
         }
@@ -170,18 +175,22 @@ export const useAppState = create<AppStore>((set, get) => ({
 
     // 2. Check for Streak Unlocks
     if (updates.streak && updates.streak > state.streak) {
-      if (updates.streak === 7 && !state.unlockedFrames?.includes('frame-rgb')) newUnlockedItems.push({ type: 'frame', id: 'frame-rgb' });
-      if (updates.streak === 30 && !state.unlockedFrames?.includes('frame-fire')) newUnlockedItems.push({ type: 'frame', id: 'frame-fire' });
-      if (updates.streak === 60 && !state.unlockedFrames?.includes('frame-aurora')) newUnlockedItems.push({ type: 'frame', id: 'frame-aurora' });
-      if (updates.streak === 100 && !state.unlockedFrames?.includes('frame-inferno')) newUnlockedItems.push({ type: 'frame', id: 'frame-inferno' });
+      const streakUnlocks: Record<number, string> = { 7: 'frame-rgb', 30: 'frame-fire', 60: 'frame-aurora', 100: 'frame-inferno' };
+      const frameId = streakUnlocks[updates.streak];
+      if (frameId && !newUnlockedFrames.includes(frameId)) {
+        newUnlockedFrames.push(frameId);
+        newUnlockedItems.push({ type: 'frame', id: frameId });
+      }
     }
 
     // 3. Check for Mission Count Unlocks
     if (updates.missionsCompleted && updates.missionsCompleted > state.missionsCompleted) {
-      if (updates.missionsCompleted === 50 && !state.unlockedFrames?.includes('frame-neon')) newUnlockedItems.push({ type: 'frame', id: 'frame-neon' });
-      if (updates.missionsCompleted === 100 && !state.unlockedFrames?.includes('frame-hologram')) newUnlockedItems.push({ type: 'frame', id: 'frame-hologram' });
-      if (updates.missionsCompleted === 200 && !state.unlockedFrames?.includes('frame-radiant')) newUnlockedItems.push({ type: 'frame', id: 'frame-radiant' });
-      if (updates.missionsCompleted === 666 && !state.unlockedFrames?.includes('frame-abyssal')) newUnlockedItems.push({ type: 'frame', id: 'frame-abyssal' });
+      const missionUnlocks: Record<number, string> = { 50: 'frame-neon', 100: 'frame-hologram', 200: 'frame-radiant', 666: 'frame-abyssal' };
+      const frameId = missionUnlocks[updates.missionsCompleted];
+      if (frameId && !newUnlockedFrames.includes(frameId)) {
+        newUnlockedFrames.push(frameId);
+        newUnlockedItems.push({ type: 'frame', id: frameId });
+      }
     }
 
     // 4. Check for Rank Up
@@ -191,6 +200,16 @@ export const useAppState = create<AppStore>((set, get) => ({
       if (newRank && oldRank && newRank.name !== oldRank.name) {
         newUnlockedItems.push({ type: 'rank', id: newRank.name });
       }
+    }
+
+    if (newUnlockedFrames.length > (state.unlockedFrames?.length || 0)) {
+      updates.unlockedFrames = newUnlockedFrames;
+    }
+    if (newUnlockedTitles.length > (state.unlockedTitles?.length || 0)) {
+      updates.unlockedTitles = newUnlockedTitles;
+    }
+    if (newBadges.length > (state.badges?.length || 0)) {
+      updates.badges = newBadges;
     }
 
     if (newUnlockedItems.length > (state.unlockedItemsQueue?.length || 0)) {
@@ -364,7 +383,7 @@ export const useAppState = create<AppStore>((set, get) => ({
     if (!state) return;
 
     const missions: Mission[] = [];
-    const types: MissionType[] = ['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'];
+    const types: MissionType[] = (['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] as MissionType[]).filter(t => t !== 'ROUTINE' || path === 'OTHER');
     
     types.forEach(type => {
       const pool = [...(PATH_MISSIONS[path]?.[type] || []), ...(state.customMissions?.[type] || [])];
@@ -771,6 +790,7 @@ export const useAppState = create<AppStore>((set, get) => ({
   addCustomMission: (type, text) => {
     const { state, updateState } = get();
     if (!state) return;
+    if (type === 'ROUTINE' && state.chosenPath !== 'OTHER') return;
     const current = state.customMissions[type] || [];
     const newCustomMissions = {
       ...state.customMissions,

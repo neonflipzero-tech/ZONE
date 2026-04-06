@@ -23,7 +23,9 @@ interface LeaderboardUser {
   equippedTitle: string | null;
   profilePicture: string | null;
   streak?: number;
+  badges?: string[];
   badgesCount?: number;
+  unlockedFrames?: string[];
   framesCount?: number;
   missionsCompleted?: number;
   isProfilePublic?: boolean;
@@ -68,7 +70,15 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedUsers: LeaderboardUser[] = [];
         snapshot.forEach((doc) => {
-          fetchedUsers.push({ userId: doc.id, ...doc.data() } as LeaderboardUser);
+          const data = doc.data();
+          fetchedUsers.push({ 
+            ...data,
+            userId: doc.id,
+            // Ensure these counts are available even if not explicitly stored
+            framesCount: data.framesCount || (data.unlockedFrames?.length) || 1,
+            badgesCount: data.badgesCount || (data.badges?.length) || 0,
+            profilePicture: data.profilePicture || null,
+          } as LeaderboardUser);
         });
         setUsers(fetchedUsers);
         setLoading(false);
@@ -657,12 +667,12 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
                   <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
                     <Star className="w-5 h-5 text-rose-400 mb-1" />
                     <span className="text-xs text-secondary mb-1">{t('leaderboard.badges', state.language)}</span>
-                    <span className="font-mono font-bold text-lg">{selectedUser.badgesCount || 0}</span>
+                    <span className="font-mono font-bold text-lg">{selectedUser.badgesCount ?? selectedUser.badges?.length ?? 0}</span>
                   </div>
                   <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
                     <div className="w-5 h-5 border-2 border-accent rounded-md mb-1" />
                     <span className="text-xs text-secondary mb-1">{t('leaderboard.frames', state.language)}</span>
-                    <span className="font-mono font-bold text-lg">{selectedUser.framesCount || 1}</span>
+                    <span className="font-mono font-bold text-lg">{selectedUser.framesCount ?? selectedUser.unlockedFrames?.length ?? 1}</span>
                   </div>
                 </div>
               </div>

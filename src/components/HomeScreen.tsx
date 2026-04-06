@@ -34,6 +34,13 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
     sounds.playClick();
     updateState({ activeTab: tab });
   };
+
+  useEffect(() => {
+    if (state.activeTab === 'ROUTINE' && state.chosenPath !== 'OTHER') {
+      updateState({ activeTab: 'REGULAR' });
+    }
+  }, [state.activeTab, state.chosenPath, updateState]);
+
   const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -571,7 +578,7 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
 
           {/* Tabs */}
           <div className="flex bg-surface rounded-xl p-1 mb-6 border border-white/5 overflow-x-auto no-scrollbar">
-            {['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'].map((tab) => (
+            {['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'].filter(tab => tab !== 'ROUTINE' || state.chosenPath === 'OTHER').map((tab) => (
               <button
                 key={tab}
                 id={`tab-${tab.toLowerCase()}`}
