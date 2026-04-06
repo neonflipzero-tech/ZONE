@@ -706,16 +706,30 @@ export const useAppState = create<AppStore>((set, get) => ({
   },
 
   replaceMission: (id) => {
-    const { state, updateState } = get();
-    if (!state || state.zoneCoins < 50) return;
+    const { state, updateState, addNotification } = get();
+    if (!state) return;
 
     const mission = state.missions.find(m => m.id === id);
     if (!mission || mission.completed) return;
 
     const pool = [...(PATH_MISSIONS[state.chosenPath || 'PRODUCTIVE']?.[mission.type] || []), ...(state.customMissions?.[mission.type] || [])];
-    const filteredPool = pool.filter(t => !state.missions.some(m => m.originalText === t));
+    let filteredPool = pool.filter(t => !state.missions.some(m => m.originalText === t));
     
-    if (filteredPool.length === 0) return; // No missions left to replace with
+    // If filtered pool is empty but pool has items, just pick any from pool except the current one
+    if (filteredPool.length === 0 && pool.length > 1) {
+      filteredPool = pool.filter(t => t !== mission.originalText);
+    }
+
+    if (filteredPool.length === 0) {
+      addNotification({
+        title: state.language === 'id' ? "Tidak Ada Misi" : "No Missions Available",
+        description: state.language === 'id' 
+          ? "Tidak ada misi lain yang tersedia untuk diganti." 
+          : "No other missions available to replace with.",
+        icon: 'Info'
+      });
+      return;
+    }
     
     const newText = filteredPool[Math.floor(Math.random() * filteredPool.length)];
 
@@ -736,7 +750,6 @@ export const useAppState = create<AppStore>((set, get) => ({
 
     updateState({
       missions: newMissions,
-      zoneCoins: state.zoneCoins - 50,
       missionAffinity: {
         ...state.missionAffinity,
         [category]: newAffinity

@@ -34,7 +34,7 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
     'home.add_custom_missions': { en: 'Add custom {tab} missions to start earning XP.', id: 'Tambahkan misi kustom {tab} untuk mulai mendapatkan XP.' },
     'home.add_missions': { en: 'Add Missions', id: 'Tambah Misi' },
     'home.locked_mission': { en: 'Locked (Complete previous)', id: 'Terkunci (Selesaikan misi sebelumnya)' },
-    'home.cant_do_it': { en: "I can't do it", id: 'Ganti Misi' },
+    'home.cant_do_it': { en: "I can't do it", id: 'Saya gak bisa' },
     'home.cancel': { en: 'Cancel', id: 'Batal' },
 
     'custom_missions.title': { en: 'Custom Missions', id: 'Misi Kustom' },
