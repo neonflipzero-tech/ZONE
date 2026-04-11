@@ -63,12 +63,12 @@ const STAT_DETAILS: Record<string, { en: { desc: string; tips: string }; id: { d
   },
   social: {
     en: {
-      desc: "Reflects your social interactions and extrovert missions completed.",
-      tips: "Step out of your comfort zone. Engage in 'EXTROVERT' path missions to build connections."
+      desc: "Reflects your social interactions and social missions completed.",
+      tips: "Step out of your comfort zone. Engage in 'SOCIAL' path missions to build connections."
     },
     id: {
-      desc: "Mencerminkan interaksi sosial dan misi ekstrovert yang kamu selesaikan.",
-      tips: "Keluar dari zona nyaman. Lakukan misi di jalur 'EXTROVERT' untuk membangun relasi."
+      desc: "Mencerminkan interaksi sosial dan misi sosial yang kamu selesaikan.",
+      tips: "Keluar dari zona nyaman. Lakukan misi di jalur 'SOCIAL' untuk membangun relasi."
     }
   }
 };

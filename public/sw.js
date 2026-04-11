@@ -121,13 +121,20 @@ self.addEventListener('notificationclick', function(event) {
 });
 
 // For local reminders (when the app is in background but SW is alive)
+const scheduledNotifications = new Map();
+
 self.addEventListener('message', (event) => {
   console.log('Service Worker: Received message', event.data);
   if (event.data && event.data.type === 'SCHEDULE_NOTIFICATION') {
     const { title, body, delay, tag } = event.data;
     console.log(`Service Worker: Scheduling notification "${title}" in ${delay}ms with tag ${tag}`);
     
-    setTimeout(() => {
+    // Cancel existing notification with same tag if any
+    if (tag && scheduledNotifications.has(tag)) {
+      clearTimeout(scheduledNotifications.get(tag));
+    }
+
+    const timeoutId = setTimeout(() => {
       console.log(`Service Worker: Showing scheduled notification "${title}"`);
       self.registration.showNotification(title, {
         body: body,
@@ -138,6 +145,18 @@ self.addEventListener('message', (event) => {
         data: '/',
         requireInteraction: true
       });
+      if (tag) scheduledNotifications.delete(tag);
     }, delay);
+
+    if (tag) scheduledNotifications.set(tag, timeoutId);
+  }
+
+  if (event.data && event.data.type === 'CANCEL_NOTIFICATION') {
+    const { tag } = event.data;
+    if (tag && scheduledNotifications.has(tag)) {
+      console.log(`Service Worker: Cancelling notification with tag ${tag}`);
+      clearTimeout(scheduledNotifications.get(tag));
+      scheduledNotifications.delete(tag);
+    }
   }
 });

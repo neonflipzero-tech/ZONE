@@ -19,7 +19,10 @@ export default function UnlockNotification({ item, onDismiss, language }: Unlock
     // 1-1.5s: Breaking (scaling up and fading out)
     // 1.5s+: Revealed
     const timer1 = setTimeout(() => setStage('breaking'), 1000);
-    const timer2 = setTimeout(() => setStage('revealed'), 1300);
+    const timer2 = setTimeout(() => {
+      setStage('revealed');
+      import('../utils/sounds').then(({ sounds }) => sounds.playVictory());
+    }, 1300);
     const timer3 = setTimeout(() => onDismiss(), 4500); // Auto dismiss
 
     return () => {

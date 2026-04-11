@@ -30,6 +30,7 @@ interface ProfileScreenProps {
   onLogout: () => void;
   updateState: (updates: Partial<UserState>) => void;
   changePath: (path: PathType) => void;
+  clearCustomMissions: () => void;
   rivalData: any | null;
   isFlashSale?: boolean;
 }
@@ -39,7 +40,7 @@ function getRankIcon(rankName: string, className: string) {
   return <Trophy className={className} />;
 }
 
-const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, isFlashSale = false }: ProfileScreenProps) => {
+const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMissions, rivalData, isFlashSale = false }: ProfileScreenProps) => {
   if (!state) return null;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ovrStatsRef = useRef<HTMLDivElement>(null);
@@ -119,11 +120,11 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
   const todayCategoryStats = state.dailyCategoryStats?.[todayISO] || {};
   
   const allCategories = [
-    { id: 'STRONGER', name: state.language === 'id' ? 'Fisik' : 'Physical', color: '#ff0000', shadow: '0 0 15px rgba(255, 0, 0, 0.5)' },
-    { id: 'MENTAL_HEALTH', name: state.language === 'id' ? 'Mental' : 'Mental', color: '#0066ff', shadow: '0 0 15px rgba(0, 102, 255, 0.5)' },
-    { id: 'PRODUCTIVE', name: state.language === 'id' ? 'Produktivitas' : 'Productivity', color: '#00ff00', shadow: '0 0 15px rgba(0, 255, 0, 0.5)' },
-    { id: 'EXTROVERT', name: state.language === 'id' ? 'Sosial' : 'Social', color: '#ffff00', shadow: '0 0 15px rgba(255, 255, 0, 0.5)' },
-    { id: 'DISCIPLINE', name: state.language === 'id' ? 'Disiplin' : 'Discipline', color: '#ff00ff', shadow: '0 0 15px rgba(255, 0, 255, 0.5)' },
+    { id: 'STRONGER', name: t('profile.stat.physical.name', state.language), color: '#ff0000', shadow: '0 0 15px rgba(255, 0, 0, 0.5)' },
+    { id: 'MENTAL_HEALTH', name: t('profile.stat.mental.name', state.language), color: '#0066ff', shadow: '0 0 15px rgba(0, 102, 255, 0.5)' },
+    { id: 'PRODUCTIVE', name: t('profile.stat.productivity.name', state.language), color: '#00ff00', shadow: '0 0 15px rgba(0, 255, 0, 0.5)' },
+    { id: 'SOCIAL', name: t('profile.stat.social.name', state.language), color: '#ffff00', shadow: '0 0 15px rgba(255, 255, 0, 0.5)' },
+    { id: 'DISCIPLINE', name: t('profile.stat.discipline.name', state.language), color: '#ff00ff', shadow: '0 0 15px rgba(255, 0, 255, 0.5)' },
   ];
 
   const focusData = allCategories.map(cat => ({
@@ -155,8 +156,10 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
     let newUnlockedItemsQueue = state.unlockedItemsQueue ? [...state.unlockedItemsQueue] : [];
     
     if (newShareCount >= 5) {
-      if (!state.titles?.includes('Supporter')) {
-        updates.titles = [...(state.titles || []), 'Supporter'];
+      if (!state.unlockedTitles?.includes('Supporter')) {
+        const newTitles = [...(state.unlockedTitles || []), 'Supporter'];
+        updates.unlockedTitles = newTitles;
+        updates.titles = newTitles;
         newUnlockedItemsQueue.push({ type: 'title', id: 'Supporter' });
       }
       if (!state.unlockedFrames?.includes('frame-viral')) {
@@ -454,7 +457,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
         <div className="mb-8 px-2" id="focus-distribution-card">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">
-              {state.language === 'id' ? 'Distribusi Fokus' : 'Focus Distribution'}
+              {t('profile.focus_distribution', state.language)}
             </h3>
             <div className="flex items-center space-x-2">
               <div className="flex items-center space-x-1 bg-rose-400/10 px-2 py-0.5 rounded-full border border-rose-400/20">
@@ -463,7 +466,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
               </div>
               {state.isPremium && totalTodayMissions > 0 && (
                 <button 
-                  onClick={() => shareElementAsImage('focus-distribution-card', state.language === 'id' ? 'Distribusi Fokus Saya' : 'My Focus Distribution', 'Check out my daily focus on Zone!')}
+                  onClick={() => shareElementAsImage('focus-distribution-card', t('profile.focus_distribution', state.language), 'Check out my daily focus on Zone!')}
                   data-html2canvas-ignore
                   className="p-1.5 rounded-full bg-surface border border-white/10 hover:bg-white/10 transition-colors"
                 >
@@ -485,18 +488,16 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
                   <Lock className="w-8 h-8 text-rose-400" />
                 </div>
                 <h4 className="text-xl font-black text-primary mb-2 tracking-tight uppercase italic">
-                  {state.language === 'id' ? 'FITUR ELITE' : 'ELITE FEATURE'}
+                  {t('profile.elite_feature', state.language)}
                 </h4>
                 <p className="text-sm text-secondary mb-8 max-w-[240px] leading-relaxed">
-                  {state.language === 'id' 
-                    ? 'Buka analisis distribusi fokus harian untuk mengoptimalkan pertumbuhanmu.' 
-                    : 'Unlock daily focus distribution analysis to optimize your growth.'}
+                  {t('profile.unlock_analysis', state.language)}
                 </p>
                 <button 
                   onClick={() => setIsPremiumModalOpen(true)}
                   className="bg-gradient-to-r from-rose-400 to-rose-600 text-white font-black px-8 py-3 rounded-xl text-sm uppercase tracking-wider shadow-lg hover:scale-105 transition-transform active:scale-95"
                 >
-                  {state.language === 'id' ? 'GABUNG ELITE' : 'JOIN ELITE'}
+                  {t('profile.join_elite', state.language)}
                 </button>
                 
                 {/* Blurred background preview */}
@@ -510,7 +511,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
                   <Target className="w-6 h-6 text-secondary" />
                 </div>
                 <p className="text-sm text-secondary italic mb-6">
-                  {state.language === 'id' ? 'Selesaikan misi hari ini untuk melihat analisis.' : 'Complete missions today to see analysis.'}
+                  {t('profile.complete_today', state.language)}
                 </p>
                 
                 {/* Show empty legend even when 0 missions */}
@@ -556,10 +557,10 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <span className="text-3xl font-display font-black text-white leading-none">{totalTodayMissions}</span>
                     <span className="text-[10px] font-mono text-secondary uppercase tracking-tighter mt-1">
-                      {state.language === 'id' ? 'Misi' : 'Missions'}
+                      {t('profile.missions_count', state.language)}
                     </span>
                     <span className="text-[8px] font-mono text-white/30 uppercase tracking-widest mt-0.5">
-                      {state.language === 'id' ? 'Fokus Utama' : "Today's Focus"}
+                      {t('profile.today_focus', state.language)}
                     </span>
                   </div>
                 </div>
@@ -598,7 +599,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
         {/* Equipment / Inventory */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4 px-2">
-            <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{state.language === 'id' ? 'Kustomisasi' : 'Customization'}</h3>
+            <h3 className="text-sm font-mono uppercase tracking-widest text-secondary">{t('profile.customization', state.language)}</h3>
           </div>
           <button
             onClick={() => setIsInventoryModalOpen(true)}
@@ -609,8 +610,8 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
                 <Package className="w-6 h-6 text-accent" />
               </div>
               <div className="text-left">
-                <h4 className="font-bold text-primary">{state.language === 'id' ? 'Inventori' : 'Inventory'}</h4>
-                <p className="text-xs text-secondary mt-0.5">{state.language === 'id' ? 'Kelola bingkai dan gelar' : 'Manage frames and titles'}</p>
+                <h4 className="font-bold text-primary">{t('profile.inventory', state.language)}</h4>
+                <p className="text-xs text-secondary mt-0.5">{t('profile.inventory_desc', state.language)}</p>
               </div>
             </div>
             <div className="flex -space-x-2">
@@ -632,8 +633,8 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
                 <Store className="w-6 h-6 text-accent" />
               </div>
               <div className="text-left">
-                <h4 className="font-bold text-primary">{state.language === 'id' ? 'Toko Zona' : 'Zone Store'}</h4>
-                <p className="text-xs text-secondary mt-0.5">{state.language === 'id' ? 'Buka item eksklusif' : 'Unlock exclusive items'}</p>
+                <h4 className="font-bold text-primary">{t('profile.zone_store', state.language)}</h4>
+                <p className="text-xs text-secondary mt-0.5">{t('profile.zone_store_desc', state.language)}</p>
               </div>
             </div>
             <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
@@ -1210,6 +1211,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, rivalData, is
             state={state}
             updateState={updateState}
             changePath={changePath}
+            clearCustomMissions={clearCustomMissions}
             onLogout={onLogout}
             onBack={() => setIsSettingsOpen(false)}
             setIsResetModalOpen={setIsResetModalOpen}

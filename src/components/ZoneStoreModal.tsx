@@ -128,7 +128,7 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
     }
   };
 
-  const lockedTitles = TITLES.filter(t => !isZaiki && !state.titles.includes(t.id) && t.id !== 'Elite Zone');
+  const lockedTitles = TITLES.filter(t => !isZaiki && !state.unlockedTitles.includes(t.id) && t.id !== 'Elite Zone');
 
   if (!isOpen) return null;
 

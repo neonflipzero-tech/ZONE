@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useAppState, PathType, getRankForLevel, calculateOVR, MissionType } from './store';
+import { useAppState, PathType, getRankForLevel, calculateOVR, MissionType, sanitizeForFirestore } from './store';
 import { ZoneCoinIcon } from './components/ZoneCoinIcon';
 import { sounds } from './utils/sounds';
 import { db, handleFirestoreError, OperationType, auth } from './firebase';
@@ -44,6 +44,13 @@ export default function App() {
     init,
     isAuthReady
   } = useAppState();
+
+  useEffect(() => {
+    if (state?.isLoggedIn) {
+      const { checkBossReset } = useAppState.getState();
+      checkBossReset();
+    }
+  }, [state?.isLoggedIn]);
 
   useEffect(() => {
     const unsubscribe = init();
@@ -181,23 +188,8 @@ export default function App() {
         lastActive: Date.now()
       };
 
-      // Sync to Firebase if configured
-      if (db) {
-        const timeout = setTimeout(() => {
-          const path = `users/${state.userId}`;
-          setDoc(doc(db, 'users', state.userId), userData, { merge: true }).catch((e: any) => {
-            if (e?.code === 'unavailable' || e?.message?.includes('offline')) {
-              console.warn("Client is offline, skipping user data sync.");
-            } else if (e?.code === 'permission-denied') {
-              handleFirestoreError(e, OperationType.WRITE, path);
-            } else {
-              console.error("Error syncing user data:", e);
-            }
-          });
-        }, 5000); // Increased delay to reduce frequency
-        return () => clearTimeout(timeout);
-      }
-
+      // Sync to Firebase is now handled in store.tsx updateState for better performance
+      
       // Fallback to localStorage for local dev without Firebase
       try {
         const savedLeaderboard = localStorage.getItem('lockin_global_leaderboard');
@@ -408,9 +400,12 @@ export default function App() {
         if (fetchedRivalData) {
           updateState({ rivalData: fetchedRivalData });
 
-          // Check for Crush (XP Surpassed)
+          // Check for Crush (OVR or XP Surpassed)
           const isBeaten = state.beatenRivals?.includes(state.rivalId);
-          if (!isBeaten && state.totalXp > (fetchedRivalData.totalXp || 0)) {
+          const myOvr = calculateOVR(state, activeUserEmail).ovr;
+          const rivalOvr = fetchedRivalData.ovr || 0;
+          
+          if (!isBeaten && (myOvr > rivalOvr || state.totalXp > (fetchedRivalData.totalXp || 0))) {
             // CRUSHED!
             // Add rewards
             const newBeatenRivals = [...(state.beatenRivals || []), state.rivalId];
@@ -431,7 +426,7 @@ export default function App() {
             });
 
             // Sound effect
-            sounds.playSuccess();
+            sounds.playVictory();
           }
 
           const lastRivalLevel = localStorage.getItem(`lockin_last_rival_level_${state.rivalId}`);
@@ -483,7 +478,7 @@ export default function App() {
     if (state?.isLoggedIn) {
       checkRival();
     }
-  }, [state?.isLoggedIn, state?.rivalId, state?.totalXp]);
+  }, [state?.isLoggedIn, state?.rivalId, state?.totalXp, state?.level, state?.streak, state?.ovr]);
 
   useEffect(() => {
     if (state?.animatingLevelUp) {
@@ -647,6 +642,14 @@ export default function App() {
                 >
                   <div className="w-32 h-32 rounded-full border-8 border-white/40 blur-sm" />
                 </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: [0, 1, 0], scale: [0, 1.5, 2] }}
+                  transition={{ delay: 0.5, duration: 0.4 }}
+                  className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none"
+                >
+                  <div className="w-48 h-48 rounded-full border-4 border-rose-500/40 blur-md" />
+                </motion.div>
               </div>
 
               <motion.h2 
@@ -739,6 +742,10 @@ export default function App() {
                   changePath={handleChangeGoal}
                   rivalData={state.rivalData}
                   isFlashSale={isFlashSale}
+                  clearCustomMissions={() => {
+                    const { clearCustomMissions } = useAppState.getState();
+                    clearCustomMissions();
+                  }}
                 />
               </motion.div>
             )}

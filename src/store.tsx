@@ -8,6 +8,20 @@ import { getDoc, doc, setDoc } from 'firebase/firestore';
 
 import { MISSION_TRANSLATIONS } from './utils/missionTranslations';
 
+// Helper to remove undefined values for Firestore
+export const sanitizeForFirestore = (obj: any): any => {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeForFirestore);
+  
+  const sanitized: any = {};
+  Object.keys(obj).forEach(key => {
+    if (obj[key] !== undefined) {
+      sanitized[key] = sanitizeForFirestore(obj[key]);
+    }
+  });
+  return sanitized;
+};
+
 // ... (keep types and helper functions)
 
 export interface AppStore {
@@ -21,10 +35,12 @@ export interface AppStore {
   generateMissions: (path: PathType) => void;
   checkStreakFreezeNeeded: () => boolean;
   completeMission: (id: string, options?: { useFreeze?: boolean }) => void;
+  updateMissionProgress: (id: string, increment: number) => void;
   replaceMission: (id: string) => void;
   changePath: (path: PathType) => void;
   addCustomMission: (type: MissionType, text: string) => void;
   removeCustomMission: (type: MissionType, text: string) => void;
+  clearCustomMissions: () => void;
   dismissUnlockedItem: () => void;
   addNotification: (notif: Omit<AppNotification, 'id' | 'read' | 'timestamp'>) => void;
   markNotificationRead: (id: string) => void;
@@ -32,10 +48,12 @@ export interface AppStore {
   incrementShareCount: () => void;
   crushRival: () => void;
   dismissCrushedAnimation: () => void;
+  checkBossReset: () => void;
   triggerBoss: () => void;
   attackBoss: (taskId: string) => void;
   defeatBoss: () => void;
   escapeBoss: () => void;
+  checkAllTitles: () => void;
   requestNotificationPermission: () => void;
   setAuthReady: (ready: boolean) => void;
   setActiveUserEmail: (email: string | null) => void;
@@ -103,14 +121,25 @@ export const useAppState = create<AppStore>((set, get) => ({
             }
             
             // Auto-grant Elite to Zaiki
-            if (!parsed.isPremium && (email === 'zaikiwildan@gmail.com' || username.toLowerCase().includes('zaiki'))) {
+            if (email === 'zaikiwildan@gmail.com' || username.toLowerCase().includes('zaiki')) {
               parsed.isPremium = true;
+              if (!parsed.badges.includes('ELITE_ZONE')) {
+                parsed.badges.push('ELITE_ZONE');
+              }
             }
 
             // Migration: ensure pathProgress exists
             if (!parsed.pathProgress) parsed.pathProgress = {};
+            if (!parsed.titles) parsed.titles = [];
+            if (!parsed.unlockedTitles) parsed.unlockedTitles = [];
+            
+            // Auto-grant OG title to Zaiki
+            if (email === 'zaikiwildan@gmail.com' && !parsed.unlockedTitles.includes('OG')) {
+              parsed.unlockedTitles.push('OG');
+            }
 
             setState(parsed);
+            get().checkAllTitles();
           } catch (e) {
             console.error("Error parsing saved state:", e);
             setState(null);
@@ -128,6 +157,7 @@ export const useAppState = create<AppStore>((set, get) => ({
                   isLoggedIn: true
                 });
                 localStorage.setItem(`lockin_user_${email}`, JSON.stringify(firestoreData));
+                get().checkAllTitles();
                 return;
               }
             } catch (e) {
@@ -138,6 +168,7 @@ export const useAppState = create<AppStore>((set, get) => ({
           const newState = createDefaultState(username, email, uid);
           setState(newState);
           localStorage.setItem(`lockin_user_${email}`, JSON.stringify(newState));
+          get().checkAllTitles();
         }
       } else {
         setActiveUserEmail(null);
@@ -152,13 +183,13 @@ export const useAppState = create<AppStore>((set, get) => ({
     const { state, activeUserEmail } = get();
     if (!state || !activeUserEmail) return;
 
-    // Check for unlocks before applying updates
-    const newUnlockedItems = [...(state.unlockedItemsQueue || [])];
+    // Check for unlocks before applying updates - merge with existing updates if any
+    const newUnlockedItems = [...(updates.unlockedItemsQueue || state.unlockedItemsQueue || [])];
     
     // 1. Check for Level Up Unlocks (Frames)
-    const newUnlockedFrames = [...(state.unlockedFrames || [])];
-    const newUnlockedTitles = [...(state.unlockedTitles || [])];
-    const newBadges = [...(state.badges || [])];
+    const newUnlockedFrames = [...(updates.unlockedFrames || state.unlockedFrames || [])];
+    const newUnlockedTitles = [...(updates.unlockedTitles || state.unlockedTitles || [])];
+    const newBadges = [...(updates.badges || state.badges || [])];
 
     if (updates.level && updates.level > state.level) {
       for (let lvl = state.level + 1; lvl <= updates.level; lvl++) {
@@ -202,6 +233,18 @@ export const useAppState = create<AppStore>((set, get) => ({
       }
     }
 
+    // 5. Auto-grant Elite to Zaiki if not already set
+    const isZaiki = activeUserEmail === 'zaikiwildan@gmail.com' || state.username.toLowerCase().includes('zaiki');
+    if (isZaiki) {
+      if (!state.isPremium) {
+        updates.isPremium = true;
+      }
+      if (!newBadges.includes('ELITE_ZONE')) {
+        newBadges.push('ELITE_ZONE');
+        newUnlockedItems.push({ type: 'badge', id: 'ELITE_ZONE' });
+      }
+    }
+
     if (newUnlockedFrames.length > (state.unlockedFrames?.length || 0)) {
       updates.unlockedFrames = newUnlockedFrames;
     }
@@ -216,30 +259,31 @@ export const useAppState = create<AppStore>((set, get) => ({
       updates.unlockedItemsQueue = newUnlockedItems;
     }
 
-    // Auto-grant Elite to Zaiki if not already set
-    if (!state.isPremium && (activeUserEmail === 'zaikiwildan@gmail.com' || state.username.toLowerCase().includes('zaiki'))) {
-      updates.isPremium = true;
-    }
-
-    const newState = { ...state, ...updates };
+    const ovrData = calculateOVR({ ...state, ...updates }, activeUserEmail);
+    const newState = { ...state, ...updates, ovr: ovrData.ovr, stats: ovrData.stats };
     set({ state: newState });
     localStorage.setItem(`lockin_user_${activeUserEmail}`, JSON.stringify(newState));
 
-    // Sync to Firestore if available
-    if (db && newState.userId) {
-      const userRef = doc(db, 'users', newState.userId);
-      // Calculate OVR for storage
-      const ovrData = calculateOVR(newState, activeUserEmail);
-      setDoc(userRef, { 
-        ...newState, 
-        ovr: ovrData.ovr,
-        stats: ovrData.stats,
-        lastUpdated: Date.now() 
-      }, { merge: true }).catch(err => {
-        console.error("Error syncing to Firestore:", err);
-      });
-    }
-  },
+      // Sync to Firestore if available - optimized with debounce/delay
+      if (db && newState.userId) {
+        const userRef = doc(db, 'users', newState.userId);
+        const dataToSync = sanitizeForFirestore({ 
+          ...newState, 
+          lastUpdated: Date.now() 
+        });
+        
+        // Use a global timeout to debounce Firestore writes
+        if ((window as any)._firestoreSyncTimeout) {
+          clearTimeout((window as any)._firestoreSyncTimeout);
+        }
+        
+        (window as any)._firestoreSyncTimeout = setTimeout(() => {
+          setDoc(userRef, dataToSync, { merge: true }).catch(err => {
+            console.error("Error syncing to Firestore:", err);
+          });
+        }, 1000); // 1 second debounce
+      }
+    },
 
   login: async (email, username, uid) => {
     const { setActiveUserEmail, setState } = get();
@@ -386,9 +430,13 @@ export const useAppState = create<AppStore>((set, get) => ({
     const types: MissionType[] = (['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] as MissionType[]).filter(t => t !== 'ROUTINE' || path === 'OTHER');
     
     types.forEach(type => {
-      const pool = [...(PATH_MISSIONS[path]?.[type] || []), ...(state.customMissions?.[type] || [])];
+      const typePool = PATH_MISSIONS[path]?.[type] || [];
+      const customKey = `${path}_${type}`;
+      const customPool = state.customMissions[customKey] || [];
+      const pool = [...typePool, ...customPool];
       
-      // For Routine, we take ALL of them. For others, we pick 3.
+      if (pool.length === 0) return;
+
       const count = type === 'ROUTINE' ? pool.length : 3;
       
       // Calculate weights for each mission in the pool
@@ -417,13 +465,17 @@ export const useAppState = create<AppStore>((set, get) => ({
       }
 
       selected.forEach(text => {
+        const scaledText = scaleMissionText(text, state.level);
+        const goal = extractGoal(scaledText);
         missions.push({
           id: Math.random().toString(36).substring(2, 9),
-          text: translateMissionText(scaleMissionText(text, state.level), state.language),
+          text: translateMissionText(scaledText, state.language),
           originalText: text,
           completed: false,
           type,
-          hasTimer: extractDuration(text) !== null
+          hasTimer: extractDuration(text) !== null,
+          goal: goal,
+          progress: goal ? 0 : undefined
         });
       });
     });
@@ -460,10 +512,17 @@ export const useAppState = create<AppStore>((set, get) => ({
   },
 
   completeMission: (id, options) => {
-    const { state, updateState, addNotification } = get();
+    const { state, updateState, addNotification, attackBoss } = get();
     if (!state) return;
 
-    const mission = state.missions.find(m => m.id === id);
+    let mission = state.missions.find(m => m.id === id);
+    let isBossTask = false;
+
+    if (!mission && state.bossState?.tasks) {
+      mission = state.bossState.tasks.find(m => m.id === id);
+      isBossTask = true;
+    }
+
     if (!mission || mission.completed) return;
 
     // Burst Limit Check
@@ -481,7 +540,11 @@ export const useAppState = create<AppStore>((set, get) => ({
 
     // Auto-replace regular missions immediately so there's always a fresh stream
     if (mission.type === 'REGULAR') {
-      const pool = [...(PATH_MISSIONS[state.chosenPath || 'PRODUCTIVE']?.['REGULAR'] || []), ...(state.customMissions?.['REGULAR'] || [])];
+      const path = state.chosenPath || 'PRODUCTIVE';
+      const typePool = PATH_MISSIONS[path]?.['REGULAR'] || [];
+      const customKey = `${path}_REGULAR`;
+      const customPool = state.customMissions[customKey] || [];
+      const pool = [...typePool, ...customPool];
       const currentMissions = state.missions.map(m => m.originalText);
       const filteredPool = pool.filter(t => !currentMissions.includes(t));
       
@@ -498,14 +561,21 @@ export const useAppState = create<AppStore>((set, get) => ({
           tempPool.splice(idx, 1);
         }
         
-        const newMissionsToAdd = selectedTexts.map(text => ({
-          id: Math.random().toString(36).substring(2, 9),
-          text: translateMissionText(scaleMissionText(text, state.level), state.language),
-          originalText: text,
-          completed: false,
-          type: 'REGULAR' as const,
-          hasTimer: extractDuration(text) !== null
-        }));
+        const newMissionsToAdd = selectedTexts.map(text => {
+          const isCustom = customPool.includes(text);
+          const scaledText = isCustom ? text : scaleMissionText(text, state.level);
+          const goal = extractGoal(scaledText);
+          return {
+            id: Math.random().toString(36).substring(2, 9),
+            text: translateMissionText(scaledText, state.language),
+            originalText: text,
+            completed: false,
+            type: 'REGULAR' as const,
+            hasTimer: extractDuration(text) !== null,
+            goal: goal,
+            progress: goal ? 0 : undefined
+          };
+        });
         
         // Remove the completed one and add the new ones
         newMissions = [
@@ -527,6 +597,7 @@ export const useAppState = create<AppStore>((set, get) => ({
     const appOpenTime = get().appOpenTime;
     if (now - appOpenTime < 2000) {
       xpGain = 1; // Minimal XP
+      coinGain = 1; // Minimal Coins
       integrityPenalty += 10;
       isPenaltyTriggered = true;
       const msg = state.language === 'id'
@@ -564,7 +635,8 @@ export const useAppState = create<AppStore>((set, get) => ({
       animatingLevelUp = true;
     }
 
-    if (animatingLevelUp) {
+    // Play sound immediately for better responsiveness
+    if (animatingLevelUp || mission.type === 'WEEKLY') {
       sounds.playLevelUp();
     } else {
       sounds.playMissionComplete();
@@ -661,10 +733,62 @@ export const useAppState = create<AppStore>((set, get) => ({
     const newBadges = [...state.badges];
     const newUnlockedItems = [...state.unlockedItemsQueue];
     
-    if (newMissionsCompleted === 1 && !newBadges.includes('FIRST_STEP')) {
-      newBadges.push('FIRST_STEP');
-      newUnlockedItems.push({ type: 'badge', id: 'FIRST_STEP' });
+    const checkBadge = (badgeId: string, condition: boolean) => {
+      if (condition && !newBadges.includes(badgeId)) {
+        newBadges.push(badgeId);
+        newUnlockedItems.push({ type: 'badge', id: badgeId });
+      }
+    };
+
+    checkBadge('FIRST_STEP', newMissionsCompleted === 1);
+    checkBadge('DOUBLE_TROUBLE', newDailyStats[today] >= 2);
+    checkBadge('TRIPLE_THREAT', newDailyStats[today] >= 3);
+    checkBadge('DEDICATED', newMissionsCompleted >= 5);
+    checkBadge('TENACIOUS', newMissionsCompleted >= 10);
+    
+    const nowDate = new Date();
+    const hour = nowDate.getHours();
+    checkBadge('AFTERNOON_HUSTLE', hour >= 12 && hour < 17);
+    checkBadge('NIGHT_OWL', hour >= 22 || hour < 4);
+    checkBadge('EARLY_BIRD', hour >= 4 && hour < 7);
+    
+    const day = nowDate.getDay();
+    checkBadge('WEEKEND_WARRIOR', day === 0 || day === 6);
+    
+    checkBadge('STREAK_3', newStreak >= 3);
+    checkBadge('STREAK_7', newStreak >= 7);
+    checkBadge('STREAK_30', newStreak >= 30);
+    
+    checkBadge('LEVEL_10', newLevel >= 10);
+    checkBadge('LEVEL_25', newLevel >= 25);
+    checkBadge('LEVEL_50', newLevel >= 50);
+    checkBadge('ELITE_ZONE', state.isPremium);
+    
+    const allWeeklyCompleted = newMissions.filter(m => m.type === 'WEEKLY').length > 0 && 
+                               newMissions.filter(m => m.type === 'WEEKLY').every(m => m.completed);
+    
+    if (allWeeklyCompleted || (isBossTask && state.bossState?.tasks?.every((t: Mission) => t.completed || t.id === id))) {
+      checkBadge('DISCIPLINED', true);
     }
+
+    // Title Acquisition Logic
+    const newUnlockedTitles = [...(state.unlockedTitles || [])];
+    const checkTitle = (titleId: string, condition: boolean) => {
+      if (condition && !newUnlockedTitles.includes(titleId)) {
+        newUnlockedTitles.push(titleId);
+        newUnlockedItems.push({ type: 'title', id: titleId });
+      }
+    };
+
+    checkTitle('The Early Bird', hour >= 4 && hour < 7);
+    checkTitle('Night Owl', hour >= 21 || hour < 4); // Start at 9 PM instead of 10 PM
+    checkTitle('Unstoppable', newStreak >= 5);
+    checkTitle('Legend', newStreak >= 30);
+    checkTitle('Veteran', newLevel >= 10);
+    checkTitle('Master', newLevel >= 50);
+    checkTitle('Elite Zone', state.isPremium);
+    if (state.shareCount >= 5) checkTitle('Supporter', true);
+    if (state.beatenRivals && state.beatenRivals.length > 0) checkTitle('Rival Crusher', true);
 
     // Update mission affinity (increase weight for completed category)
     const newMissionAffinity = { ...state.missionAffinity };
@@ -699,21 +823,44 @@ export const useAppState = create<AppStore>((set, get) => ({
       missionsCompleted: newMissionsCompleted,
       zoneCoins: newCoins,
       badges: newBadges,
+      unlockedTitles: newUnlockedTitles,
       unlockedItemsQueue: newUnlockedItems,
       missionAffinity: newMissionAffinity,
       showStreakAnimation: newStreak > state.streak
     });
+
+    if (isBossTask) {
+      get().attackBoss(id);
+    }
   },
 
   replaceMission: (id) => {
     const { state, updateState, addNotification } = get();
     if (!state) return;
 
-    const mission = state.missions.find(m => m.id === id);
+    let mission = state.missions.find(m => m.id === id);
+    let isBossTask = false;
+
+    if (!mission && state.bossState?.tasks) {
+      mission = state.bossState.tasks.find(m => m.id === id);
+      isBossTask = true;
+    }
+
     if (!mission || mission.completed) return;
 
-    const pool = [...(PATH_MISSIONS[state.chosenPath || 'PRODUCTIVE']?.[mission.type] || []), ...(state.customMissions?.[mission.type] || [])];
-    let filteredPool = pool.filter(t => !state.missions.some(m => m.originalText === t));
+    const missionType = mission.type;
+    const path = state.chosenPath || 'PRODUCTIVE';
+    const typePool = PATH_MISSIONS[path]?.[missionType] || [];
+    const customKey = `${path}_${missionType}`;
+    const customPool = state.customMissions[customKey] || [];
+    const pool = [...typePool, ...customPool];
+    
+    // Filter out missions already present in current missions or boss tasks
+    const currentMissions = [
+      ...state.missions.map(m => m.originalText),
+      ...(state.bossState?.tasks?.map(m => m.originalText) || [])
+    ];
+    let filteredPool = pool.filter(t => !currentMissions.includes(t));
     
     // If filtered pool is empty but pool has items, just pick any from pool except the current one
     if (filteredPool.length === 0 && pool.length > 1) {
@@ -732,29 +879,100 @@ export const useAppState = create<AppStore>((set, get) => ({
     }
     
     const newText = filteredPool[Math.floor(Math.random() * filteredPool.length)];
+    const isCustom = customPool.includes(newText);
+    const scaledText = isCustom ? newText : scaleMissionText(newText, state.level);
+    const translatedText = translateMissionText(scaledText, state.language);
+    const goal = extractGoal(scaledText);
 
-    const newMissions = state.missions.map(m => 
-      m.id === id ? {
-        ...m,
-        id: Math.random().toString(36).substring(2, 9),
-        text: translateMissionText(scaleMissionText(newText, state.level), state.language),
-        originalText: newText,
-        hasTimer: extractDuration(newText) !== null
-      } : m
-    );
+    if (isBossTask) {
+      const newBossTasks = state.bossState!.tasks!.map(m => 
+        m.id === id ? {
+          ...m,
+          id: Math.random().toString(36).substring(2, 9),
+          text: translatedText,
+          originalText: newText,
+          hasTimer: extractDuration(newText) !== null,
+          goal: goal,
+          progress: goal ? 0 : undefined
+        } : m
+      );
+      updateState({
+        bossState: {
+          ...state.bossState!,
+          tasks: newBossTasks
+        }
+      });
+    } else {
+      const newMissions = state.missions.map(m => 
+        m.id === id ? {
+          ...m,
+          id: Math.random().toString(36).substring(2, 9),
+          text: translatedText,
+          originalText: newText,
+          hasTimer: extractDuration(newText) !== null,
+          goal: goal,
+          progress: goal ? 0 : undefined
+        } : m
+      );
 
-    // Update mission affinity (decrease weight for skipped category)
-    const category = analyzeMissionPath(mission.originalText || mission.text);
-    const currentAffinity = state.missionAffinity?.[category] || 1.0;
-    const newAffinity = Math.max(0.1, currentAffinity - 0.2); // Min weight 0.1
+      // Update mission affinity (decrease weight for skipped category)
+      const category = analyzeMissionPath(mission.originalText || mission.text);
+      const currentAffinity = state.missionAffinity?.[category] || 1.0;
+      const newAffinity = Math.max(0.1, currentAffinity - 0.2); // Min weight 0.1
 
-    updateState({
-      missions: newMissions,
-      missionAffinity: {
-        ...state.missionAffinity,
-        [category]: newAffinity
-      }
-    });
+      updateState({
+        missions: newMissions,
+        missionAffinity: {
+          ...state.missionAffinity,
+          [category]: newAffinity
+        }
+      });
+    }
+  },
+
+  updateMissionProgress: (id, increment) => {
+    const { state, updateState, completeMission } = get();
+    if (!state) return;
+
+    let mission = state.missions.find(m => m.id === id);
+    let isBossTask = false;
+
+    if (!mission && state.bossState?.tasks) {
+      mission = state.bossState.tasks.find(m => m.id === id);
+      isBossTask = true;
+    }
+
+    if (!mission || mission.completed || mission.goal === undefined) return;
+
+    const currentProgress = mission.progress || 0;
+    const newProgress = Math.min(mission.goal, currentProgress + increment);
+    
+    // Prevent redundant updates if progress hasn't changed
+    if (newProgress === currentProgress) return;
+
+    if (isBossTask) {
+      const newBossTasks = state.bossState!.tasks!.map(m => 
+        m.id === id ? { ...m, progress: newProgress } : m
+      );
+      updateState({
+        bossState: {
+          ...state.bossState!,
+          tasks: newBossTasks
+        }
+      });
+    } else {
+      const newMissions = state.missions.map(m => 
+        m.id === id ? { ...m, progress: newProgress } : m
+      );
+      updateState({ missions: newMissions });
+    }
+
+    if (newProgress >= mission.goal) {
+      // Don't auto-complete, user must hold button
+      sounds.playTing();
+    } else {
+      sounds.playTing();
+    }
   },
 
   changePath: (path) => {
@@ -763,13 +981,9 @@ export const useAppState = create<AppStore>((set, get) => ({
 
     if (state.chosenPath) {
       const currentProgress: PathProgress = {
-        xp: state.xp,
-        level: state.level,
         missions: state.missions,
         lastMissionDate: state.lastMissionDate,
         lastWeeklyDate: state.lastWeeklyDate,
-        badges: state.badges,
-        highestRankAchieved: state.highestRankAchieved
       };
       
       const newPathProgress = { ...state.pathProgress, [state.chosenPath]: currentProgress };
@@ -778,8 +992,6 @@ export const useAppState = create<AppStore>((set, get) => ({
       if (savedProgress) {
         updateState({
           chosenPath: path,
-          xp: savedProgress.xp,
-          level: savedProgress.level,
           missions: savedProgress.missions,
           lastMissionDate: savedProgress.lastMissionDate,
           lastWeeklyDate: savedProgress.lastWeeklyDate,
@@ -788,8 +1000,6 @@ export const useAppState = create<AppStore>((set, get) => ({
       } else {
         updateState({
           chosenPath: path,
-          xp: 0,
-          level: 1,
           pathProgress: newPathProgress
         });
         generateMissions(path);
@@ -804,19 +1014,25 @@ export const useAppState = create<AppStore>((set, get) => ({
     const { state, updateState } = get();
     if (!state) return;
     if (type === 'ROUTINE' && state.chosenPath !== 'OTHER') return;
-    const current = state.customMissions[type] || [];
+    
+    const path = state.chosenPath || 'DISCIPLINE';
+    const key = `${path}_${type}`;
+    const current = state.customMissions[key] || [];
     const newCustomMissions = {
       ...state.customMissions,
-      [type]: [...current, text]
+      [key]: [...current, text]
     };
 
+    const goal = extractGoal(text);
     const newMission = {
       id: Math.random().toString(36).substring(2, 9),
-      text: translateMissionText(scaleMissionText(text, state.level), state.language),
+      text: translateMissionText(text, state.language),
       originalText: text,
       completed: false,
       type,
-      hasTimer: extractDuration(text) !== null
+      hasTimer: extractDuration(text) !== null,
+      goal: goal,
+      progress: goal ? 0 : undefined
     };
 
     let newMissions = [...state.missions];
@@ -849,10 +1065,12 @@ export const useAppState = create<AppStore>((set, get) => ({
   removeCustomMission: (type, text) => {
     const { state, updateState } = get();
     if (!state) return;
-    const current = state.customMissions[type] || [];
+    const path = state.chosenPath || 'DISCIPLINE';
+    const key = `${path}_${type}`;
+    const current = state.customMissions[key] || [];
     const newCustomMissions = {
       ...state.customMissions,
-      [type]: current.filter(t => t !== text)
+      [key]: current.filter(t => t !== text)
     };
 
     const newMissions = state.missions.filter(m => !(m.originalText === text && m.type === type && !m.completed));
@@ -861,6 +1079,12 @@ export const useAppState = create<AppStore>((set, get) => ({
       customMissions: newCustomMissions,
       missions: newMissions
     });
+  },
+
+  clearCustomMissions: () => {
+    const { state, updateState } = get();
+    if (!state) return;
+    updateState({ customMissions: {} });
   },
 
   dismissUnlockedItem: () => {
@@ -927,6 +1151,26 @@ export const useAppState = create<AppStore>((set, get) => ({
     updateState({ shareCount: state.shareCount + 1 });
   },
 
+  checkBossReset: () => {
+    const { state, updateState } = get();
+    if (!state || !state.bossState) return;
+    
+    const today = new Date();
+    const isMonday = today.getDay() === 1;
+    
+    // If it's not Monday and boss is active, reset it to idle
+    if (!isMonday && state.bossState.status === 'active') {
+      updateState({
+        bossState: {
+          ...state.bossState,
+          status: 'idle',
+          isActive: false,
+          tasks: []
+        }
+      });
+    }
+  },
+  
   triggerBoss: () => {
     const { state, updateState } = get();
     if (!state) return;
@@ -937,13 +1181,20 @@ export const useAppState = create<AppStore>((set, get) => ({
     const pool = PATH_MISSIONS[state.chosenPath || 'DISCIPLINE']?.WEEKLY || PATH_MISSIONS.DISCIPLINE.WEEKLY;
     const selected = [...pool].sort(() => 0.5 - Math.random()).slice(0, 3);
     
-    const bossTasks = selected.map((text, i) => ({
-      id: `boss-task-${Date.now()}-${i}`,
-      text,
-      completed: false,
-      type: 'WEEKLY' as MissionType,
-      path: state.chosenPath || 'DISCIPLINE'
-    }));
+    const bossTasks = selected.map((text, i) => {
+      const scaledText = scaleMissionText(text, state.level);
+      const goal = extractGoal(scaledText);
+      return {
+        id: `boss-task-${Date.now()}-${i}`,
+        text: translateMissionText(scaledText, state.language),
+        originalText: text,
+        completed: false,
+        type: 'WEEKLY' as MissionType,
+        path: state.chosenPath || 'DISCIPLINE',
+        goal: goal,
+        progress: goal ? 0 : undefined
+      };
+    });
     
     // Weekly color logic
     const colors = ['#F43F5E', '#8B5CF6', '#10B981', '#F59E0B', '#3B82F6'];
@@ -1026,7 +1277,7 @@ export const useAppState = create<AppStore>((set, get) => ({
     if (animatingLevelUp) {
       sounds.playLevelUp();
     } else {
-      sounds.playMissionComplete();
+      sounds.playVictory();
     }
     
     updateState({
@@ -1085,6 +1336,41 @@ export const useAppState = create<AppStore>((set, get) => ({
     }
   },
 
+  checkAllTitles: () => {
+    const { state, updateState } = get();
+    if (!state) return;
+
+    const newUnlockedTitles = [...(state.unlockedTitles || [])];
+    const newUnlockedItems = [...(state.unlockedItemsQueue || [])];
+    const now = new Date();
+    const hour = now.getHours();
+
+    const checkTitle = (titleId: string, condition: boolean) => {
+      if (condition && !newUnlockedTitles.includes(titleId)) {
+        newUnlockedTitles.push(titleId);
+        newUnlockedItems.push({ type: 'title', id: titleId });
+      }
+    };
+
+    checkTitle('The Early Bird', hour >= 4 && hour < 7);
+    checkTitle('Night Owl', hour >= 21 || hour < 4); // Start at 9 PM instead of 10 PM
+    checkTitle('Unstoppable', state.streak >= 5);
+    checkTitle('Legend', state.streak >= 30);
+    checkTitle('Veteran', state.level >= 10);
+    checkTitle('Master', state.level >= 50);
+    checkTitle('Elite Zone', state.isPremium);
+    if (state.shareCount >= 5) checkTitle('Supporter', true);
+    if (state.beatenRivals && state.beatenRivals.length > 0) checkTitle('Rival Crusher', true);
+
+    if (newUnlockedTitles.length !== (state.unlockedTitles || []).length) {
+      updateState({
+        unlockedTitles: newUnlockedTitles,
+        titles: newUnlockedTitles,
+        unlockedItemsQueue: newUnlockedItems
+      });
+    }
+  },
+
   requestNotificationPermission: () => {
     if (typeof window !== 'undefined' && 'Notification' in window && (Notification as any).permission === 'default') {
       try {
@@ -1117,7 +1403,7 @@ export const useAppState = create<AppStore>((set, get) => ({
   }
 }));
 
-export type PathType = 'PRODUCTIVE' | 'STRONGER' | 'EXTROVERT' | 'DISCIPLINE' | 'MENTAL_HEALTH' | 'OTHER';
+export type PathType = 'PRODUCTIVE' | 'STRONGER' | 'SOCIAL' | 'DISCIPLINE' | 'MENTAL_HEALTH' | 'OTHER';
 export type MissionType = 'REGULAR' | 'DAILY' | 'WEEKLY' | 'ROUTINE';
 
 export interface Mission {
@@ -1127,6 +1413,8 @@ export interface Mission {
   completed: boolean;
   type: MissionType;
   hasTimer?: boolean;
+  progress?: number;
+  goal?: number;
 }
 
 export function getTodayISO(): string {
@@ -1145,7 +1433,7 @@ export function extractDuration(text: string): number | null {
   if (hoursMatch) return parseFloat(hoursMatch[1].replace(',', '.')) * 3600;
 
   // Minutes: minutes, minute, mins, min, menit, mnt
-  const minutesMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*(minutes?|mins?|min|menit|mnt)\b/i);
+  const minutesMatch = text.match(/(\d+(?:[.,]\d+)?)[\s-]*(minutes?|minute|mins?|min|menit|mnt)\b/i);
   if (minutesMatch) return parseFloat(minutesMatch[1].replace(',', '.')) * 60;
 
   // Seconds: seconds, second, secs, sec, detik, dtk, dkt
@@ -1153,6 +1441,23 @@ export function extractDuration(text: string): number | null {
   if (secondsMatch) return parseFloat(secondsMatch[1].replace(',', '.'));
 
   return null;
+}
+
+export function extractGoal(text: string): number | undefined {
+  // If it has a timer, we don't use a progress bar
+  if (extractDuration(text)) return undefined;
+
+  // Look for numbers in the text
+  const match = text.match(/(\d+(?:[.,]\d+)?)/);
+  if (match) {
+    const val = parseFloat(match[1].replace(',', '.'));
+    // Only treat as goal if > 1 to avoid "1 book" being a progress mission
+    // But the user wants ALL non-timer missions to have a bar, so we return val if > 0
+    if (val > 0) return val;
+  }
+  
+  // No number found, return undefined so no progress bar is shown
+  return undefined;
 }
 
 export function translateMissionText(text: string, lang: 'en' | 'id'): string {
@@ -1182,13 +1487,9 @@ export function scaleMissionText(text: string, level: number): string {
 }
 
 export interface PathProgress {
-  xp: number;
-  level: number;
   missions: Mission[];
   lastMissionDate: string;
   lastWeeklyDate: string;
-  badges: string[];
-  highestRankAchieved: string;
 }
 
 export interface UnlockedItem {
@@ -1248,7 +1549,7 @@ export interface UserState {
   unlockedTitles: string[];
   equippedTitle: string | null;
   hasPromptedPfp: boolean;
-  customMissions: Record<MissionType, string[]>;
+  customMissions: Record<string, string[]>; // Key is path_type (e.g., PRODUCTIVE_REGULAR)
   unlockedItemsQueue: UnlockedItem[];
   shareCount: number;
   isProfilePublic: boolean;
@@ -1276,6 +1577,7 @@ export interface UserState {
   consecutiveCleanMissions: number;
   baseStats: Record<string, number>;
   stats?: Record<string, number>;
+  ovr?: number;
   notificationsEnabled: boolean;
   notificationTime: string;
   preferredChartType?: 'bar' | 'line';
@@ -1411,14 +1713,12 @@ export function calculateOVR(state: UserState, activeUserEmail?: string | null) 
   if (!state) return { ovr: 44, stats: { physical: 40, discipline: 40, mental: 40, ambition: 40, intellect: 40, social: 40, other: 40 } };
 
   const getPathScore = (path: PathType, statKey: string) => {
-    const p = state.chosenPath === path 
-      ? { level: state.level || 1, xp: state.xp || 0 } 
-      : (state.pathProgress?.[path] || { level: 1, xp: 0 });
+    // Level and XP are now global
+    const level = Number(state.level) || 1;
+    const xp = Number(state.xp) || 0;
     
     // Ensure numeric values to prevent NaN
     const base = Number(state.baseStats?.[statKey]) || 0;
-    const level = Number(p?.level) || 1;
-    const xp = Number(p?.xp) || 0;
     
     return Math.floor(Math.min(99, 40 + base + (level * 1.5) + (xp / 100)));
   };
@@ -1426,7 +1726,7 @@ export function calculateOVR(state: UserState, activeUserEmail?: string | null) 
   const physical = getPathScore('STRONGER', 'physical');
   const mental = getPathScore('MENTAL_HEALTH', 'mental');
   const intellect = getPathScore('PRODUCTIVE', 'intellect');
-  const social = getPathScore('EXTROVERT', 'social');
+  const social = getPathScore('SOCIAL', 'social');
   const other = getPathScore('OTHER', 'other');
   
   // Discipline: streak
@@ -1434,16 +1734,9 @@ export function calculateOVR(state: UserState, activeUserEmail?: string | null) 
   const streak = Number(state.streak) || 0;
   const discipline = Math.floor(Math.min(99, 40 + baseDiscipline + (streak * 1.5)));
 
-  // Ambition: total levels across all paths + badges
+  // Ambition: level + badges
   const baseAmbition = Number(state.baseStats?.['ambition']) || 0;
-  let totalLevels = Number(state.level) || 1;
-  if (state.pathProgress) {
-    Object.keys(state.pathProgress).forEach(k => {
-      if (k !== state.chosenPath) {
-        totalLevels += Number(state.pathProgress?.[k as PathType]?.level) || 1;
-      }
-    });
-  }
+  const totalLevels = Number(state.level) || 1;
   const badgesCount = Array.isArray(state.badges) ? state.badges.length : 0;
   const ambition = Math.floor(Math.min(99, 40 + baseAmbition + (totalLevels * 1.5) + (badgesCount * 1.5)));
 
@@ -1475,7 +1768,7 @@ export const PATH_QUOTES: Record<PathType, string[]> = {
     "The hard days are the best because that's when champions are made.",
     "Strength does not come from physical capacity. It comes from an indomitable will."
   ],
-  EXTROVERT: [
+  SOCIAL: [
     "A comfort zone is a beautiful place, but nothing ever grows there.",
     "Every friend was once a stranger.",
     "Life shrinks or expands in proportion to one's courage."
@@ -1498,7 +1791,7 @@ export const PATH_QUOTES: Record<PathType, string[]> = {
 };
 
 export const createDefaultState = (username: string, email?: string, uid?: string): UserState => {
-  const isZaiki = email === 'zaikiwildan@gmail.com';
+  const isZaiki = email === 'zaikiwildan@gmail.com' || username.toLowerCase().includes('zaiki');
   
   return {
     dataVersion: 2,
@@ -1514,7 +1807,8 @@ export const createDefaultState = (username: string, email?: string, uid?: strin
     missions: [],
     lastMissionDate: '',
     lastWeeklyDate: '',
-    badges: [],
+    badges: isZaiki ? ['ELITE_ZONE'] : [],
+    isPremium: isZaiki,
     highestRankAchieved: 'Bronze',
     language: 'en',
     pathProgress: {},
@@ -1531,12 +1825,7 @@ export const createDefaultState = (username: string, email?: string, uid?: strin
     unlockedTitles: ['Newbie'],
     equippedTitle: 'Newbie',
     hasPromptedPfp: false,
-    customMissions: {
-      REGULAR: [],
-      DAILY: [],
-      WEEKLY: [],
-      ROUTINE: []
-    },
+    customMissions: {},
     unlockedItemsQueue: [],
     shareCount: 0,
     isProfilePublic: true,
@@ -1555,7 +1844,6 @@ export const createDefaultState = (username: string, email?: string, uid?: strin
     doubleXpActiveUntil: null,
     doubleCoinPotions: 0,
     doubleCoinActiveUntil: null,
-    isPremium: isZaiki,
     shownNotifications: [],
     lastRestNotificationTime: 0,
     recentCompletions: [],
@@ -1593,7 +1881,7 @@ export const createDefaultState = (username: string, email?: string, uid?: strin
     missionAffinity: {
       PRODUCTIVE: 1.0,
       STRONGER: 1.0,
-      EXTROVERT: 1.0,
+      SOCIAL: 1.0,
       DISCIPLINE: 1.0,
       MENTAL_HEALTH: 1.0,
       OTHER: 1.0
@@ -1604,74 +1892,73 @@ export const createDefaultState = (username: string, email?: string, uid?: strin
 const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
   PRODUCTIVE: {
     REGULAR: [
-      "Read a self-help article", "Organize your files for 5 minutes", "Plan your week for 15 minutes",
-      "Write down 3 priorities for today", "Clear your email inbox for 10 minutes", "Declutter your workspace for 5 minutes",
-      "Listen to an educational podcast", "Watch a tutorial on a new tool", "Brainstorm ideas for 10 minutes",
-      "Review your monthly goals for 5 minutes", "Update your to-do list for 5 minutes", "Unsubscribe from 3 useless emails",
-      "Organize your computer desktop for 5 minutes", "Read 1 chapter of a non-fiction book", "Plan your meals for 10 minutes",
-      "Write a journal entry about your progress", "Delete unused apps from your phone", "Set a timer for 15 mins and focus on one task",
-      "Review your budget for 15 minutes", "Spend 10 minutes creating a morning routine",
-      "Write a quick summary of your day", "Delete 5 unnecessary files", "Organize your bookmarks for 5 minutes", 
-      "Set a timer for 10 mins and clean", "Write down 3 things to do tomorrow", "Check your calendar for 5 minutes", 
+      "Read a self-help article", "Organize your files", "Plan your week",
+      "Write down 3 priorities for today", "Clear your email inbox", "Declutter your workspace",
+      "Listen to an educational podcast", "Watch a tutorial on a new tool", "Brainstorm ideas",
+      "Review your monthly goals", "Update your to-do list", "Unsubscribe from 3 useless emails",
+      "Organize your computer desktop", "Read 1 chapter of a non-fiction book", "Plan your meals",
+      "Write a journal entry about your progress", "Delete unused apps from your phone", "Focus on one task for 15 minutes",
+      "Review your budget", "Create a morning routine",
+      "Write a quick summary of your day", "Delete 5 unnecessary files", "Organize your bookmarks", 
+      "Clean your room", "Write down 3 things to do tomorrow", "Check your calendar", 
       "Unsubscribe from 1 promotional text", "Clear your browser cache", "Read 1 article about productivity", 
       "Plan a reward for completing a task",
-      "Update your passwords for 10 minutes", "Clear your downloads folder for 5 minutes", "Read 1 page of a book", 
-      "Write down 1 idea", "Organize your phone apps for 5 minutes", "Delete 10 old photos", 
-      "Set a new wallpaper", "Clean your keyboard for 2 minutes", "Wipe your monitor for 1 minute", 
-      "Empty your physical trash bin", "Sort your mail for 5 minutes", "Pay a bill", 
-      "Check your bank balance", "Write a thank you note", "Plan your weekend for 10 minutes", 
-      "Review your subscriptions for 5 minutes", "Cancel 1 unused subscription", "Update your contacts for 10 minutes", 
-      "Back up your phone", "Clean your wallet for 5 minutes"
+      "Update your passwords", "Clear your downloads folder", "Read 1 page of a book", 
+      "Write down 1 idea", "Organize your phone apps", "Delete 10 old photos", 
+      "Set a new wallpaper", "Clean your keyboard", "Wipe your monitor", 
+      "Empty your physical trash bin", "Sort your mail", "Pay a bill", 
+      "Check your bank balance", "Write a thank you note", "Plan your weekend", 
+      "Review your subscriptions", "Cancel 1 unused subscription", "Update your contacts", 
+      "Back up your phone", "Clean your wallet"
     ],
     DAILY: [
-      "30 minutes study focus", "Clean desk for 5 minutes", "Write tomorrow's goal",
+      "30 minutes study focus", "Clean desk", "Write tomorrow's goal",
       "Wake up at your target time", "Read for 20 minutes", "No phone for the first hour after waking up",
-      "Complete your most important task first", "Drink a glass of water upon waking", "Review your daily schedule for 5 minutes",
-      "Spend 10 minutes learning a language", "Write down one thing you learned today", "Do a 5-minute end-of-day review",
-      "Spend 5 minutes preparing clothes for tomorrow", "Limit social media to 30 minutes", "Take a 15-minute screen break",
-      "Practice typing for 10 minutes", "Listen to an audiobook during commute", "Keep your phone in another room while working",
-      "Track your expenses for 5 minutes", "Do a 10-minute brain dump",
-      "Listen to an inspiring talk for 15 minutes", "Spend 15 minutes planning", "Do 1 hour of focused work", 
-      "Review your long-term goals for 10 minutes", "Write a reflection for 5 minutes",
-      "Read 1 article (5 mins)", "Listen to 1 podcast episode (20 mins)", "Watch 1 educational video (10 mins)", 
-      "Write 500 words (30 mins)", "Study for 20 minutes", "Review flashcards for 10 minutes", 
-      "Practice a musical instrument for 10 mins", "Code for 30 mins", "Draw for 15 mins", 
+      "Complete your most important task first", "Drink a glass of water upon waking", "Review your daily schedule",
+      "Spend 10 minutes learning a language", "Write down one thing you learned today", "Do a end-of-day review",
+      "Prepare clothes for tomorrow", "Limit social media to 30 minutes", "Take a 15-minute screen break",
+      "Practice typing", "Listen to an audiobook during commute", "Keep your phone in another room while working",
+      "Track your expenses", "Do a brain dump",
+      "Listen to an inspiring talk", "Spend 15 minutes planning", "Do 1 hour of focused work", 
+      "Review your long-term goals", "Write a reflection",
+      "Read 1 article", "Listen to 1 podcast episode", "Watch 1 educational video", 
+      "Write 500 words", "Study for 20 minutes", "Review flashcards", 
+      "Practice a musical instrument", "Code for 30 mins", "Draw for 15 mins", 
       "Write down 3 things you accomplished", "Plan tomorrow's meals", "Drink green tea", 
-      "Take a 5-minute stretch break", "Do 10 minutes of deep breathing", "Write down your top priority", 
+      "Take a stretch break", "Do 10 minutes of deep breathing", "Write down your top priority", 
       "Avoid multitasking for 1 hour", "Do 1 Pomodoro session (25 mins)", "Turn off phone for 30 mins", 
-      "Read a newsletter (5 mins)", "Review your daily budget"
+      "Read a newsletter", "Review your daily budget"
     ],
     WEEKLY: [
-      "Read a book for 120 minutes", "Review weekly goals for 15 minutes", "Learn a new skill for 30 minutes",
-      "Deep clean your room for 60 minutes", "Plan next week for 20 minutes", "Weekly financial review for 30 minutes",
+      "Read a book for 120 minutes", "Review weekly goals", "Learn a new skill",
+      "Deep clean your room", "Plan next week", "Weekly financial review",
       "Back up your computer files", "Clean out your fridge", "Wash your bed sheets",
-      "Spend 2 hours on a personal project", "Listen to a 1-hour educational lecture", "Organize your digital photos for 30 minutes",
-      "Update your resume for 60 minutes", "Meal prep for 120 minutes", "Evaluate last week for 15 minutes",
-      "Organize your workspace for 30 minutes", "Review monthly budget for 20 minutes", "Plan a project for 30 minutes", 
-      "Read 2 chapters of a book", "Weekly brain dump for 15 minutes",
+      "Spend 2 hours on a personal project", "Listen to a 1-hour educational lecture", "Organize your digital photos",
+      "Update your resume", "Meal prep", "Evaluate last week",
+      "Organize your workspace", "Review monthly budget", "Plan a project", 
+      "Read 2 chapters of a book", "Weekly brain dump",
       "Read 3 chapters of a book", "Study course for 60 minutes", "Write a blog post", 
-      "Update LinkedIn for 30 minutes", "Network with 1 person", "Attend a webinar", 
-      "Clean your car for 30 minutes", "Do all your laundry for 60 minutes", "Iron clothes for 20 minutes", 
-      "Vacuum your room for 10 minutes", "Mop the floors for 15 minutes", "Clean the bathroom for 20 minutes", 
-      "Organize your closet for 30 minutes", "Donate old clothes", "Plan a trip for 60 minutes", 
-      "Review your monthly goals", "Set next month's goals for 20 minutes", "Create a vision board for 60 minutes", 
+      "Update LinkedIn", "Network with 1 person", "Attend a webinar", 
+      "Clean your car", "Do all your laundry", "Iron clothes", 
+      "Vacuum your room", "Mop the floors", "Clean the bathroom", 
+      "Organize your closet", "Donate old clothes", "Plan a trip", 
+      "Review your monthly goals", "Set next month's goals", "Create a vision board", 
       "Read a biography", "Watch a documentary"
     ],
     ROUTINE: []
   },
   STRONGER: {
     REGULAR: [
-      "Do 10 squats", "Stretch for 5 minutes", "Hold a plank for 30 seconds",
+      "Do 10 squats", "Stretch", "Hold a plank for 30 seconds",
       "Do 15 jumping jacks", "Do 10 lunges per leg", "Do 10 push-ups",
       "Do 20 calf raises", "Do a 1-minute wall sit", "Do 15 crunches",
-      "Do 10 burpees", "Stretch your hamstrings for 2 minutes", "Do arm circles for 1 minute",
+      "Do 10 burpees", "Stretch your hamstrings", "Do arm circles",
       "Do 20 high knees", "Do 15 glute bridges", "Do a 30-second side plank (each side)",
-      "Do 10 tricep dips", "Do 20 mountain climbers", "Stretch your shoulders for 2 minutes",
+      "Do 10 tricep dips", "Do 20 mountain climbers", "Stretch your shoulders",
       "Do 15 bicycle crunches", "Do 10 jump squats",
-      "Do 20 jumping jacks", "Do 15 squats", "Hold a plank for 45 seconds", 
-      "Stretch your back for 2 minutes", "Do 10 lunges", "Do 15 calf raises", 
-      "Do 10 push-ups", "Do a 30-second wall sit", "Stretch your arms for 2 minutes", 
-      "Do 20 high knees",
+      "Do 15 squats", "Hold a plank for 45 seconds", 
+      "Stretch your back", "Do 10 lunges", "Do 15 calf raises", 
+      "Do a 30-second wall sit", "Stretch your arms", 
       "Do 10 shoulder taps", "Do 15 inchworms", "Do 20 butt kicks", 
       "Do 10 tuck jumps", "Do 15 dips", "Do 20 sit-ups", 
       "Do 10 Russian twists", "Do a 1-minute plank", "Do 15 leg raises", 
@@ -1683,15 +1970,15 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
     DAILY: [
       "20 push-ups", "Drink 2 liters of water", "Hold a wall sit for 60 seconds",
       "Walk 10,000 steps", "Eat 2 servings of vegetables", "Eat 1 serving of fruit",
-      "Sleep for 8 hours", "Do a 15-minute workout", "Stretch for 10 minutes before bed",
-      "Avoid sugary drinks", "Eat a high-protein breakfast", "Take the stairs instead of the elevator",
+      "Sleep for 8 hours", "Do a 15-minute workout", "Stretch before bed",
+      "Avoid sugary drinks", "Eat a high-protein breakfast", "Take the stairs",
       "Do 50 squats throughout the day", "Do a 10-minute core workout", "Avoid processed foods",
-      "Drink a glass of water before each meal", "Do a 5-minute mobility routine", "Stand up and walk every hour",
+      "Drink a glass of water before each meal", "Do a mobility routine", "Stand up and walk every hour",
       "Eat a healthy snack", "Do 30 push-ups throughout the day",
       "Drink 3 liters of water", "Eat a healthy breakfast", "Do a 20-minute workout", 
-      "Stretch for 10 minutes", "Walk 8,000 steps",
+      "Walk 8,000 steps",
       "Drink 4 liters of water", "Eat 3 servings of vegetables", "Eat 2 servings of fruit", 
-      "Get 9 hours of sleep", "Do a 30-minute workout", "Stretch for 15 minutes", 
+      "Get 9 hours of sleep", "Do a 30-minute workout", "Stretch", 
       "Walk 12,000 steps", "Take a cold plunge", "Do a 10-minute HIIT", 
       "Do a 20-minute yoga", "Eat a healthy lunch", "Eat a healthy dinner", 
       "Avoid sugar for the day", "Avoid fried food", "Avoid alcohol", 
@@ -1699,24 +1986,24 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Do 50 lunges", "Do 50 jumping jacks"
     ],
     WEEKLY: [
-      "Go for a 5km run", "Meal prep for 3 days", "Try a new workout for 30 minutes",
+      "Go for a 5km run", "Meal prep for 3 days", "Try a new workout",
       "Do a 1-hour strength training session", "Go for a 1-hour hike or walk", "Do a 30-minute yoga session",
-      "Try a new healthy recipe for 45 minutes", "Do a HIIT workout for 20 minutes", "Go swimming or cycling for 45 minutes",
-      "Full-body stretch for 20 minutes", "Track your macros for 3 days", "Do 100 push-ups in one day",
+      "Try a new healthy recipe", "Do a HIIT workout for 20 minutes", "Go swimming or cycling",
+      "Full-body stretch", "Track your macros for 3 days", "Do 100 push-ups in one day",
       "Do 100 squats in one day", "Play a sport for 1 hour", "Do a 45-minute cardio session",
-      "Do a 45-minute strength workout", "Go for a 30-minute run", "Try a new sport for 60 minutes", 
+      "Do a 45-minute strength workout", "Go for a 30-minute run", "Try a new sport", 
       "Meal prep for 5 days", "Do a 1-hour yoga session",
       "Go for a 10km run", "Do a 2-hour strength training", "Go for a 2-hour hike", 
-      "Do a 1-hour yoga class", "Try a new sport for 1 hour", "Do a 1-hour Pilates class", 
-      "Go rock climbing for 120 minutes", "Go for a 20km bike ride", "Swim for 1 hour", 
+      "Do a 1-hour yoga class", "Do a 1-hour Pilates class", 
+      "Go rock climbing", "Go for a 20km bike ride", "Swim for 1 hour", 
       "Play basketball for 1 hour", "Play tennis for 1 hour", "Play soccer for 1 hour", 
-      "Do a martial arts class for 60 minutes", "Do a dance class for 60 minutes", "Do a CrossFit workout for 60 minutes", 
+      "Do a martial arts class", "Do a dance class", "Do a CrossFit workout", 
       "Meal prep for 7 days", "Track macros for 7 days", "Do 200 push-ups in one day", 
       "Do 200 squats in one day", "Run a 5k under 30 mins"
     ],
     ROUTINE: []
   },
-  EXTROVERT: {
+  SOCIAL: {
     REGULAR: [
       "Smile at a stranger", "Ask a question", "Give a compliment",
       "Say good morning to someone", "Hold the door for someone", "Ask someone how their day is going",
@@ -1740,10 +2027,10 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
     DAILY: [
       "Greet one person", "Start one chat", "Maintain eye contact for 10 seconds",
       "Call a family member for 15 minutes", "Text a friend you haven't spoken to recently", "Have a 5-minute conversation with a colleague",
-      "Post something positive on social media", "Listen actively for 10 minutes", "Ask 3 open-ended questions today",
-      "Express gratitude to someone", "Join a group conversation for 10 minutes", "Spend 10 minutes making plans",
+      "Post something positive on social media", "Listen actively", "Ask 3 open-ended questions today",
+      "Express gratitude to someone", "Join a group conversation", "Spend 10 minutes making plans",
       "Share your opinion in a meeting or class", "Give 2 genuine compliments", "Reply to 3 stories on social media",
-      "Send a voice message to a friend", "Ask someone for feedback", "Share an interesting article with someone",
+      "Send a voice message to a friend", "Ask someone for feedback", "Share an interesting article",
       "Talk to someone while waiting in line", "Remember and use someone's name",
       "Call a friend for 5 minutes", "Text 3 people", "Have a conversation with a stranger", 
       "Post a positive comment", "Ask an open-ended question",
@@ -1756,52 +2043,52 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Check in on a sick friend", "Wish someone a happy birthday"
     ],
     WEEKLY: [
-      "Attend a social event for 1 hour", "Call an old friend for 20 minutes", "Have a deep conversation for 30 minutes",
-      "Go out for coffee for 45 minutes", "Host a get-together for 2 hours", "Join a meetup for 1 hour",
+      "Attend a social event", "Call an old friend for 20 minutes", "Have a deep conversation for 30 minutes",
+      "Go out for coffee", "Host a get-together", "Join a meetup",
       "Volunteer for 2 hours", "Play with voice chat for 1 hour", "Spend 30 minutes in a public place",
-      "Have lunch with someone for 30 minutes", "Attend a workshop for 1 hour", "Organize a movie night for 15 minutes",
-      "Go to a networking event for 1 hour", "Video call a friend for 30 minutes", "Participate in a discussion for 20 minutes",
-      "Attend a networking event", "Host a dinner for 2 hours", "Go to a meetup for 1 hour", 
+      "Have lunch with someone", "Attend a workshop", "Organize a movie night",
+      "Go to a networking event", "Video call a friend for 30 minutes", "Participate in a discussion",
+      "Attend a networking event", "Host a dinner", "Go to a meetup", 
       "Call a family member for 30 mins", "Volunteer for 3 hours",
-      "Host a game night for 2 hours", "Host a potluck for 2 hours", "Go to a concert for 2 hours", 
-      "Go to a comedy show for 1.5 hours", "Visit a museum for 2 hours", "Visit an art gallery for 1 hour", 
-      "Attend a festival for 2 hours", "Join a sports league for 1 hour", "Take a group class for 1 hour", 
-      "Go to a trivia night for 2 hours", "Go to a karaoke bar for 2 hours", "Organize a picnic for 20 minutes", 
-      "Go on a road trip for 4 hours", "Visit a new city for 6 hours", "Attend a conference for 4 hours", 
-      "Go to a trade show for 2 hours", "Volunteer at a shelter for 2 hours", "Volunteer at a food bank for 2 hours", 
-      "Join a book club for 1.5 hours", "Spend 15 minutes at a cafe"
+      "Host a game night", "Host a potluck", "Go to a concert", 
+      "Go to a comedy show", "Visit a museum", "Visit an art gallery", 
+      "Attend a festival", "Join a sports league", "Take a group class", 
+      "Go to a trivia night", "Go to a karaoke bar", "Organize a picnic", 
+      "Go on a road trip", "Visit a new city", "Attend a conference", 
+      "Go to a trade show", "Volunteer at a shelter", "Volunteer at a food bank", 
+      "Join a book club", "Spend 15 minutes at a cafe"
     ],
     ROUTINE: []
   },
     DISCIPLINE: {
       REGULAR: [
-        "Make your bed", "Sit with straight posture for 5 minutes", "Drink water first thing",
-        "Put away your clothes", "Wash dishes", "Clean your workspace for 5 minutes",
+        "Make your bed", "Sit with straight posture", "Drink water first thing",
+        "Put away your clothes", "Wash dishes", "Clean your workspace",
         "Turn off notifications for 1 hour", "Do a task for 20 minutes", "Read 5 pages of a book",
         "Do 10 push-ups", "Write down your expenses", "Plan your next day",
-        "Organize your digital files for 5 mins", "Unsubscribe from 1 email list", "Empty the trash",
-        "Wipe down counters for 2 minutes", "Do a 2-minute breathing exercise", "Put your phone away while eating",
-        "Write down 1 goal", "Review habits for 5 minutes",
+        "Organize your digital files", "Unsubscribe from 1 email list", "Empty the trash",
+        "Wipe down counters", "Do a 2-minute breathing exercise", "Put your phone away while eating",
+        "Write down 1 goal", "Review habits",
         "Put away your shoes", "Wash your face", "Drink a glass of water", 
         "Do 5 push-ups", "Read 2 pages of a book", "Sit in silence for 2 minutes", 
-        "Write down 1 task", "Clean your desk for 2 mins", "Turn off your phone for 15 mins", 
+        "Write down 1 task", "Clean your desk", "Turn off your phone for 15 mins", 
         "Do a quick stretch",
-        "Make your bed immediately", "Brush your teeth for 2 mins", "Floss your teeth for 2 minutes", 
+        "Make your bed immediately", "Brush your teeth", "Floss your teeth", 
         "Wash your face before bed", "Put your keys in the same spot", "Hang up your coat", 
         "Put your shoes away", "Wash your mug", "Wipe the table", 
         "Take out recycling", "Water your plants", "Feed your pet", 
         "Check tire pressure", "Fill up gas", "Charge your phone to 100%", 
-        "Update software", "Restart computer", "Clear browser tabs for 2 minutes", 
-        "Empty downloads for 2 minutes", "Organize desktop for 5 minutes"
+        "Update software", "Restart computer", "Clear browser tabs", 
+        "Empty downloads", "Organize desktop"
       ],
       DAILY: [
         "Take a cold shower", "No social media for 120 minutes", "Read 10 pages",
         "Wake up at the same time", "Sleep at the same time", "Exercise for 20 minutes",
         "Drink 2 liters of water", "No junk food", "Meditate for 5 minutes",
         "Write in a journal", "Limit screen time before bed", "Do 1 hour of deep work",
-        "Track time for 5 minutes", "Eat 3 healthy meals", "No snoozing the alarm",
-        "Tidy your room for 10 minutes", "Read an educational article", "Practice a skill for 15 minutes",
-        "Review long-term goals for 10 minutes", "Plan outfit for 5 minutes",
+        "Track time", "Eat 3 healthy meals", "No snoozing the alarm",
+        "Tidy your room", "Read an educational article", "Practice a skill for 15 minutes",
+        "Review long-term goals", "Plan outfit",
         "Wake up without snoozing", "No sugar for the day", "Read 15 pages", 
         "Exercise for 30 minutes", "Meditate for 10 minutes",
         "Wake up at 6 AM", "Wake up at 5:30 AM", "Sleep by 10 PM", 
@@ -1810,72 +2097,72 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
         "Exercise for 45 mins", "Exercise for 1 hour", "Meditate for 15 mins", 
         "Meditate for 20 mins", "Drink 3 liters of water", "Eat 4 servings of vegetables", 
         "No processed sugar", "No fast food", "Track every penny spent", 
-        "Plan tomorrow down to the hour", "Review your goals for 5 mins"
+        "Plan tomorrow down to the hour", "Review your goals"
       ],
       WEEKLY: [
         "Digital detox for 24 hours", "Wake up at 5 AM all week", "Complete all daily tasks",
         "Read a whole book", "Fast for 16 hours one day", "No sugar for 3 days",
-        "Do a 10km run or walk", "Review your weekly budget", "Deep clean house for 3 hours",
-        "Plan weekly meals for 30 minutes", "Do a 24-hour dopamine detox", "Learn a new concept for 60 minutes",
-        "Write weekly reflection for 20 minutes", "Organize finances for 60 minutes", "Fix something for 30 minutes",
+        "Do a 10km run or walk", "Review your weekly budget", "Deep clean house",
+        "Plan weekly meals", "Do a 24-hour dopamine detox", "Learn a new concept for 60 minutes",
+        "Write weekly reflection", "Organize finances", "Fix something",
         "Fast for 24 hours", "Read a book", "No social media for 2 days", 
-        "Deep clean your room", "Review weekly habits for 15 minutes",
+        "Deep clean your room", "Review weekly habits",
         "Fast for 20 hours", "Fast for 24 hours", "No social media for 3 days", 
         "No social media for 5 days", "No TV for a week", "No video games for a week", 
         "Read 2 books", "Run 20km total", "Workout 5 days", 
-        "Workout 6 days", "Meal prep for 3 hours", "Zero unnecessary spending", 
-        "Save 10% of income", "Invest 10% of income", "Deep clean house for 5 hours", 
-        "Wash windows for 60 minutes", "Clean the oven for 30 minutes", "Clean the fridge for 30 minutes", 
-        "Organize the garage for 2 hours", "Donate 5 items"
+        "Workout 6 days", "Meal prep", "Zero unnecessary spending", 
+        "Save 10% of income", "Invest 10% of income", "Deep clean house", 
+        "Wash windows", "Clean the oven", "Clean the fridge", 
+        "Organize the garage", "Donate 5 items"
       ],
       ROUTINE: []
     },
   MENTAL_HEALTH: {
     REGULAR: [
-      "Take 5 deep breaths for 1 minute", "Listen to calming music for 5 minutes", "Stretch your neck for 2 minutes",
-      "Drink a glass of water", "Look out the window for 2 minutes", "Write down 1 positive thought",
+      "Take 5 deep breaths", "Listen to calming music", "Stretch your neck",
+      "Drink a glass of water", "Look out the window", "Write down 1 positive thought",
       "Do a body scan for 5 minutes", "Close your eyes for 1 minute", "Smile for 30 seconds",
-      "Say a positive affirmation", "Wash your face", "Step outside for 5 minutes",
-      "Pet an animal or look at cute pictures", "Unclench your jaw and relax your shoulders", "Write down worries for 5 minutes",
-      "Do a 3-minute guided meditation", "Listen to nature sounds for 10 minutes", "Doodle or draw for 5 minutes",
-      "Read a positive quote", "Stretch arms and back for 3 minutes",
-      "Do 10 deep breaths for 2 minutes", "Look at the sky for 1 minute", "Write down 1 thing you love", 
-      "Stretch your legs for 3 minutes", "Drink herbal tea", "Listen to a calming song", 
-      "Close your eyes for 2 mins", "Say 3 affirmations for 2 minutes", "Wash hands mindfully for 1 minute", 
-      "Focus on your breathing for 1 min",
-      "Light a candle and sit for 5 minutes", "Drink tea for 10 minutes", "Take a 5-minute break", 
-      "Look at a beautiful picture", "Listen to guided meditation for 10 minutes", "Do a 5-minute body scan", 
-      "Write self-love list for 5 minutes", "Reflect and forgive for 5 minutes", "Reflect and let go for 10 minutes", 
+      "Say a positive affirmation", "Wash your face", "Step outside",
+      "Pet an animal or look at cute pictures", "Unclench your jaw and relax your shoulders", "Write down worries",
+      "Do a 3-minute guided meditation", "Listen to nature sounds for 10 minutes", "Doodle or draw",
+      "Read a positive quote", "Stretch arms and back",
+      "Do 10 deep breaths", "Look at the sky for 1 minute", "Write down 1 thing you love", 
+      "Stretch your legs", "Drink herbal tea", "Listen to a calming song", 
+      "Close your eyes", "Say 3 affirmations", "Wash hands mindfully", 
+      "Focus on your breathing",
+      "Light a candle and sit", "Drink tea", "Take a break", 
+      "Look at a beautiful picture", "Listen to guided meditation for 10 minutes", "Do a body scan", 
+      "Write self-love list", "Reflect and forgive", "Reflect and let go", 
       "Say 'no' to something you don't want to do", "Set a boundary", "Ask for what you need", 
-      "Express feelings for 10 minutes", "Cry if you need to", "Laugh out loud", 
-      "Watch a funny video for 5 minutes", "Read a poem for 5 minutes", "Wrap yourself in a blanket", 
-      "Deep breath and sigh for 1 minute", "Massage your temples for 2 minutes"
+      "Express feelings", "Cry if you need to", "Laugh out loud", 
+      "Watch a funny video", "Read a poem", "Wrap yourself in a blanket", 
+      "Deep breath and sigh", "Massage your temples"
     ],
     DAILY: [
       "20 minutes of meditation", "Write 3 things you are grateful for", "Take a 15-minute walk",
       "Get 8 hours of sleep", "Spend 15 minutes in the sun", "Limit news consumption",
-      "Do something you enjoy for 30 mins", "Write a journal entry", "Practice self-compassion for 10 minutes",
+      "Do something you enjoy for 30 mins", "Write a journal entry", "Practice self-compassion",
       "Disconnect from work after hours", "Eat a nourishing meal", "Do a 10-minute yoga routine",
       "Talk to a supportive friend", "Read a chapter of a fiction book", "Spend 10 minutes in silence",
-      "Do a mindfulness exercise for 10 minutes", "Take a warm bath or shower", "Write down your feelings",
+      "Do a mindfulness exercise", "Take a warm bath or shower", "Write down your feelings",
       "Listen to an uplifting podcast", "Practice relaxation for 15 minutes",
-      "Write in gratitude journal for 10 minutes", "Spend 20 minutes in nature", "Do a 15-minute meditation", 
-      "Disconnect from screens 1 hour before bed", "Do a relaxing hobby for 20 mins",
-      "Meditate for 20 minutes", "Do a 20-minute yoga nidra", "Write 3 pages for 30 minutes", 
+      "Write in gratitude journal", "Spend 20 minutes in nature", "Do a 15-minute meditation", 
+      "Disconnect from screens 1 hour before bed", "Do a relaxing hobby",
+      "Meditate for 20 minutes", "Do a 20-minute yoga nidra", "Write 3 pages", 
       "Take a 30-minute walk in nature", "Spend 30 minutes in the sun", "No news for the day", 
       "No social media for the day", "Do 1 hour of a relaxing hobby", "Take a 30-minute nap", 
-      "Listen to an album for 45 minutes", "Read 2 chapters of fiction", "Take a long shower for 15 minutes", 
-      "Do a skincare routine for 10 minutes", "Eat mindfully for 20 minutes", "Drink 2 liters of water", 
-      "Get 9 hours of sleep", "Write to future self for 20 minutes", "Write to past self for 20 minutes", 
+      "Listen to an album for 45 minutes", "Read 2 chapters of fiction", "Take a long shower", 
+      "Do a skincare routine", "Eat mindfully", "Drink 2 liters of water", 
+      "Get 9 hours of sleep", "Write to future self", "Write to past self", 
       "List 5 things you are grateful for", "List 5 things you are proud of"
     ],
     WEEKLY: [
       "Deep reflection for 60 minutes", "Spend 6 hours in nature", "Unplug for 48 hours",
       "Self-care evening for 3 hours", "Do a creative activity for 1 hour", "Go for a long walk without your phone",
-      "Cook a nice meal for 60 minutes", "Watch a movie for 120 minutes", "Mind declutter for 20 minutes",
-      "Spend 2 hours with loved ones", "Try a new hobby for 60 minutes", "Visit a park for 60 minutes",
+      "Cook a nice meal", "Watch a movie for 120 minutes", "Mind declutter",
+      "Spend 2 hours with loved ones", "Try a new hobby", "Visit a park",
       "Do a digital detox for 12 hours", "Read for pleasure for 60 minutes", "Home spa day for 2 hours",
-      "Tech-free day for 24 hours", "Go for a hike for 2 hours", "Have a long bath for 30 minutes", 
+      "Tech-free day for 24 hours", "Go for a hike for 2 hours", "Have a long bath", 
       "Do a creative project for 60 minutes", "Do nothing for 24 hours",
       "Therapy session for 60 minutes", "Attend a support group for 1 hour", "Spend 24 hours offline", 
       "Spend 24 hours in nature", "Go camping for 24 hours", "Go to a spa for 2 hours", 
@@ -1965,13 +2252,13 @@ export function usePosts() {
 export const analyzeMissionPath = (text: string): PathType => {
   const lower = text.toLowerCase();
   // Physical / Stronger
-  if (/(push|pull|run|walk|jog|gym|workout|exercise|squat|squad|plank|situp|sit-up|crunch|burpee|jump|lari|jalan|otot|fisik|olahraga|renang|sepeda|angkat|sweat|cardio|training|fitness|bola|basket|futsal|badminton|tenis|yoga|stretching|boxing|muaythai|karate|silat|treadmill|dumbell|barbell|lifting|kardio|sehat|kesehatan|atlet|atletik|maraton|sprint|lompat|tendang|pukul|tangkis|sparring|gowes|gowes|pedal|renang|berenang|kolam|lap|set|rep|reps|kalori|bakar|lemak)/.test(lower)) return 'STRONGER';
+  if (/(push|pull|run|walk|jog|gym|workout|exercise|squat|plank|situp|sit-up|crunch|burpee|jump|lari|jalan|otot|fisik|olahraga|renang|sepeda|angkat|sweat|cardio|training|fitness|bola|basket|futsal|badminton|tenis|yoga|stretching|boxing|muaythai|karate|silat|treadmill|dumbell|barbell|lifting|kardio|sehat|kesehatan|atlet|atletik|maraton|sprint|lompat|tendang|pukul|tangkis|sparring|gowes|pedal|kolam|lap|set|rep|reps|kalori|bakar|lemak)/.test(lower)) return 'STRONGER';
   // Productivity / Productive
-  if (/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article|work|project|tugas|kerja|nulis|write|skripsi|exam|ujian|coding|dev|design|produktivitas|fokus|focus|prioritas|priority|jadwal|schedule|rencana|plan|organisir|organize|rapi|bersih|meja|email|inbox|belanja|masak|makan|persiapan|prep|resume|cv|portofolio|portfolio|investasi|invest|nabung|tabungan|keuangan|budget|anggaran|bisnis|usaha|omzet|sales|marketing|penjualan|klien|client|meeting|rapat|notulensi|notula|catatan|note|notes|ide|idea|kreatif|creative|gambar|lukis|desain|edit|video|audio|musik|instrumen|alat|latihan|practice|subscription|langganan|download|unduhan|password|sandi|contact|kontak|backup|cadangan|wallet|dompet|file|berkas|folder|trash|sampah|mail|surat|bill|tagihan|bank|balance|saldo|subscriptions|downloads|passwords|contacts|backups|wallets|files|folders|mails|bills|banks|balances|saldos)/.test(lower)) return 'PRODUCTIVE';
+  if (/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article|work|project|tugas|kerja|nulis|write|skripsi|exam|ujian|coding|dev|design|produktivitas|fokus|focus|prioritas|priority|jadwal|schedule|rencana|plan|organisir|organize|rapi|bersih|meja|email|inbox|belanja|masak|makan|persiapan|prep|resume|cv|portofolio|portfolio|investasi|invest|nabung|tabungan|keuangan|budget|anggaran|bisnis|usaha|omzet|sales|marketing|penjualan|klien|client|meeting|rapat|notulensi|notula|catatan|note|notes|ide|idea|kreatif|creative|gambar|lukis|desain|edit|video|audio|musik|instrumen|alat|latihan|practice|subscription|langganan|download|unduhan|password|sandi|contact|kontak|backup|cadangan|wallet|dompet|file|berkas|folder|trash|sampah|mail|surat|bill|tagihan|bank|balance|saldo)/.test(lower)) return 'PRODUCTIVE';
   // Social / Extrovert
-  if (/(talk|call|meet|friend|family|greet|help|bicara|telepon|teman|keluarga|sapa|bantu|nongkrong|sosial|chat|hangout|date|dinner|lunch|party|community|komunitas|relasi|network|kenalan|kenal|ngobrol|diskusi|debat|presentasi|panggung|tampil|perform|puji|compliment|senyum|smile|kontak|mata|eye|contact|jabat|tangan|peluk|hug|kado|hadiah|gift|donasi|sedekah|amal|zakat|tolong|peduli|care|empati|dengar|listen|curhat|cerita|story|berbagi|share|ajak|invite|gabung|join|kumpul|gathering|reuni|reunion|bukber|halal|bihalal|silaturahmi|question|tanya|stranger|orang asing|someone|seseorang|conversation|percakapan|interaction|interaksi|group|grup|kelompok|event|acara|public|publik|colleague|kolega|coworker|rekan kerja|neighbor|tetangga|cashier|kasir|opinion|pendapat|feedback|umpan balik|joke|canda|meme|voice|suara|intro|kenalan|kenal)/.test(lower)) return 'EXTROVERT';
+  if (/(talk|call|meet|friend|family|greet|help|bicara|telepon|teman|keluarga|sapa|bantu|nongkrong|sosial|chat|hangout|date|dinner|lunch|party|community|komunitas|relasi|network|kenalan|kenal|ngobrol|diskusi|debat|presentasi|panggung|tampil|perform|puji|compliment|senyum|smile|kontak|mata|eye|contact|jabat|tangan|peluk|hug|kado|hadiah|gift|donasi|sedekah|amal|zakat|tolong|peduli|care|empati|dengar|listen|curhat|cerita|story|berbagi|share|ajak|invite|gabung|join|kumpul|gathering|reuni|reunion|bukber|halal|bihalal|silaturahmi|question|tanya|stranger|orang asing|someone|seseorang|conversation|percakapan|interaction|interaksi|group|grup|kelompok|event|acara|public|publik|colleague|kolega|coworker|rekan kerja|neighbor|tetangga|cashier|kasir|opinion|pendapat|feedback|umpan balik|joke|canda|meme|voice|suara|intro)/.test(lower)) return 'SOCIAL';
   // Mental Health
-  if (/(meditate|breathe|journal|calm|relax|sleep|nap|yoga|meditasi|nafas|tenang|tidur|jurnal|doa|pray|ibadah|sholat|dzikir|healing|mindful|rest|istirahat|self-care|syukur|gratitude|terima|kasih|thanks|puji|syukur|tenang|damai|peace|ikhlas|sabar|patience|maaf|forgive|ampun|tobat|muhasabah|renung|refleksi|reflection|hening|silent|solitude|me-time|hobi|hobby|senang|happy|bahagia|puas|content|lega|bebas|free|lepas|let|go|ikhlas|ikhlas|ikhlas)/.test(lower)) return 'MENTAL_HEALTH';
+  if (/(meditate|breathe|journal|calm|relax|sleep|nap|yoga|meditasi|nafas|tenang|tidur|jurnal|doa|pray|ibadah|sholat|dzikir|healing|mindful|rest|istirahat|self-care|syukur|gratitude|terima|kasih|thanks|puji|syukur|tenang|damai|peace|ikhlas|sabar|patience|maaf|forgive|ampun|tobat|muhasabah|renung|refleksi|reflection|hening|silent|solitude|me-time|hobi|hobby|senang|happy|bahagia|puas|content|lega|bebas|free|lepas|let|go)/.test(lower)) return 'MENTAL_HEALTH';
   // Default to Discipline
   return 'DISCIPLINE';
 };

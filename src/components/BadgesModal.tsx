@@ -36,20 +36,35 @@ export default function BadgesModal({ badges, language, onClose, badgeIcons }: B
             {BADGES.map((badgeDef, idx) => {
               const isUnlocked = badges.includes(badgeDef.id);
               const Icon = badgeIcons[badgeDef.icon] || Trophy;
+              const isElite = badgeDef.id === 'ELITE_ZONE';
               
               return (
                 <div 
                   key={`badge-${badgeDef.id}-${idx}`} 
                   className={`border rounded-xl p-4 flex flex-col items-center justify-center text-center transition-all ${
                     isUnlocked 
-                      ? 'bg-gradient-to-b from-surface to-surface-hover border-accent/30 shadow-lg shadow-accent/5' 
+                      ? isElite
+                        ? 'bg-gradient-to-b from-amber-400/20 to-amber-600/20 border-amber-400/50 shadow-lg shadow-amber-400/20'
+                        : 'bg-gradient-to-b from-surface to-surface-hover border-accent/30 shadow-lg shadow-accent/5' 
                       : 'bg-zinc-950/30 border-white/5 opacity-50 grayscale'
                   }`}
                 >
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${isUnlocked ? 'bg-accent/20' : 'bg-white/5'}`}>
-                    <Icon className={`w-6 h-6 ${isUnlocked ? 'text-accent' : 'text-secondary'}`} />
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${
+                    isUnlocked 
+                      ? isElite ? 'bg-amber-400/20' : 'bg-accent/20' 
+                      : 'bg-white/5'
+                  }`}>
+                    <Icon className={`w-6 h-6 ${
+                      isUnlocked 
+                        ? isElite ? 'text-amber-400' : 'text-accent' 
+                        : 'text-secondary'
+                    }`} />
                   </div>
-                  <span className={`text-sm font-bold leading-tight mb-1 ${isUnlocked ? 'text-primary' : 'text-secondary'}`}>
+                  <span className={`text-sm font-bold leading-tight mb-1 ${
+                    isUnlocked 
+                      ? isElite ? 'text-amber-400' : 'text-primary' 
+                      : 'text-secondary'
+                  }`}>
                     {badgeDef.name[language]}
                   </span>
                   <span className="text-[10px] text-secondary leading-tight">

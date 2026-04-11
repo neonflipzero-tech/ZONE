@@ -1,11 +1,13 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Swords, Shield, Zap, Trophy, X } from 'lucide-react';
-import { useAppState, getTodayISO } from '../store';
+import { useAppState, getTodayISO, PathType } from '../store';
+import { t } from '../utils/translations';
 
 export const BossEncounter: React.FC = () => {
   const { state, triggerBoss } = useAppState();
   const boss = state?.bossState;
+  const lang = state?.language || 'en';
 
   // Show if it's Monday
   const today = new Date();
@@ -14,7 +16,7 @@ export const BossEncounter: React.FC = () => {
   
   // Only show on Monday and if not encountered today
   const isAvailable = isMonday && boss?.lastEncounterDate !== todayISO && boss?.status === 'idle';
-  const isOngoing = boss?.status === 'active' && !boss?.isActive;
+  const isOngoing = isMonday && boss?.status === 'active' && !boss?.isActive;
 
   if (!isAvailable && !isOngoing) return null;
 
@@ -35,24 +37,22 @@ export const BossEncounter: React.FC = () => {
       <div className="relative z-10">
         <div className="flex items-center gap-2 mb-2">
           <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-mono font-bold text-white uppercase tracking-widest border border-white/10">
-            {state?.language === 'id' ? 'EVENT MINGGUAN' : 'WEEKLY EVENT'}
+            {t('boss.event', lang)}
           </div>
           <div className="bg-amber-500 px-3 py-1 rounded-full text-[10px] font-mono font-bold text-white uppercase tracking-widest animate-pulse">
-            {isOngoing ? (state?.language === 'id' ? 'SEDANG BERLANGSUNG' : 'ONGOING') : 'LIVE'}
+            {isOngoing ? t('boss.ongoing', lang) : t('boss.live', lang)}
           </div>
         </div>
 
         <h3 className="text-2xl font-display font-black text-white mb-2 tracking-tighter uppercase leading-tight">
           {isOngoing 
-            ? (state?.language === 'id' ? 'LANJUTKAN PERTEMPURAN!' : 'CONTINUE THE BATTLE!')
-            : (state?.language === 'id' ? 'BOSS MINGGUAN TELAH MUNCUL!' : 'WEEKLY BOSS HAS APPEARED!')}
+            ? t('boss.continue', lang)
+            : t('boss.appeared', lang)}
         </h3>
         <p className="text-white/80 text-sm mb-6 max-w-[80%] leading-relaxed font-medium">
           {isOngoing
-            ? (state?.language === 'id' ? `HP Boss: ${Math.ceil(boss?.hp || 0)}%` : `Boss HP: ${Math.ceil(boss?.hp || 0)}%`)
-            : (state?.language === 'id' 
-                ? 'Kalahkan boss untuk mendapatkan 1500 XP dan 500 ZoneCoins!' 
-                : 'Defeat the boss to earn 1500 XP and 500 ZoneCoins!')}
+            ? t('boss.hp', lang, { hp: Math.ceil(boss?.hp || 0) })
+            : t('boss.reward_desc', lang)}
         </p>
 
         <motion.button
@@ -70,8 +70,8 @@ export const BossEncounter: React.FC = () => {
         >
           <Swords className="w-4 h-4" />
           {isOngoing 
-            ? (state?.language === 'id' ? 'KEMBALI BERTARUNG' : 'RETURN TO FIGHT')
-            : (state?.language === 'id' ? 'HADAPI BOSS' : 'FACE THE BOSS')}
+            ? t('boss.return', lang)
+            : t('boss.face', lang)}
         </motion.button>
       </div>
     </motion.div>

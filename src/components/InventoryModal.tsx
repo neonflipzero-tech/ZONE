@@ -80,7 +80,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
   );
 
   const unlockedFrames = ALL_FRAMES.filter(f => isFrameUnlocked(f, state));
-  const unlockedTitles = TITLES.filter(t => isZaiki || state.titles.includes(t.id));
+  const unlockedTitles = TITLES.filter(t => isZaiki || state.unlockedTitles.includes(t.id));
 
   return (
     <AnimatePresence>
@@ -180,7 +180,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                       <button
                         key={`unlocked-frame-${frame}-${idx}`}
                         onClick={() => {
-                          sounds.playUseItem();
+                          sounds.playEquip();
                           updateState({ equippedFrame: frame === 'frame-default' ? null : frame });
                         }}
                         className={`relative aspect-square rounded-2xl p-2 transition-all flex flex-col items-center justify-center gap-2 ${
@@ -210,7 +210,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                       <button
                         key={`unlocked-title-${titleDef.id}-${idx}`}
                         onClick={() => {
-                          sounds.playUseItem();
+                          sounds.playEquip();
                           updateState({ equippedTitle: titleDef.id });
                         }}
                         className={`p-4 rounded-xl flex items-center justify-between transition-all ${

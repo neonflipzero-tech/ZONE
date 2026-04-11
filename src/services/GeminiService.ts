@@ -15,7 +15,7 @@ const getAi = () => {
 };
 
 export interface OnboardingAnalysis {
-  suggestedPath: 'PRODUCTIVE' | 'STRONGER' | 'EXTROVERT' | 'DISCIPLINE' | 'MENTAL_HEALTH' | 'OTHER';
+  suggestedPath: 'PRODUCTIVE' | 'STRONGER' | 'SOCIAL' | 'DISCIPLINE' | 'MENTAL_HEALTH' | 'OTHER';
   statAdjustments: Record<string, number>;
   feedback: string;
 }
@@ -40,7 +40,7 @@ export const analyzeOnboardingAnswers = async (answers: string[], language: 'en'
       ${answers.join('\n')}
       
       Based on these answers, suggest the most suitable path and provide a brief encouraging feedback in ${language === 'id' ? 'Indonesian' : 'English'}.
-      Paths: PRODUCTIVE, STRONGER, EXTROVERT, DISCIPLINE, MENTAL_HEALTH, OTHER.
+      Paths: PRODUCTIVE, STRONGER, SOCIAL, DISCIPLINE, MENTAL_HEALTH, OTHER.
       
       Also suggest stat adjustments for: intellect, physical, social, ambition, discipline, mental.
       Total adjustments should sum to roughly 20-30 points.
@@ -52,7 +52,7 @@ export const analyzeOnboardingAnswers = async (answers: string[], language: 'en'
           properties: {
             suggestedPath: {
               type: Type.STRING,
-              enum: ['PRODUCTIVE', 'STRONGER', 'EXTROVERT', 'DISCIPLINE', 'MENTAL_HEALTH', 'OTHER']
+              enum: ['PRODUCTIVE', 'STRONGER', 'SOCIAL', 'DISCIPLINE', 'MENTAL_HEALTH', 'OTHER']
             },
             statAdjustments: {
               type: Type.OBJECT,

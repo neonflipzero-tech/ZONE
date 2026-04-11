@@ -1,11 +1,18 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Swords, Shield, Zap, Trophy, X } from 'lucide-react';
-import { useAppState, Mission } from '../store';
+import { useAppState, Mission, PathType } from '../store';
+import { sounds } from '../utils/sounds';
+import { t } from '../utils/translations';
 
-export const BossBattle: React.FC = () => {
-  const { state, attackBoss } = useAppState();
+interface BossBattleProps {
+  onMissionClick?: (mission: Mission) => void;
+}
+
+export const BossBattle: React.FC<BossBattleProps> = ({ onMissionClick }) => {
+  const { state } = useAppState();
   const boss = state?.bossState;
+  const lang = state?.language || 'en';
 
   if (!boss || !boss.isActive || boss.status !== 'active') return null;
 
@@ -26,15 +33,18 @@ export const BossBattle: React.FC = () => {
           </div>
           <div>
             <h2 className="text-2xl font-display font-black tracking-tighter uppercase">
-              {state?.language === 'id' ? 'WEEKLY BOSS' : 'WEEKLY BOSS'}
+              {t('boss.title', lang)}
             </h2>
             <p className="text-xs font-mono text-secondary uppercase tracking-widest">
-              {boss.topic} {state?.language === 'id' ? 'GUARDIAN' : 'GUARDIAN'}
+              {t('boss.guardian', lang, { topic: t(`onboarding.path.${boss.topic.toUpperCase()}.name`, lang) })}
             </p>
           </div>
         </div>
         <button 
-          onClick={() => useAppState.getState().updateState({ bossState: { ...boss, isActive: false } })}
+          onClick={() => {
+            sounds.playClick();
+            useAppState.getState().updateState({ bossState: { ...boss, isActive: false } });
+          }}
           className="p-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
         >
           <X className="w-6 h-6 text-secondary" />
@@ -85,7 +95,7 @@ export const BossBattle: React.FC = () => {
       <div className="flex-1 max-w-md mx-auto w-full">
         <h3 className="text-sm font-mono font-bold text-secondary uppercase tracking-widest mb-6 flex items-center gap-2">
           <Shield className="w-4 h-4" />
-          {state?.language === 'id' ? 'SELESAIKAN MISI UNTUK MENYERANG' : 'COMPLETE MISSIONS TO ATTACK'}
+          {t('boss.complete_to_attack', lang)}
         </h3>
 
         <div className="space-y-4">
@@ -93,7 +103,7 @@ export const BossBattle: React.FC = () => {
             <motion.button
               key={task.id}
               disabled={task.completed}
-              onClick={() => attackBoss(task.id)}
+              onClick={() => onMissionClick?.(task)}
               whileHover={!task.completed ? { scale: 1.02, x: 5 } : {}}
               whileTap={!task.completed ? { scale: 0.98 } : {}}
               className={`w-full p-5 rounded-2xl border text-left transition-all relative overflow-hidden group ${
@@ -115,7 +125,7 @@ export const BossBattle: React.FC = () => {
               {!task.completed && (
                 <div className="mt-3 flex items-center gap-2 text-[10px] font-mono text-accent font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
                   <Swords className="w-3 h-3" />
-                  {state?.language === 'id' ? 'SERANG BOSS' : 'ATTACK BOSS'}
+                  {t('boss.attack', lang)}
                 </div>
               )}
             </motion.button>
@@ -125,9 +135,7 @@ export const BossBattle: React.FC = () => {
 
       <div className="mt-8 text-center">
         <p className="text-[10px] font-mono text-secondary uppercase tracking-widest opacity-50">
-          {state?.language === 'id' 
-            ? 'Kalahkan boss untuk mendapatkan hadiah besar' 
-            : 'Defeat the boss to earn massive rewards'}
+          {t('boss.reward_info', lang)}
         </p>
       </div>
     </motion.div>

@@ -1,11 +1,12 @@
 import { motion, AnimatePresence } from 'motion/react';
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { UserState, MissionType, getRankForLevel, Mission, useAppState, TITLES, analyzeMissionPath, extractDuration, getTodayISO } from '../store';
 import { CheckCircle2, Circle, Flame, User, Shield, Timer, Wand2, Bell, Zap, X, ArrowLeft, Target, Mountain, Star, Store, Dumbbell, BookOpen, Wind, Award } from 'lucide-react';
 import { ZoneCoinIcon } from './ZoneCoinIcon';
 import { t } from '../utils/translations';
 import { sounds } from '../utils/sounds';
+import { NotificationService } from '../services/NotificationService';
 import ProfileFrame from './ProfileFrame';
 import CustomMissionsModal from './CustomMissionsModal';
 import NotificationCenter from './NotificationCenter';
@@ -29,6 +30,7 @@ interface HomeScreenProps {
 const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onReplaceMission, addCustomMission, removeCustomMission, isFlashSale = false }: HomeScreenProps) => {
   const activeUserEmail = useAppState(s => s.activeUserEmail);
   const updateState = useAppState(s => s.updateState);
+  const updateMissionProgress = useAppState(s => s.updateMissionProgress);
   const activeTab = state.activeTab || 'REGULAR';
   const setActiveTab = (tab: MissionType) => {
     sounds.playClick();
@@ -41,7 +43,14 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
     }
   }, [state.activeTab, state.chosenPath, updateState]);
 
-  const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
+  const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
+  const selectedMission = useMemo(() => {
+    if (!selectedMissionId) return null;
+    return state.missions.find(m => m.id === selectedMissionId) || 
+           state.bossState?.tasks?.find(m => m.id === selectedMissionId) || 
+           null;
+  }, [selectedMissionId, state.missions, state.bossState?.tasks]);
+
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [isCustomMissionsModalOpen, setIsCustomMissionsModalOpen] = useState(false);
@@ -53,6 +62,8 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
   const [completionRewards, setCompletionRewards] = useState<{ type: 'badge' | 'level' | 'none', value?: string | number }[]>([]);
   const [preCompletionStats, setPreCompletionStats] = useState<{ level: number, badgesCount: number } | null>(null);
   const [showStreakFreezeDialog, setShowStreakFreezeDialog] = useState(false);
+  const [potionToast, setPotionToast] = useState<{ message: string, type: 'xp' | 'coin' } | null>(null);
+  const exitNotifSentRef = useRef(false);
 
   const requestNotificationPermission = useAppState(s => s.requestNotificationPermission);
   useEffect(() => {
@@ -99,7 +110,8 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
             particleCount: 60,
             spread: 60,
             origin: { y: 0.6 },
-            colors: ['#F43F5E', '#F43F5E', '#ffffff']
+            colors: ['#F43F5E', '#F43F5E', '#ffffff'],
+            zIndex: 1000
           });
         }
       } catch (e) {
@@ -107,6 +119,18 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
       }
     }
   }, [state?.level, state?.badges?.length, preCompletionStats]);
+
+  useEffect(() => {
+    if (state?.isLoggedIn) {
+      const { checkAllTitles } = useAppState.getState();
+      checkAllTitles();
+      const interval = setInterval(() => {
+        const { checkAllTitles: check } = useAppState.getState();
+        check();
+      }, 60000); // Check every minute for time-based titles
+      return () => clearInterval(interval);
+    }
+  }, [state?.isLoggedIn]);
 
   if (!state) return null;
 
@@ -126,12 +150,34 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
           if (prev <= 1) {
             return 0;
           }
-          return prev - 1;
+          const next = prev - 1;
+          return next;
         });
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isTimerRunning]); // Only depend on isTimerRunning to avoid clearing interval on every tick or parent re-render
+  }, [isTimerRunning]);
+
+  // Handle visibility change for exit notification
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Send immediate comfortable notification only once per session
+        if (!exitNotifSentRef.current) {
+          NotificationService.notifyExitImmediate(state.language);
+          exitNotifSentRef.current = true;
+        }
+        // Always schedule delayed motivational notification when leaving
+        NotificationService.scheduleExitDelayed(state.language, !!state.rivalId);
+      } else {
+        // Cancel delayed notification if user returns
+        NotificationService.cancelExitDelayed();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [state.language]);
 
   const handleMissionComplete = (missionId: string) => {
     // Capture state before completion to detect rewards in useEffect
@@ -142,20 +188,20 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
 
     try {
       onCompleteMission(missionId);
+      setShowCompletionOverlay(true);
+      handleCloseModal();
     } catch (e) {
       console.error("Failed to complete mission", e);
+      handleCloseModal();
     }
-    handleCloseModal();
   };
 
   useEffect(() => {
     if (isTimerRunning && timeLeft === 0) {
       setIsTimerRunning(false);
-      if (selectedMission) {
-        handleMissionComplete(selectedMission.id);
-      }
+      sounds.playTing();
     }
-  }, [timeLeft, isTimerRunning, selectedMission, onCompleteMission]);
+  }, [timeLeft, isTimerRunning]);
 
   const [burstLockRemaining, setBurstLockRemaining] = useState<number>(0);
 
@@ -179,22 +225,45 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
 
   const handleMissionClick = (mission: Mission) => {
     if (mission.completed) return;
+    sounds.playClick();
     if (isBurstLocked) {
       sounds.playError();
       return;
     }
-    setSelectedMission(mission);
+    setSelectedMissionId(mission.id);
     
-    const duration = extractDuration(mission.text);
-    // Show timer if duration is found AND hasTimer is not explicitly false
-    const shouldHaveTimer = mission.hasTimer !== false && duration !== null;
+    const duration = extractDuration(mission.text) || extractDuration(mission.originalText || '');
+    // Show timer if duration is found OR hasTimer is explicitly true
+    const shouldHaveTimer = mission.hasTimer === true || duration !== null;
 
-    if (duration && shouldHaveTimer) {
-      setTimeLeft(duration);
+    if (shouldHaveTimer) {
+      setTimeLeft(duration || 60); // Default to 60s if duration can't be parsed but hasTimer is true
     } else {
       setTimeLeft(null);
     }
     setIsTimerRunning(false);
+  };
+
+  const formatPotionTime = (until: string | null) => {
+    if (!until) return '';
+    const diff = new Date(until).getTime() - Date.now();
+    if (diff <= 0) return '';
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    return `${hours}h ${minutes}m ${seconds}s`;
+  };
+
+  const handlePotionClick = (type: 'xp' | 'coin') => {
+    sounds.playClick();
+    const until = type === 'xp' ? state.doubleXpActiveUntil : state.doubleCoinActiveUntil;
+    const time = formatPotionTime(until);
+    if (time) {
+      setPotionToast({ 
+        message: `${type === 'xp' ? '2x XP' : '2x ZC'} ${state.language === 'id' ? 'Aktif' : 'Active'}: ${time}`, 
+        type 
+      });
+    }
   };
 
   const [longPressProgress, setLongPressProgress] = useState(0);
@@ -229,9 +298,10 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
   };
 
   const handleCloseModal = useCallback(() => {
-    setSelectedMission(null);
+    setSelectedMissionId(null);
     setIsTimerRunning(false);
     setTimeLeft(null);
+    setLongPressProgress(0);
   }, []);
 
   const missions = state.missions || [];
@@ -308,9 +378,7 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
               <Zap className="w-4 h-4 text-rose-400 animate-pulse" />
             </div>
             <p className="text-sm font-medium text-rose-100 flex-1">
-              {state.language === 'id' 
-                ? `Neural Overheat. Tunggu ${burstLockRemaining} detik.` 
-                : `Neural Overheat. Wait ${burstLockRemaining} seconds.`}
+              {t('home.neural_overheat', state.language, { seconds: burstLockRemaining })}
             </p>
           </motion.div>
         )}
@@ -323,7 +391,7 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-background/98 flex flex-col items-center justify-center p-6 text-center"
+            className="fixed inset-0 z-[500] bg-background/98 flex flex-col items-center justify-center p-6 text-center"
           >
             <motion.div
               initial={{ scale: 0, rotate: -20 }}
@@ -332,7 +400,13 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
               className="mb-8"
             >
               <div className="w-32 h-32 rounded-3xl bg-green-500/20 flex items-center justify-center border border-green-500/30 shadow-[0_0_30px_rgba(34,197,94,0.2)]">
-                <CheckCircle2 className="w-16 h-16 text-green-500" />
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+                >
+                  <CheckCircle2 className="w-16 h-16 text-green-500" />
+                </motion.div>
               </div>
             </motion.div>
 
@@ -342,13 +416,16 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
               transition={{ delay: 0.2 }}
               className="max-w-xs w-full"
             >
-              <h3 className="text-3xl font-black text-primary font-display tracking-tight uppercase mb-2">
-                {state.language === 'id' ? 'MISI SELESAI!' : 'MISSION COMPLETE!'}
-              </h3>
+              <motion.h3 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.4, type: "spring" }}
+                className="text-3xl font-black text-primary font-display tracking-tight uppercase mb-2"
+              >
+                {t('home.mission_complete', state.language)}
+              </motion.h3>
               <p className="text-secondary mb-8">
-                {state.language === 'id' 
-                  ? 'Kamu selangkah lebih dekat menuju versi terbaikmu.' 
-                  : 'You are one step closer to your best self.'}
+                {t('home.mission_complete_desc', state.language)}
               </p>
 
               {/* Rewards Section */}
@@ -360,7 +437,7 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                     className="space-y-4 mb-8"
                   >
                     <div className="text-[10px] font-mono text-secondary uppercase tracking-[0.2em] mb-2">
-                      {state.language === 'id' ? 'HADIAH DIDAPAT' : 'REWARDS EARNED'}
+                      {t('home.rewards_earned', state.language)}
                     </div>
                     <div className="flex flex-wrap justify-center gap-3">
                       {completionRewards.map((reward, idx) => (
@@ -401,10 +478,11 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                 onClick={() => {
                   setShowCompletionOverlay(false);
                   setCompletionRewards([]);
+                  handleCloseModal();
                 }}
                 className="w-full py-4 bg-accent text-black font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-accent/20"
               >
-                {state.language === 'id' ? 'Lanjutkan' : 'Continue'}
+                {t('home.continue', state.language)}
               </button>
             </motion.div>
           </motion.div>
@@ -423,7 +501,7 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
               <h1 className="text-lg font-display font-black tracking-tight truncate">ZONE</h1>
               <div className="flex items-center space-x-1 mt-0.5">
                 <Shield className={`w-3 h-3 flex-shrink-0 ${currentRank.color}`} />
-                <p className={`text-[12px] font-mono uppercase tracking-wider truncate ${currentRank.color}`}>{currentRank.name} • Lvl {state.level}</p>
+                <p className={`text-[12px] font-mono uppercase tracking-wider ${currentRank.color}`}>{currentRank.name} • Lvl {state.level}</p>
                 <button 
                   onClick={() => {
                     sounds.playClick();
@@ -483,58 +561,28 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
         </div>
 
         {/* Active Potions Row - Only shown if there are active potions or elite boosts */}
-        {( isXpActive || (state.doubleXpPotions || 0) > 0 || isCoinActive || (state.doubleCoinPotions || 0) > 0 || state.isPremium ) && (
+        {( isXpActive || isCoinActive || state.isPremium ) && (
           <div className="px-4 pb-3">
             <div className="flex items-center justify-center space-x-3 bg-surface/30 px-4 py-1.5 rounded-xl border border-white/5 shadow-sm w-full overflow-x-auto no-scrollbar">
-              {isXpActive ? (
-                <div className="flex items-center space-x-1 shrink-0" title="Double XP Active">
+              {isXpActive && (
+                <button 
+                  onClick={() => handlePotionClick('xp')}
+                  className="flex items-center space-x-1 shrink-0 hover:bg-white/5 px-2 py-0.5 rounded-lg transition-colors" 
+                  title="Double XP Active"
+                >
                   <Zap className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
                   <span className="text-xs font-bold text-purple-400">2x XP</span>
-                </div>
-              ) : (state.doubleXpPotions || 0) > 0 && (
-                <button 
-                  onClick={() => {
-                    if (window.confirm(state.language === 'id' ? 'Gunakan 2x XP Potion?' : 'Use 2x XP Potion?')) {
-                      sounds.playUseItem();
-                      const now = new Date();
-                      now.setHours(now.getHours() + 24);
-                      updateState({
-                        doubleXpPotions: (state.doubleXpPotions || 0) - 1,
-                        doubleXpActiveUntil: now.toISOString()
-                      });
-                    }
-                  }}
-                  className="flex items-center space-x-1 hover:bg-white/5 transition-colors shrink-0" 
-                  title="Use Double XP Potion"
-                >
-                  <Zap className="w-3.5 h-3.5 text-purple-400/60" />
-                  <span className="text-xs font-bold text-purple-400/60">x{state.doubleXpPotions}</span>
                 </button>
               )}
 
-              {isCoinActive ? (
-                <div className="flex items-center space-x-1 shrink-0" title="Double Coin Active">
+              {isCoinActive && (
+                <button 
+                  onClick={() => handlePotionClick('coin')}
+                  className="flex items-center space-x-1 shrink-0 hover:bg-white/5 px-2 py-0.5 rounded-lg transition-colors" 
+                  title="Double Coin Active"
+                >
                   <ZoneCoinIcon className="w-3.5 h-3.5 text-yellow-400 animate-pulse" />
                   <span className="text-xs font-bold text-yellow-400">2x ZC</span>
-                </div>
-              ) : (state.doubleCoinPotions || 0) > 0 && (
-                <button 
-                  onClick={() => {
-                    if (window.confirm(state.language === 'id' ? 'Gunakan 2x Coin Potion?' : 'Use 2x Coin Potion?')) {
-                      sounds.playUseItem();
-                      const now = new Date();
-                      now.setHours(now.getHours() + 24);
-                      updateState({
-                        doubleCoinPotions: (state.doubleCoinPotions || 0) - 1,
-                        doubleCoinActiveUntil: now.toISOString()
-                      });
-                    }
-                  }}
-                  className="flex items-center space-x-1 hover:bg-white/5 transition-colors shrink-0" 
-                  title="Use Double Coin Potion"
-                >
-                  <ZoneCoinIcon className="w-3.5 h-3.5 text-yellow-400/60" />
-                  <span className="text-xs font-bold text-yellow-400/60">x{state.doubleCoinPotions}</span>
                 </button>
               )}
 
@@ -551,7 +599,64 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
 
       <div className="px-6 space-y-8">
         <BossEncounter />
-        <BossBattle />
+        
+        {/* Potion Modal Overlay */}
+        <AnimatePresence>
+          {potionToast && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[600] flex items-center justify-center p-6"
+            >
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+                onClick={() => setPotionToast(null)}
+              />
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="relative w-full max-w-xs bg-surface border border-white/10 rounded-3xl p-8 shadow-2xl text-center"
+              >
+                <div className={`w-16 h-16 rounded-2xl mx-auto mb-6 flex items-center justify-center border ${
+                  potionToast.type === 'xp' ? 'bg-purple-500/20 border-purple-500/30' : 'bg-yellow-500/20 border-yellow-500/30'
+                }`}>
+                  {potionToast.type === 'xp' ? (
+                    <Zap className="w-8 h-8 text-purple-400 animate-pulse" />
+                  ) : (
+                    <ZoneCoinIcon className="w-8 h-8 text-yellow-400 animate-pulse" />
+                  )}
+                </div>
+                
+                <h3 className="text-xl font-black text-primary font-display tracking-tight uppercase mb-2">
+                  {potionToast.type === 'xp' ? '2x XP Boost' : '2x Coin Boost'}
+                </h3>
+                
+                <div className="bg-background/50 rounded-2xl p-4 border border-white/5 mb-6">
+                  <p className="text-secondary text-xs uppercase tracking-widest font-bold mb-1">
+                    {state.language === 'id' ? 'Sisa Waktu' : 'Time Remaining'}
+                  </p>
+                  <p className={`text-2xl font-mono font-bold ${potionToast.type === 'xp' ? 'text-purple-400' : 'text-yellow-400'}`}>
+                    {potionToast.message.split(': ')[1]}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setPotionToast(null)}
+                  className="w-full py-4 rounded-2xl bg-primary text-background font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all"
+                >
+                  {state.language === 'id' ? 'Mantap' : 'Got it'}
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <BossBattle onMissionClick={handleMissionClick} />
         
         {/* Missions */}
         <section>
@@ -582,7 +687,10 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
               <button
                 key={tab}
                 id={`tab-${tab.toLowerCase()}`}
-                onClick={() => setActiveTab(tab as MissionType)}
+                onClick={() => {
+                  sounds.playClick();
+                  setActiveTab(tab as MissionType);
+                }}
                 className={`flex-1 min-w-[70px] py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-colors ${
                   activeTab === tab 
                     ? 'bg-gradient-to-r from-accent to-rose-600 text-white shadow-md' 
@@ -628,8 +736,17 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
             ) : (
               displayedMissions.map((mission, index) => {
                 const baseXpReward = mission.type === 'WEEKLY' ? 200 : mission.type === 'DAILY' ? 100 : 50;
+                const baseCoinReward = mission.type === 'WEEKLY' ? 100 : mission.type === 'DAILY' ? 50 : 20;
+                
                 const isDoubleXpActive = state.doubleXpActiveUntil && new Date(state.doubleXpActiveUntil) > new Date();
-                const xpReward = isDoubleXpActive ? baseXpReward * 2 : baseXpReward;
+                const isDoubleCoinActive = state.doubleCoinActiveUntil && new Date(state.doubleCoinActiveUntil) > new Date();
+                
+                let xpReward = isDoubleXpActive ? baseXpReward * 2 : baseXpReward;
+                let coinReward = isDoubleCoinActive ? baseCoinReward * 2 : baseCoinReward;
+                
+                if (state.isPremium) {
+                  xpReward = Math.floor(xpReward * 1.5);
+                }
                 
                 // For ROUTINE missions, lock them if the previous one isn't completed
                 const isRoutine = activeTab === 'ROUTINE';
@@ -673,7 +790,26 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                       )}
                     </div>
                     {!mission.completed && !isLocked && (
-                      <span className="ml-auto text-xs font-mono text-accent">+{xpReward} XP</span>
+                      <div className="ml-auto flex flex-col items-end space-y-0.5">
+                        <div className="flex items-center space-x-1">
+                          {isDoubleXpActive && (
+                            <div className="flex items-center bg-purple-500/20 px-1 rounded text-[10px] font-bold text-purple-400 animate-pulse border border-purple-500/30">
+                              <Zap className="w-2.5 h-2.5 mr-0.5" />
+                              2x
+                            </div>
+                          )}
+                          <span className="text-xs font-mono text-accent">+{xpReward} XP</span>
+                        </div>
+                        {isDoubleCoinActive && (
+                          <div className="flex items-center space-x-1">
+                            <div className="flex items-center bg-yellow-500/20 px-1 rounded text-[10px] font-bold text-yellow-400 animate-pulse border border-yellow-500/30">
+                              <ZoneCoinIcon className="w-2.5 h-2.5 mr-0.5" />
+                              2x
+                            </div>
+                            <span className="text-[10px] font-mono text-yellow-500">+{coinReward} ZC</span>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </motion.div>
                 );
@@ -682,173 +818,6 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
           </div>
         </section>
       </div>
-
-      {/* Mission Action Modal */}
-      <AnimatePresence>
-        {selectedMission && (
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-50 bg-background flex flex-col px-6 py-12"
-          >
-            <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
-              {timeLeft !== null ? (
-                <div className="flex-1 flex flex-col items-center justify-center">
-                  <div className="text-7xl sm:text-8xl font-mono font-black text-accent mb-8 tracking-tighter">
-                    {timeLeft >= 3600 ? (
-                      <>
-                        {Math.floor(timeLeft / 3600)}:
-                        {Math.floor((timeLeft % 3600) / 60).toString().padStart(2, '0')}:
-                        {(timeLeft % 60).toString().padStart(2, '0')}
-                      </>
-                    ) : (
-                      <>
-                        {Math.floor(timeLeft / 60)}:
-                        {(timeLeft % 60).toString().padStart(2, '0')}
-                      </>
-                    )}
-                  </div>
-                  <p className="text-xl text-secondary mb-12 font-medium">
-                    {isTimerRunning ? t('home.timer.keep_going', state.language) : t('home.timer.paused', state.language)}
-                  </p>
-                  
-                  <div className="flex flex-col w-full space-y-4">
-                    {isTimerRunning ? (
-                      <button
-                        id="timer-stop-btn"
-                        onClick={() => {
-                          sounds.playClick();
-                          setIsTimerRunning(false);
-                        }}
-                        className="w-full py-5 rounded-2xl font-bold text-lg border-2 border-rose-500/50 text-rose-500 hover:bg-rose-500/10 transition-colors"
-                      >
-                        {t('home.timer.stop', state.language)}
-                      </button>
-                    ) : (
-                      <button
-                        id="timer-start-btn"
-                        onClick={() => {
-                          sounds.playTick();
-                          setIsTimerRunning(true);
-                        }}
-                        className="w-full py-5 rounded-2xl font-bold text-lg bg-primary text-background hover:bg-gray-200 transition-colors flex items-center justify-center space-x-2"
-                      >
-                        <Timer className="w-6 h-6" />
-                        <span>{timeLeft === extractDuration(selectedMission!.text) ? t('home.timer.start', state.language) : t('home.timer.resume', state.language)}</span>
-                      </button>
-                    )}
-                    
-                    <button
-                      id="timer-reset-btn"
-                      onClick={() => {
-                        sounds.playClick();
-                        setIsTimerRunning(false);
-                        setTimeLeft(extractDuration(selectedMission!.text));
-                      }}
-                      className="w-full py-5 rounded-2xl font-bold text-lg bg-surface text-secondary border border-white/10 hover:bg-surface-hover hover:text-primary transition-colors"
-                    >
-                      {t('home.timer.reset', state.language)}
-                    </button>
-
-                    <button
-                      id="mission-replace-btn"
-                      onClick={() => {
-                        sounds.playClick();
-                        onReplaceMission(selectedMission!.id);
-                        handleCloseModal();
-                      }}
-                      className="w-full py-5 rounded-2xl font-bold text-lg bg-surface text-secondary border border-white/10 hover:bg-surface-hover hover:text-primary transition-colors"
-                    >
-                      {t('home.cant_do_it', state.language)}
-                    </button>
-
-                    <button
-                      id="mission-close-btn"
-                      onClick={() => {
-                        sounds.playCloseModal();
-                        handleCloseModal();
-                      }}
-                      className="w-full py-5 rounded-2xl font-bold text-lg text-secondary hover:text-primary transition-colors"
-                    >
-                      {t('home.cancel', state.language)}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center justify-center space-x-3 mb-8">
-                    <span className="px-4 py-2 bg-white/5 rounded-full text-sm font-mono text-secondary uppercase tracking-wider border border-white/10">
-                      {selectedMission.type} MISSION
-                    </span>
-                    <span className="px-4 py-2 bg-accent/10 text-accent rounded-full text-sm font-mono font-bold border border-accent/20">
-                      +{(() => {
-                        let baseXp = selectedMission.type === 'WEEKLY' ? 200 : selectedMission.type === 'DAILY' ? 100 : 50;
-                        if (state.isPremium) baseXp = Math.floor(baseXp * 1.5);
-                        const isDoubleXpActive = state.doubleXpActiveUntil && new Date(state.doubleXpActiveUntil) > new Date();
-                        return isDoubleXpActive ? baseXp * 2 : baseXp;
-                      })()} XP
-                    </span>
-                  </div>
-                  
-                  <h2 className="text-4xl sm:text-5xl font-display font-black mb-12 text-center leading-tight tracking-tight">
-                    {selectedMission.text}
-                  </h2>
-                  
-                  <div className="space-y-4 mt-auto">
-                    <button
-                      onMouseDown={() => !isBurstLocked && startLongPress(selectedMission.id)}
-                      onMouseUp={cancelLongPress}
-                      onMouseLeave={cancelLongPress}
-                      onTouchStart={() => !isBurstLocked && startLongPress(selectedMission.id)}
-                      onTouchEnd={cancelLongPress}
-                      disabled={isBurstLocked}
-                      className={`relative w-full py-5 rounded-2xl font-bold text-lg overflow-hidden transition-all shadow-xl ${
-                        isBurstLocked 
-                          ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
-                          : 'bg-primary text-background shadow-primary/20 active:scale-[0.98]'
-                      }`}
-                    >
-                      <motion.div 
-                        className="absolute inset-0 bg-accent/40"
-                        style={{ width: `${longPressProgress}%` }}
-                        transition={{ type: "spring", bounce: 0 }}
-                      />
-                      <span className="relative z-10">
-                        {isBurstLocked 
-                          ? (state.language === 'id' ? 'Neural Overheat' : 'Neural Overheat')
-                          : longPressProgress > 0 
-                            ? (state.language === 'id' ? 'Tahan...' : 'Holding...') 
-                            : t('home.mission.start_complete', state.language) + (state.language === 'id' ? ' (Tahan 3d)' : ' (Hold 3s)')}
-                      </span>
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        onReplaceMission(selectedMission.id);
-                        handleCloseModal();
-                      }}
-                      className="w-full py-5 rounded-2xl font-bold text-lg bg-surface text-secondary border border-white/10 hover:bg-surface-hover hover:text-primary transition-colors"
-                    >
-                      {t('home.cant_do_it', state.language)}
-                    </button>
-                    <button
-                      onClick={handleCloseModal}
-                      className="w-full py-5 rounded-2xl font-bold text-lg text-secondary hover:text-primary transition-colors"
-                    >
-                      {t('home.cancel', state.language)}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-      </AnimatePresence>
 
       <CustomMissionsModal
         isOpen={isCustomMissionsModalOpen}
@@ -925,6 +894,170 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
         onClose={() => setIsIntegrityHelpOpen(false)} 
         language={state.language} 
       />
+
+      {/* Mission Action Modal */}
+      <AnimatePresence>
+        {selectedMission && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="fixed inset-0 z-[500] bg-background flex flex-col px-6 py-12"
+          >
+            <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
+              <h2 className="text-3xl sm:text-4xl font-display font-black mb-8 text-center leading-tight tracking-tight">
+                {selectedMission.text}
+              </h2>
+
+              {timeLeft !== null ? (
+                <div className="flex flex-col items-center mb-12">
+                  <div className="text-7xl sm:text-8xl font-mono font-black text-accent mb-4 tracking-tighter">
+                    {timeLeft >= 3600 ? (
+                      <>
+                        {Math.floor(timeLeft / 3600)}:
+                        {Math.floor((timeLeft % 3600) / 60).toString().padStart(2, '0')}:
+                        {(timeLeft % 60).toString().padStart(2, '0')}
+                      </>
+                    ) : (
+                      <>
+                        {Math.floor(timeLeft / 60)}:
+                        {(timeLeft % 60).toString().padStart(2, '0')}
+                      </>
+                    )}
+                  </div>
+                  <p className="text-xl text-secondary mb-8 font-medium">
+                    {isTimerRunning ? t('home.timer.keep_going', state.language) : t('home.timer.paused', state.language)}
+                  </p>
+                  
+                  <div className="flex gap-4 w-full">
+                    <button
+                      onClick={() => setIsTimerRunning(!isTimerRunning)}
+                      className="flex-1 py-5 rounded-2xl font-bold text-lg bg-primary text-background shadow-xl shadow-primary/20 active:scale-[0.98] transition-all"
+                    >
+                      {isTimerRunning ? t('home.timer.pause', state.language) : t('home.timer.resume', state.language)}
+                    </button>
+                    <button
+                      onClick={() => {
+                        sounds.playClick();
+                        const duration = extractDuration(selectedMission.text) || extractDuration(selectedMission.originalText) || 60;
+                        setTimeLeft(duration);
+                        setIsTimerRunning(false);
+                      }}
+                      className="flex-1 py-5 rounded-2xl font-bold text-lg bg-surface text-secondary border border-white/10 transition-colors"
+                    >
+                      {t('home.timer.reset', state.language)}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {selectedMission.goal !== undefined && (
+                    <div className="w-full mb-12">
+                      <div className="flex justify-between items-end mb-3">
+                        <span className="text-xs font-mono font-bold text-secondary uppercase tracking-widest opacity-50">Neural Progress</span>
+                        <span className="text-3xl font-display font-black text-rose-500">
+                          {selectedMission.progress || 0}
+                          <span className="text-xl text-secondary opacity-30 mx-1">/</span>
+                          {selectedMission.goal}
+                        </span>
+                      </div>
+                      <div className={`h-4 w-full bg-surface rounded-full overflow-hidden border mb-8 relative transition-all duration-500 ${
+                        selectedMission.progress! >= selectedMission.goal! 
+                          ? 'border-rose-500/50 shadow-[0_0_15px_rgba(244,63,94,0.3)]' 
+                          : 'border-white/5'
+                      }`}>
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${((selectedMission.progress || 0) / selectedMission.goal) * 100}%` }}
+                          className={`h-full transition-colors duration-500 ${
+                            selectedMission.progress! >= selectedMission.goal! ? 'bg-rose-500' : 'bg-rose-500/80'
+                          }`}
+                          style={{ 
+                            boxShadow: selectedMission.progress! >= selectedMission.goal! 
+                              ? '0 0 20px rgba(244,63,94,0.6)' 
+                              : '0 0 10px rgba(244,63,94,0.2)' 
+                          }}
+                          transition={{ type: "spring", damping: 20, stiffness: 100 }}
+                        />
+                        {selectedMission.progress! >= selectedMission.goal! && (
+                          <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: [0.2, 0.5, 0.2] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="absolute inset-0 bg-white/20"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-4">
+                        {[1, 5, 10].map(inc => (
+                          <button
+                            key={inc}
+                            onClick={() => updateMissionProgress(selectedMission.id, inc)}
+                            className="group relative py-4 rounded-2xl bg-surface border border-white/10 font-mono font-black text-xl text-secondary hover:text-rose-500 hover:border-rose-500/50 hover:bg-rose-500/5 transition-all active:scale-95"
+                          >
+                            <span className="relative z-10">+{inc}</span>
+                            <div className="absolute inset-0 rounded-2xl bg-rose-500/0 group-hover:bg-rose-500/5 transition-colors" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+              
+              <div className="space-y-4 mt-auto">
+                <button
+                  onMouseDown={() => !isBurstLocked && (timeLeft === null || timeLeft === 0) && (selectedMission.goal === undefined || selectedMission.progress === selectedMission.goal) && startLongPress(selectedMission.id)}
+                  onMouseUp={cancelLongPress}
+                  onMouseLeave={cancelLongPress}
+                  onTouchStart={() => !isBurstLocked && (timeLeft === null || timeLeft === 0) && (selectedMission.goal === undefined || selectedMission.progress === selectedMission.goal) && startLongPress(selectedMission.id)}
+                  onTouchEnd={cancelLongPress}
+                  disabled={isBurstLocked || (timeLeft !== null && timeLeft > 0) || (selectedMission.goal !== undefined && selectedMission.progress! < selectedMission.goal!)}
+                  className={`relative w-full py-5 rounded-2xl font-bold text-lg overflow-hidden transition-all shadow-xl ${
+                    isBurstLocked || (timeLeft !== null && timeLeft > 0) || (selectedMission.goal !== undefined && selectedMission.progress! < selectedMission.goal!)
+                      ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
+                      : 'bg-primary text-background shadow-primary/20 active:scale-[0.98] shadow-white/10'
+                  } shadow-white/10`}
+                >
+                  <motion.div 
+                    className="absolute inset-0 bg-accent/40"
+                    style={{ width: `${longPressProgress}%` }}
+                    transition={{ duration: 0.1, ease: "linear" }}
+                  />
+                  <span className="relative z-10">
+                    {isBurstLocked 
+                      ? (state.language === 'id' ? 'Neural Overheat' : 'Neural Overheat')
+                      : longPressProgress > 0 
+                        ? (state.language === 'id' ? 'Tahan...' : 'Holding...') 
+                        : (timeLeft === 0 || (selectedMission.goal !== undefined && selectedMission.progress === selectedMission.goal)
+                            ? (state.language === 'id' ? 'Selesaikan Misi' : 'Complete Mission')
+                            : t('home.mission.start_complete', state.language)) + (state.language === 'id' ? ' (Tahan 3d)' : ' (Hold 3s)')}
+                  </span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    onReplaceMission(selectedMission.id);
+                    handleCloseModal();
+                  }}
+                  className="w-full py-5 rounded-2xl font-bold text-lg bg-surface text-secondary border border-white/10 hover:bg-surface-hover hover:text-primary transition-colors"
+                >
+                  {t('home.cant_do_it', state.language)}
+                </button>
+                <button
+                  onClick={handleCloseModal}
+                  className="w-full py-5 rounded-2xl font-bold text-lg text-secondary hover:text-primary transition-colors"
+                >
+                  {t('home.cancel', state.language)}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </motion.div>
   );

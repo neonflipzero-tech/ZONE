@@ -198,8 +198,8 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
     'onboarding.path.productive.desc': { en: 'Focus on work, study, and goals.', id: 'Fokus pada pekerjaan, belajar, dan tujuan.' },
     'onboarding.path.stronger': { en: 'Become stronger', id: 'Menjadi lebih kuat' },
     'onboarding.path.stronger.desc': { en: 'Physical health and fitness.', id: 'Kesehatan fisik dan kebugaran.' },
-    'onboarding.path.extrovert': { en: 'Introvert → Extrovert', id: 'Introvert → Ekstrovert' },
-    'onboarding.path.extrovert.desc': { en: 'Social skills and confidence.', id: 'Keterampilan sosial dan kepercayaan diri.' },
+    'onboarding.path.social': { en: 'Introvert → Social', id: 'Introvert → Sosial' },
+    'onboarding.path.social.desc': { en: 'Social skills and confidence.', id: 'Keterampilan sosial dan kepercayaan diri.' },
     'onboarding.path.discipline': { en: 'Better discipline', id: 'Disiplin yang lebih baik' },
     'onboarding.path.discipline.desc': { en: 'Build unbreakable habits.', id: 'Bangun kebiasaan yang tak terpatahkan.' },
     'onboarding.path.mental_health': { en: 'Better mental health', id: 'Kesehatan mental yang lebih baik' },
@@ -271,7 +271,7 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
     'onboarding.path.DISCIPLINE.name': { en: 'Discipline', id: 'Disiplin' },
     'onboarding.path.MENTAL_HEALTH.name': { en: 'Mental Health', id: 'Kesehatan Mental' },
     'onboarding.path.PRODUCTIVE.name': { en: 'Productive', id: 'Produktif' },
-    'onboarding.path.EXTROVERT.name': { en: 'Extrovert', id: 'Ekstrovert' },
+    'onboarding.path.SOCIAL.name': { en: 'Social', id: 'Sosial' },
     'onboarding.path.OTHER.name': { en: 'Custom', id: 'Kustom' },
 
     // FeedScreen.tsx
@@ -361,6 +361,15 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
     // SettingsScreen.tsx
     'settings.privacy_policy.title': { en: 'Privacy Policy', id: 'Kebijakan Privasi' },
     'settings.terms_of_service.title': { en: 'Terms of Service', id: 'Syarat & Ketentuan' },
+    'settings.delete_account': { en: 'Delete Account & Data', id: 'Hapus Akun & Data' },
+    'settings.delete_account.desc': { en: 'Permanently delete your account and all your progress. This cannot be undone.', id: 'Hapus akun dan semua progres Anda secara permanen. Tindakan ini tidak dapat dibatalkan.' },
+    'settings.delete_account.confirm': { en: 'Delete Permanently', id: 'Hapus Permanen' },
+    'settings.account': { en: 'Account Settings', id: 'Pengaturan Akun' },
+    'settings.username': { en: 'Username', id: 'Nama Pengguna' },
+    'settings.username.desc': { en: 'Change your display name on the leaderboard.', id: 'Ubah nama tampilan kamu di peringkat.' },
+    'settings.username.placeholder': { en: 'Enter new username', id: 'Masukkan nama pengguna baru' },
+    'settings.username.save': { en: 'Save Username', id: 'Simpan Nama Pengguna' },
+    'settings.username.success': { en: 'Username updated!', id: 'Nama pengguna diperbarui!' },
 
     // StreakScreen.tsx
     'streak.title': { en: 'Day Streak!', id: 'Hari Beruntun!' },
@@ -381,6 +390,55 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
     'streak.quote.10': { en: '"You are stronger than you think."', id: '"Kamu lebih kuat dari yang kamu kira."' },
     'streak.share': { en: 'Share Streak', id: 'Bagikan Streak' },
     'streak.keep_going': { en: 'Keep Going', id: 'Terus Lanjutkan' },
+
+    // Boss components
+    'boss.event': { en: 'WEEKLY EVENT', id: 'EVENT MINGGUAN' },
+    'boss.ongoing': { en: 'ONGOING', id: 'SEDANG BERLANGSUNG' },
+    'boss.live': { en: 'LIVE', id: 'LIVE' },
+    'boss.continue': { en: 'CONTINUE THE BATTLE!', id: 'LANJUTKAN PERTEMPURAN!' },
+    'boss.appeared': { en: 'WEEKLY BOSS HAS APPEARED!', id: 'BOSS MINGGUAN TELAH MUNCUL!' },
+    'boss.hp': { en: 'Boss HP: {hp}%', id: 'HP Boss: {hp}%' },
+    'boss.reward_desc': { en: 'Defeat the boss to earn 1500 XP and 500 ZoneCoins!', id: 'Kalahkan boss untuk mendapatkan 1500 XP dan 500 ZoneCoins!' },
+    'boss.return': { en: 'RETURN TO FIGHT', id: 'KEMBALI BERTARUNG' },
+    'boss.face': { en: 'FACE THE BOSS', id: 'HADAPI BOSS' },
+    'boss.title': { en: 'WEEKLY BOSS', id: 'BOSS MINGGUAN' },
+    'boss.guardian': { en: '{topic} GUARDIAN', id: 'PENJAGA {topic}' },
+    'boss.complete_to_attack': { en: 'COMPLETE MISSIONS TO ATTACK', id: 'SELESAIKAN MISI UNTUK MENYERANG' },
+    'boss.attack': { en: 'ATTACK BOSS', id: 'SERANG BOSS' },
+    'boss.reward_info': { en: 'Defeat the boss to earn massive rewards', id: 'Kalahkan boss untuk mendapatkan hadiah besar' },
+
+    // Profile Screen
+    'profile.stat.physical.name': { en: 'Physical', id: 'Fisik' },
+    'profile.stat.mental.name': { en: 'Mental', id: 'Mental' },
+    'profile.stat.productivity.name': { en: 'Productivity', id: 'Produktivitas' },
+    'profile.stat.social.name': { en: 'Social', id: 'Sosial' },
+    'profile.stat.discipline.name': { en: 'Discipline', id: 'Disiplin' },
+    'profile.focus_distribution': { en: 'Focus Distribution', id: 'Distribusi Fokus' },
+    'profile.elite_feature': { en: 'ELITE FEATURE', id: 'FITUR ELITE' },
+    'profile.unlock_analysis': { en: 'Unlock daily focus distribution analysis to optimize your growth.', id: 'Buka analisis distribusi fokus harian untuk mengoptimalkan pertumbuhanmu.' },
+    'profile.join_elite': { en: 'JOIN ELITE', id: 'GABUNG ELITE' },
+    'profile.complete_today': { en: 'Complete missions today to see analysis.', id: 'Selesaikan misi hari ini untuk melihat analisis.' },
+    'profile.missions_count': { en: 'Missions', id: 'Misi' },
+    'profile.today_focus': { en: "Today's Focus", id: 'Fokus Utama' },
+    'profile.inventory': { en: 'Inventory', id: 'Inventori' },
+    'profile.inventory_desc': { en: 'Manage frames and titles', id: 'Kelola bingkai dan gelar' },
+    'profile.zone_store': { en: 'Zone Store', id: 'Toko Zona' },
+    'profile.zone_store_desc': { en: 'Unlock exclusive items', id: 'Buka item eksklusif' },
+
+    // Leaderboard Screen
+    'leaderboard.rival_already': { en: 'You are already rival with them!', id: 'Kamu sudah bersaing dengan mereka!' },
+    'leaderboard.rival_defeated': { en: 'You already defeated this rival! Find a stronger opponent.', id: 'Kamu sudah mengalahkan rival ini! Cari lawan yang lebih kuat.' },
+    'leaderboard.rival_tag': { en: 'RIVAL', id: 'RIVAL' },
+    'leaderboard.you': { en: '(You)', id: '(Kamu)' },
+
+    // Home Screen
+    'home.neural_overheat': { en: 'Neural Overheat. Wait {seconds} seconds.', id: 'Neural Overheat. Tunggu {seconds} detik.' },
+    'home.mission_complete': { en: 'MISSION COMPLETE!', id: 'MISI SELESAI!' },
+    'home.mission_complete_desc': { en: 'You are one step closer to your best self.', id: 'Kamu selangkah lebih dekat menuju versi terbaikmu.' },
+    'home.rewards_earned': { en: 'REWARDS EARNED', id: 'HADIAH DIDAPAT' },
+    'home.continue': { en: 'Continue', id: 'Lanjutkan' },
+    'home.use_xp_potion': { en: 'Use 2x XP Potion?', id: 'Gunakan 2x XP Potion?' },
+    'home.use_coin_potion': { en: 'Use 2x Coin Potion?', id: 'Gunakan 2x Coin Potion?' },
   };
 
   let text = translations[key]?.[lang] || key;

@@ -224,7 +224,7 @@ export default function OnboardingScreen({ onSelectPath, language }: OnboardingS
       DISCIPLINE: baseStats.discipline + baseStats.ambition,
       MENTAL_HEALTH: baseStats.mental,
       PRODUCTIVE: baseStats.intellect,
-      EXTROVERT: baseStats.social
+      SOCIAL: baseStats.social
     };
     
     let bestPath: PathType = 'DISCIPLINE';
@@ -494,7 +494,7 @@ export default function OnboardingScreen({ onSelectPath, language }: OnboardingS
               {[
                 { id: 'PRODUCTIVE', label: 'onboarding.path.productive' },
                 { id: 'STRONGER', label: 'onboarding.path.stronger' },
-                { id: 'EXTROVERT', label: 'onboarding.path.extrovert' },
+                { id: 'SOCIAL', label: 'onboarding.path.social' },
                 { id: 'DISCIPLINE', label: 'onboarding.path.discipline' },
                 { id: 'MENTAL_HEALTH', label: 'onboarding.path.mental_health' },
                 { id: 'OTHER', label: 'onboarding.path.other' },

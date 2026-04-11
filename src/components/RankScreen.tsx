@@ -75,7 +75,7 @@ const RankScreen = ({ state }: RankScreenProps) => {
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-2">
               <Shield className="w-5 h-5 text-primary" />
             </div>
-            <span className="text-2xl font-bold">{state.highestRankAchieved}</span>
+            <span className={`text-2xl font-bold ${currentRank.color}`}>{currentRank.name}</span>
             <span className="text-xs text-secondary uppercase tracking-wider">{t('rank.highest_rank', state.language)}</span>
           </div>
         </div>

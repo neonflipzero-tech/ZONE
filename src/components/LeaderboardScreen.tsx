@@ -257,7 +257,7 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
                 <ProfileFrame frame={top50Users[1]?.equippedFrame || null} src={top50Users[1]?.profilePicture || null} size="sm" />
                 <div className="absolute -bottom-1 bg-gray-300 text-black text-[10px] font-bold px-1.5 rounded-full z-20">2</div>
                 {state.rivalId === top50Users[1]?.userId && (
-                  <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
+                  <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">{t('leaderboard.rival_tag', state.language)}</div>
                 )}
               </div>
               <div className="flex items-center justify-center space-x-1 w-full px-1">
@@ -294,7 +294,7 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
                 <Trophy className="w-6 h-6 text-yellow-400 absolute -top-3 drop-shadow-md z-20" />
                 <div className="absolute -bottom-1 bg-yellow-400 text-black text-xs font-bold px-2 rounded-full z-20">1</div>
                 {state.rivalId === top50Users[0]?.userId && (
-                  <div className="absolute top-0 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
+                  <div className="absolute top-0 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">{t('leaderboard.rival_tag', state.language)}</div>
                 )}
               </div>
               <div className="flex items-center justify-center space-x-1 w-full px-1">
@@ -330,7 +330,7 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
                 <ProfileFrame frame={top50Users[2]?.equippedFrame || null} src={top50Users[2]?.profilePicture || null} size="sm" />
                 <div className="absolute -bottom-1 bg-amber-700 text-white text-[10px] font-bold px-1.5 rounded-full z-20">3</div>
                 {state.rivalId === top50Users[2]?.userId && (
-                  <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">RIVAL</div>
+                  <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[8px] font-bold px-1 rounded-sm z-30 border border-white/20 shadow-lg">{t('leaderboard.rival_tag', state.language)}</div>
                 )}
               </div>
               <div className="flex items-center justify-center space-x-1 w-full px-1">
@@ -388,11 +388,11 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
                       <div className="flex flex-col min-w-0">
                         <div className="flex items-center space-x-2">
                           <h4 className={`font-bold truncate ${isCurrentUser ? 'text-primary' : 'text-secondary'}`}>
-                            {user.username} {isCurrentUser && '(You)'}
+                            {user.username} {isCurrentUser && t('leaderboard.you', state.language)}
                           </h4>
                           {state.rivalId === user.userId && (
                             <span className="px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-500 text-[8px] font-bold uppercase tracking-wider border border-rose-500/30 shrink-0">
-                              Rival
+                              {t('leaderboard.rival_tag', state.language)}
                             </span>
                           )}
                         </div>
@@ -463,7 +463,7 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
                 <div className="flex flex-col min-w-0">
                   <div className="flex items-center space-x-2">
                     <h4 className="font-bold truncate text-primary">
-                      {currentUserData.username} (You)
+                      {currentUserData.username} {t('leaderboard.you', state.language)}
                     </h4>
                   </div>
                   
@@ -546,12 +546,12 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
                 <button
                   onClick={() => {
                     if (state.rivalId === selectedActionUser.userId) {
-                      setRivalError(state.language === 'id' ? 'Kamu sudah bersaing dengan mereka!' : 'You are already rival with them!');
+                      setRivalError(t('leaderboard.rival_already', state.language));
                       return;
                     }
 
                     if (state.beatenRivals?.includes(selectedActionUser.userId) && selectedActionUser.level <= state.level) {
-                      setRivalError(state.language === 'id' ? 'Kamu sudah mengalahkan rival ini! Cari lawan yang lebih kuat.' : 'You already defeated this rival! Find a stronger opponent.');
+                      setRivalError(t('leaderboard.rival_defeated', state.language));
                       return;
                     }
                     

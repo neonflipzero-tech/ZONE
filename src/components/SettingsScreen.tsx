@@ -1,9 +1,11 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, LogOut, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Bell, Clock, Crown } from 'lucide-react';
+import { ChevronLeft, LogOut, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Bell, Clock, Crown, Trash2 } from 'lucide-react';
 import { UserState, PathType, translateMissionText, scaleMissionText } from '../store';
 import React, { useState, useRef } from 'react';
 import { sounds } from '../utils/sounds';
 import { NotificationService } from '../services/NotificationService';
+import { db } from '../firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 import { t } from '../utils/translations';
 
@@ -11,6 +13,7 @@ interface SettingsScreenProps {
   state: UserState;
   updateState: (updates: Partial<UserState>) => void;
   changePath: (path: PathType) => void;
+  clearCustomMissions: () => void;
   onLogout: () => void;
   onBack: () => void;
   setIsResetModalOpen: (isOpen: boolean) => void;
@@ -20,6 +23,7 @@ export default function SettingsScreen({
   state, 
   updateState, 
   changePath, 
+  clearCustomMissions,
   onLogout, 
   onBack,
   setIsResetModalOpen
@@ -27,8 +31,52 @@ export default function SettingsScreen({
   const [isGoalDropdownOpen, setIsGoalDropdownOpen] = useState(false);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [newUsername, setNewUsername] = useState(state.username);
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleUpdateUsername = async () => {
+    if (!newUsername.trim() || newUsername === state.username) return;
+    
+    setIsCheckingUsername(true);
+    
+    try {
+      if (db) {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('username', '==', newUsername.trim()));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          // Check if the found user is not the current user (though username should be unique)
+          const isTaken = querySnapshot.docs.some(doc => doc.id !== state.userId);
+          if (isTaken) {
+            setToastMessage(state.language === 'id' ? 'Username sudah digunakan!' : 'This username has been taken');
+            setIsCheckingUsername(false);
+            setTimeout(() => setToastMessage(null), 3000);
+            return;
+          }
+        }
+      }
+      
+      updateState({ username: newUsername.trim() });
+      setToastMessage(t('settings.username.success', state.language));
+    } catch (e) {
+      console.error("Error checking username:", e);
+      // Fallback: update anyway if Firestore fails
+      updateState({ username: newUsername.trim() });
+      setToastMessage(t('settings.username.success', state.language));
+    } finally {
+      setIsCheckingUsername(false);
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+      toastTimeoutRef.current = setTimeout(() => {
+        setToastMessage(null);
+      }, 3000);
+    }
+  };
 
   const handleTogglePublicProfile = () => {
     const newIsPublic = state.isProfilePublic === false ? true : false;
@@ -109,7 +157,7 @@ export default function SettingsScreen({
           missions: progress.missions.map(mission => {
             const original = mission.originalText || mission.text;
             const translated = translateMissionText(original, lang);
-            const scaled = scaleMissionText(translated, progress.level);
+            const scaled = scaleMissionText(translated, state.level);
             return {
               ...mission,
               text: scaled,
@@ -120,10 +168,29 @@ export default function SettingsScreen({
       }
     });
 
+    // Also update boss tasks if active
+    let updatedBossState = state.bossState;
+    if (updatedBossState && updatedBossState.tasks) {
+      updatedBossState = {
+        ...updatedBossState,
+        tasks: updatedBossState.tasks.map(task => {
+          const original = task.originalText || task.text;
+          const translated = translateMissionText(original, lang);
+          const scaled = scaleMissionText(translated, state.level);
+          return {
+            ...task,
+            text: scaled,
+            originalText: original
+          };
+        })
+      };
+    }
+
     updateState({ 
       language: lang,
       missions: updatedMissions,
-      pathProgress: updatedPathProgress
+      pathProgress: updatedPathProgress,
+      bossState: updatedBossState
     });
     
     setToastMessage(lang === 'id' ? 'Bahasa diubah ke Indonesia' : 'Language changed to English');
@@ -159,6 +226,41 @@ export default function SettingsScreen({
 
       <div className="p-4 space-y-6">
         <div className="bg-surface border border-white/5 rounded-2xl overflow-hidden">
+          {/* Account Settings - Username */}
+          <div className="p-4 border-b border-white/5">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-secondary mb-4">
+              {t('settings.account', state.language)}
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-bold block mb-1">{t('settings.username', state.language)}</label>
+                <span className="text-[10px] text-secondary block mb-2">{t('settings.username.desc', state.language)}</span>
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                  <input 
+                    type="text" 
+                    value={newUsername}
+                    onChange={(e) => setNewUsername(e.target.value)}
+                    placeholder={t('settings.username.placeholder', state.language)}
+                    className="flex-1 bg-background border border-white/10 rounded-xl px-4 py-2 text-sm text-primary focus:outline-none focus:border-accent transition-colors min-w-0"
+                  />
+                  <button
+                    onClick={handleUpdateUsername}
+                    disabled={!newUsername.trim() || newUsername === state.username || isCheckingUsername}
+                    className={`px-4 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap ${
+                      !newUsername.trim() || newUsername === state.username || isCheckingUsername
+                        ? 'bg-white/5 text-secondary cursor-not-allowed'
+                        : 'bg-primary text-background hover:scale-105 active:scale-95'
+                    }`}
+                  >
+                    {isCheckingUsername 
+                      ? (state.language === 'id' ? 'Mengecek...' : 'Checking...') 
+                      : t('settings.username.save', state.language)}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Goal Setting */}
           <div className="p-4 border-b border-white/5">
             <div 
@@ -181,7 +283,7 @@ export default function SettingsScreen({
                   className="overflow-hidden"
                 >
                   <div className="pt-4 space-y-2">
-                    {(['PRODUCTIVE', 'STRONGER', 'EXTROVERT', 'DISCIPLINE', 'MENTAL_HEALTH', 'OTHER'] as PathType[]).map(path => (
+                    {(['PRODUCTIVE', 'STRONGER', 'SOCIAL', 'DISCIPLINE', 'MENTAL_HEALTH', 'OTHER'] as PathType[]).map(path => (
                       <button
                         key={path}
                         onClick={() => {
@@ -347,10 +449,30 @@ export default function SettingsScreen({
           </button>
 
           <button 
+            onClick={() => {
+              clearCustomMissions();
+              setToastMessage(state.language === 'id' ? 'Misi kustom dihapus' : 'Custom missions cleared');
+              setTimeout(() => setToastMessage(null), 2000);
+            }}
+            className="w-full p-4 flex items-center justify-between text-secondary hover:bg-white/5 transition-colors border-b border-white/5"
+          >
+            <span className="font-bold">{state.language === 'id' ? 'Hapus Misi Kustom' : 'Clear Custom Missions'}</span>
+            <Trash2 className="w-5 h-5" />
+          </button>
+
+          <button 
             onClick={() => setIsResetModalOpen(true)}
             className="w-full p-4 flex items-center justify-between text-rose-500 hover:bg-rose-500/10 transition-colors border-b border-white/5"
           >
             <span className="font-bold">{t('settings.reset_progress', state.language)}</span>
+            <AlertTriangle className="w-5 h-5" />
+          </button>
+
+          <button 
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="w-full p-4 flex items-center justify-between text-rose-600 hover:bg-rose-600/10 transition-colors border-b border-white/5"
+          >
+            <span className="font-bold">{t('settings.delete_account', state.language)}</span>
             <AlertTriangle className="w-5 h-5" />
           </button>
 
@@ -386,18 +508,36 @@ export default function SettingsScreen({
             </div>
             <div className="p-6 overflow-y-auto text-secondary space-y-4 text-sm">
               <h3 className="text-lg font-bold text-primary">Privacy Policy for ZONE</h3>
-              <p>Last updated: March 2026</p>
+              <p>Last updated: April 2026</p>
               <p>ZONE ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how your personal information is collected, used, and disclosed by ZONE.</p>
+              
+              <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 mb-4">
+                <p className="text-primary font-bold mb-2">Full Policy Available Online</p>
+                <p className="text-xs mb-3">You can view the complete, detailed privacy policy at our website:</p>
+                <a 
+                  href="/privacy.html" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-block bg-primary text-background px-4 py-2 rounded-lg font-bold text-xs"
+                >
+                  OPEN FULL PRIVACY POLICY
+                </a>
+              </div>
+
               <h4 className="font-bold text-primary mt-4">1. Information We Collect</h4>
-              <p>We collect information you provide directly to us, such as your username, email address, profile picture, and in-app progress (XP, level, missions completed).</p>
+              <p>We collect information you provide directly to us, such as your name, email address, profile picture from Google login, and in-app progress (XP, level, missions completed, ZoneCoins).</p>
+              
               <h4 className="font-bold text-primary mt-4">2. How We Use Your Information</h4>
-              <p>We use the information we collect to provide, maintain, and improve our services, to personalize your experience, and to display your progress on the global leaderboard (if you choose to make your profile public).</p>
-              <h4 className="font-bold text-primary mt-4">3. Sharing of Information</h4>
-              <p>We do not share your personal information with third parties except as described in this privacy policy or with your consent. Your username, level, and stats may be visible to other users on the leaderboard unless you disable the "Public Profile" setting.</p>
-              <h4 className="font-bold text-primary mt-4">4. Data Security</h4>
-              <p>We take reasonable measures to help protect information about you from loss, theft, misuse and unauthorized access, disclosure, alteration and destruction.</p>
+              <p>We use the information to provide, maintain, and improve our services, to personalize your missions, and to display your progress on the global leaderboard.</p>
+              
+              <h4 className="font-bold text-primary mt-4">3. Data Security</h4>
+              <p>We use Google Firebase for secure cloud storage. We take reasonable measures to protect your information from unauthorized access.</p>
+              
+              <h4 className="font-bold text-primary mt-4">4. Your Rights</h4>
+              <p>You have the right to access, update, or delete your personal data at any time through the app settings.</p>
+              
               <h4 className="font-bold text-primary mt-4">5. Contact Us</h4>
-              <p>If you have any questions about this Privacy Policy, please contact us at support@zoneapp.com.</p>
+              <p>If you have any questions about this Privacy Policy, please contact us at zaikiwildan@gmail.com.</p>
             </div>
           </motion.div>
         )}
@@ -439,6 +579,61 @@ export default function SettingsScreen({
               <p>We reserve the right, at our sole discretion, to modify or replace these Terms at any time. What constitutes a material change will be determined at our sole discretion.</p>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Account Modal */}
+      <AnimatePresence>
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsDeleteModalOpen(false)}
+              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-sm bg-surface border border-rose-500/20 rounded-3xl p-6 shadow-2xl"
+            >
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-rose-500/10 flex items-center justify-center">
+                  <AlertTriangle className="w-8 h-8 text-rose-500" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-display font-black tracking-tight uppercase italic text-rose-500">
+                    {t('settings.delete_account', state.language)}
+                  </h3>
+                  <p className="text-sm text-secondary mt-2">
+                    {t('settings.delete_account.desc', state.language)}
+                  </p>
+                </div>
+                
+                <div className="w-full space-y-3 pt-4">
+                  <button
+                    onClick={() => {
+                      // In a real app, this would call a backend to delete user data
+                      // For now, we'll just logout and reset local state
+                      onLogout();
+                      setIsDeleteModalOpen(false);
+                    }}
+                    className="w-full py-4 rounded-2xl bg-rose-500 text-white font-black uppercase italic tracking-wider hover:bg-rose-600 transition-colors shadow-lg shadow-rose-500/20"
+                  >
+                    {t('settings.delete_account.confirm', state.language)}
+                  </button>
+                  <button
+                    onClick={() => setIsDeleteModalOpen(false)}
+                    className="w-full py-4 rounded-2xl bg-white/5 text-secondary font-bold hover:bg-white/10 transition-colors"
+                  >
+                    {state.language === 'id' ? 'Batalkan' : 'Cancel'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
