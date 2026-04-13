@@ -50,36 +50,26 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       borderClass = 'p-1.5';
       break;
     case 'frame-master':
-      bgClass = 'bg-purple-500';
+      bgClass = 'bg-purple-600';
       borderClass = 'p-1.5';
-      decorations = (
-        <div className="absolute inset-0 rounded-full border-4 border-purple-400/50 animate-pulse scale-110 z-0" />
-      );
       break;
     case 'frame-grandmaster':
-      bgClass = 'bg-yellow-400';
-      borderClass = 'p-1.5';
-      decorations = (
-        <div className="absolute inset-0 rounded-full border-4 border-yellow-300/50 animate-ping z-0" />
-      );
-      break;
-    case 'frame-challenger':
-      bgClass = 'bg-rose-500';
+      bgClass = 'bg-yellow-500';
       borderClass = 'p-[4px]';
       decorations = (
-        <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_20px_#f43f5e,inset_0_0_15px_#f43f5e] bg-rose-950">
-          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,transparent,#f43f5e,#e11d48,transparent)] animate-[spin_2s_linear_infinite] opacity-90 blur-sm" />
-          <div className="absolute inset-0 rounded-full border-2 border-rose-400 border-dashed animate-[spin_4s_linear_infinite_reverse]" />
-          <div className="absolute inset-0 rounded-full border border-rose-300/50" />
+        <div className="absolute inset-0 rounded-full z-0 shadow-[0_0_20px_rgba(234,179,8,0.6)] bg-amber-900">
+          <div className="absolute inset-[-20%] rounded-full bg-[conic-gradient(from_0deg,transparent,#facc15,transparent,#fbbf24,transparent)] animate-[spin_3s_linear_infinite] opacity-40" />
+          <div className="absolute inset-0 rounded-full border-2 border-yellow-300 shadow-[inset_0_0_10px_rgba(253,224,71,0.4)]" />
         </div>
       );
       break;
-    case 'frame-legend':
-      bgClass = 'bg-emerald-400';
+    case 'frame-challenger':
+      bgClass = 'bg-rose-600';
       borderClass = 'p-1.5';
-      decorations = (
-        <div className="absolute inset-0 rounded-full border-4 border-emerald-400/50 animate-pulse scale-110 z-0 shadow-[0_0_15px_#34d399]" />
-      );
+      break;
+    case 'frame-legend':
+      bgClass = 'bg-emerald-500';
+      borderClass = 'p-1.5';
       break;
     case 'frame-mythic':
       bgClass = 'bg-black';
@@ -87,26 +77,26 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       shapeClass = 'rounded-full';
       decorations = (
         <div className="absolute inset-0 z-0 flex items-center justify-center">
-          {/* Blackhole Accretion Disk */}
-          <div className="absolute inset-[-30%] rounded-full bg-[conic-gradient(from_0deg,transparent,#7c3aed,#c084fc,transparent)] animate-[spin_2s_linear_infinite] blur-md opacity-80" />
+          {/* Blackhole Accretion Disk - More intense */}
+          <div className="absolute inset-[-40%] rounded-full bg-[conic-gradient(from_0deg,transparent,#7c3aed,#c084fc,#7c3aed,transparent)] animate-[spin_1.5s_linear_infinite] blur-md opacity-90" />
           
           {/* Event Horizon Glow */}
-          <div className="absolute inset-[-15%] rounded-full bg-violet-600/40 blur-xl animate-pulse" />
+          <div className="absolute inset-[-20%] rounded-full bg-violet-600/50 blur-2xl animate-pulse" />
           
           {/* Swirling energy */}
           <div className="absolute inset-0 rounded-full overflow-hidden bg-black">
-            <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#000,#4c1d95,#7c3aed,#000)] animate-[spin_3s_linear_infinite] opacity-90" />
+            <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#000,#4c1d95,#7c3aed,#c084fc,#000)] animate-[spin_2s_linear_infinite] opacity-95" />
             
             {/* Distorted inner ring */}
             <motion.div 
-              animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
-              transition={{ duration: 4, repeat: Infinity }}
-              className="absolute inset-[2px] rounded-full border-2 border-violet-400/30 border-dashed"
+              animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.8, 0.4], rotate: 360 }}
+              transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-[1px] rounded-full border-2 border-violet-300/40 border-dashed"
             />
           </div>
           
           {/* Dark center shadow */}
-          <div className="absolute inset-0 rounded-full shadow-[inset_0_0_20px_rgba(0,0,0,1)] z-10" />
+          <div className="absolute inset-0 rounded-full shadow-[inset_0_0_30px_rgba(0,0,0,1)] z-10" />
         </div>
       );
       break;
@@ -115,7 +105,7 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       borderClass = 'p-[2px]';
       decorations = (
         <div className="absolute inset-0 rounded-full z-0 overflow-hidden">
-          <div className="absolute inset-[-50%] bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] animate-[spin_2s_linear_infinite]" />
+          <div className="absolute inset-[-50%] rounded-full bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] animate-[spin_2s_linear_infinite]" />
         </div>
       );
       break;
@@ -152,7 +142,7 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       borderClass = 'p-[3px]';
       decorations = (
         <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_20px_#8b5cf6,inset_0_0_15px_#8b5cf6]">
-          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,transparent_0_340deg,white_360deg)] animate-[spin_3s_linear_infinite] opacity-50" />
+          <div className="absolute inset-[-50%] rounded-full bg-[conic-gradient(from_0deg,transparent_0_340deg,white_360deg)] animate-[spin_3s_linear_infinite] opacity-50" />
           <div className="absolute inset-0 rounded-full border-2 border-violet-500" />
         </div>
       );
@@ -162,7 +152,7 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       borderClass = 'p-[5px]';
       decorations = (
         <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_25px_#000000,inset_0_0_25px_#4c1d95] bg-black/80">
-          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#000,#4c1d95,#000)] animate-[spin_4s_linear_infinite] opacity-90 blur-sm" />
+          <div className="absolute inset-[-50%] rounded-full bg-[conic-gradient(from_0deg,#000,#4c1d95,#000)] animate-[spin_4s_linear_infinite] opacity-90 blur-sm" />
           <div className="absolute inset-0 rounded-full border-4 border-black/80" />
         </div>
       );
@@ -172,7 +162,7 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       borderClass = 'p-[5px]';
       decorations = (
         <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_20px_#10b981,inset_0_0_20px_#3b82f6]">
-          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#10b981,#3b82f6,#8b5cf6,#10b981)] animate-[spin_5s_linear_infinite] opacity-90 blur-md" />
+          <div className="absolute inset-[-50%] rounded-full bg-[conic-gradient(from_0deg,#10b981,#3b82f6,#8b5cf6,#10b981)] animate-[spin_5s_linear_infinite] opacity-90 blur-md" />
           <div className="absolute inset-0 rounded-full border-4 border-teal-400/50" />
         </div>
       );
@@ -182,7 +172,7 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       borderClass = 'p-[4px]';
       decorations = (
         <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_25px_#fbbf24,inset_0_0_15px_#fbbf24]">
-          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,transparent_0_45deg,#fbbf24_90deg,transparent_135deg,#fbbf24_180deg,transparent_225deg,#fbbf24_270deg,transparent_315deg,#fbbf24_360deg)] animate-[spin_8s_linear_infinite] opacity-80" />
+          <div className="absolute inset-[-50%] rounded-full bg-[conic-gradient(from_0deg,transparent_0_45deg,#fbbf24_90deg,transparent_135deg,#fbbf24_180deg,transparent_225deg,#fbbf24_270deg,transparent_315deg,#fbbf24_360deg)] animate-[spin_8s_linear_infinite] opacity-80" />
           <div className="absolute inset-0 rounded-full border border-white" />
         </div>
       );
@@ -194,7 +184,7 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       decorations = (
         <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_20px_#991b1b] bg-black">
           {/* Deep red swirling void */}
-          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,transparent,#991b1b,#450a0a,transparent)] animate-[spin_3s_linear_infinite] opacity-80 blur-sm" />
+          <div className="absolute inset-[-50%] rounded-full bg-[conic-gradient(from_0deg,transparent,#991b1b,#450a0a,transparent)] animate-[spin_3s_linear_infinite] opacity-80 blur-sm" />
           
           {/* Dark pulsing overlay */}
           <div className="absolute inset-0 rounded-full bg-black/40 animate-[pulse_3s_ease-in-out_infinite]" />
@@ -209,7 +199,7 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       borderClass = 'p-[5px]';
       decorations = (
         <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_20px_#ea580c] bg-orange-950">
-          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#9a3412,#ea580c,#f97316,#9a3412)] animate-[spin_4s_linear_infinite] opacity-90 blur-sm" />
+          <div className="absolute inset-[-50%] rounded-full bg-[conic-gradient(from_0deg,#9a3412,#ea580c,#f97316,#9a3412)] animate-[spin_4s_linear_infinite] opacity-90 blur-sm" />
           <div className="absolute inset-0 rounded-full border-2 border-orange-500/60" />
         </div>
       );
@@ -219,7 +209,7 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       borderClass = 'p-[4px]';
       decorations = (
         <div className="absolute inset-0 rounded-full z-0 shadow-[0_0_30px_#fdf4ff,inset_0_0_20px_#f0abfc] bg-fuchsia-50/50">
-          <div className="absolute inset-[-20%] bg-[conic-gradient(from_0deg,transparent,#f0abfc,transparent,#c084fc,transparent)] animate-[spin_10s_linear_infinite] opacity-80 blur-md" />
+          <div className="absolute inset-[-20%] rounded-full bg-[conic-gradient(from_0deg,transparent,#f0abfc,transparent,#c084fc,transparent)] animate-[spin_10s_linear_infinite] opacity-80 blur-md" />
           <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-fuchsia-300/40 to-cyan-300/40 animate-pulse" />
           <div className="absolute inset-0 rounded-full border-[3px] border-white/80 shadow-[0_0_15px_#fff]" />
         </div>
@@ -227,18 +217,34 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       break;
     case 'frame-omniscience':
       bgClass = 'bg-black';
-      borderClass = 'p-[6px]';
+      borderClass = 'p-[3px]';
       shapeClass = 'rounded-full';
       decorations = (
-        <div className="absolute inset-0 rounded-full z-0 overflow-visible shadow-[0_0_25px_#fbbf24] bg-black">
-          {/* Core energy */}
-          <div className="absolute inset-[-20%] rounded-full bg-[conic-gradient(from_0deg,transparent,#fbbf24,#d97706,transparent)] animate-[spin_5s_linear_infinite] opacity-80 blur-sm mix-blend-screen" />
+        <div className="absolute inset-0 rounded-full z-0 overflow-visible">
+          {/* Outer Ring 1 - Tighter */}
+          <div className="absolute inset-[-8%] rounded-full border border-amber-500/40">
+            <motion.div 
+              animate={{ rotate: 360 }}
+              transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-0"
+            >
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-amber-300 rounded-full" />
+            </motion.div>
+          </div>
           
-          {/* Pulsing core */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-amber-500/40 via-amber-200/40 to-yellow-500/40 animate-pulse mix-blend-screen" />
-          
-          {/* Inner border */}
-          <div className="absolute inset-0 rounded-full border-2 border-amber-200 shadow-[0_0_10px_#fef3c7]" />
+          {/* Outer Ring 2 - Tighter */}
+          <div className="absolute inset-[-16%] rounded-full border border-amber-600/30">
+            <motion.div 
+              animate={{ rotate: -360 }}
+              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-0"
+            >
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-1.5 h-1.5 bg-amber-500 rounded-full" />
+            </motion.div>
+          </div>
+
+          {/* Core Border */}
+          <div className="absolute inset-0 rounded-full bg-black border border-amber-400/60" />
         </div>
       );
       break;
@@ -267,7 +273,7 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       borderClass = 'p-[4px]';
       decorations = (
         <div className="absolute inset-0 rounded-full z-0 overflow-hidden shadow-[0_0_20px_#ec4899,inset_0_0_15px_#8b5cf6]">
-          <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#ec4899,#8b5cf6,#3b82f6,#ec4899)] animate-[spin_4s_linear_infinite] opacity-90 blur-md" />
+          <div className="absolute inset-[-50%] rounded-full bg-[conic-gradient(from_0deg,#ec4899,#8b5cf6,#3b82f6,#ec4899)] animate-[spin_4s_linear_infinite] opacity-90 blur-md" />
           <div className="absolute inset-0 rounded-full border-2 border-white/50" />
           <div className="absolute -top-1 -right-1 w-3 h-3 bg-pink-500 rounded-full animate-ping" />
           <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-blue-500 rounded-full animate-ping" style={{ animationDelay: '0.5s' }} />
@@ -280,7 +286,7 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       decorations = (
         <div className="absolute inset-0 rounded-full z-0 overflow-visible shadow-[0_0_20px_#fbbf24] bg-purple-900">
           {/* Majestic rotating aura */}
-          <div className="absolute inset-[-10%] bg-[conic-gradient(from_0deg,transparent,#fbbf24,transparent,#7e22ce,transparent)] animate-[spin_10s_linear_infinite] opacity-60 blur-sm" />
+          <div className="absolute inset-[-10%] rounded-full bg-[conic-gradient(from_0deg,transparent,#fbbf24,transparent,#7e22ce,transparent)] animate-[spin_10s_linear_infinite] opacity-60 blur-sm" />
           
           {/* Main golden border */}
           <div className="absolute inset-0 rounded-full border-[2px] border-amber-400 shadow-[0_0_10px_#fbbf24]" />
@@ -358,26 +364,24 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       );
       break;
     case 'frame-elite':
-      bgClass = 'bg-transparent';
+      bgClass = 'bg-gradient-to-br from-orange-600 via-red-500 to-amber-400';
       borderClass = 'p-[4px]';
       decorations = (
         <div className="absolute inset-0 z-0 flex items-center justify-center">
-          {/* Rotating Square 1 (Red focus) */}
+          {/* Rotating Squares behind - Solid & Thicker */}
           <motion.div 
             animate={{ rotate: 360 }}
-            transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-            className="absolute inset-[-10%] border-[2px] border-red-500 rounded-[25%]"
+            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+            className="absolute w-[110%] h-[110%] border-[4px] border-orange-600 rounded-lg shadow-[0_0_15px_rgba(234,88,12,0.5)]"
           />
-          
-          {/* Rotating Square 2 (Gold focus) */}
           <motion.div 
             animate={{ rotate: -360 }}
-            transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
-            className="absolute inset-[-10%] border-[2px] border-amber-400 rounded-[25%]"
+            transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+            className="absolute w-[120%] h-[120%] border-[3px] border-red-500 rounded-xl shadow-[0_0_20px_rgba(239,68,68,0.4)]"
           />
-
-          {/* Main circular gradient sweep */}
-          <div className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#ef4444,#fbbf24,#ef4444)] animate-[spin_4s_linear_infinite] opacity-80" />
+          
+          {/* Inner Glow */}
+          <div className="absolute inset-0 rounded-full shadow-[inset_0_0_15px_rgba(220,38,38,0.7)]" />
         </div>
       );
       break;

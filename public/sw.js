@@ -102,20 +102,40 @@ self.addEventListener('push', function(event) {
 });
 
 self.addEventListener('notificationclick', function(event) {
+  console.log('[Service Worker] Notification click Received.', event.notification.data);
   event.notification.close();
+
+  // Get the target URL, ensuring it's an absolute URL
+  const targetUrl = new URL(event.notification.data || '/', self.location.origin).href;
+  console.log('[Service Worker] Target URL:', targetUrl);
+
   event.waitUntil(
-    clients.matchAll({ type: 'window' }).then(windowClients => {
-      // If a window is already open, focus it
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+      console.log('[Service Worker] Found clients:', windowClients.length);
+      
+      // Check if there is already a window open with the target URL or any app window
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i];
-        if (client.url === '/' && 'focus' in client) {
+        console.log('[Service Worker] Checking client:', client.url);
+        
+        // If the client URL starts with our origin, it's our app
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+          console.log('[Service Worker] Focusing existing app client');
+          // If we have a specific sub-path, navigate to it
+          if (event.notification.data && event.notification.data !== '/') {
+            client.navigate(targetUrl);
+          }
           return client.focus();
         }
       }
+
       // If no window is open, open a new one
       if (clients.openWindow) {
-        return clients.openWindow(event.notification.data || '/');
+        console.log('[Service Worker] Opening new window for:', targetUrl);
+        return clients.openWindow(targetUrl);
       }
+    }).catch(error => {
+      console.error('[Service Worker] Error in notificationclick:', error);
     })
   );
 });

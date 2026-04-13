@@ -89,8 +89,12 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
-      // Allow read if profile is public or user is owner
-      allow read: if isOwner(userId) || (resource.data.isProfilePublic == true);
+      // Allow get if profile is public or user is owner
+      allow get: if isOwner(userId) || (resource.data.isProfilePublic == true);
+      
+      // Allow list for authenticated users
+      // This is needed for the leaderboard (public profiles) and username uniqueness checks
+      allow list: if isAuthenticated();
       
       // Allow create if user is owner and data is valid
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && 

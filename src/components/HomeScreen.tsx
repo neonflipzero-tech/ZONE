@@ -2,10 +2,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { UserState, MissionType, getRankForLevel, Mission, useAppState, TITLES, analyzeMissionPath, extractDuration, getTodayISO } from '../store';
-import { CheckCircle2, Circle, Flame, User, Shield, Timer, Wand2, Bell, Zap, X, ArrowLeft, Target, Mountain, Star, Store, Dumbbell, BookOpen, Wind, Award } from 'lucide-react';
+import { CheckCircle2, Circle, Flame, User, Shield, Timer, Wand2, Bell, Zap, X, ArrowLeft, Target, Mountain, Star, Store, Dumbbell, BookOpen, Wind, Award, Lock, ChevronRight } from 'lucide-react';
 import { ZoneCoinIcon } from './ZoneCoinIcon';
 import { t } from '../utils/translations';
 import { sounds } from '../utils/sounds';
+import { getMissionDetails } from '../utils/missionDetails';
 import { NotificationService } from '../services/NotificationService';
 import ProfileFrame from './ProfileFrame';
 import CustomMissionsModal from './CustomMissionsModal';
@@ -26,6 +27,81 @@ interface HomeScreenProps {
   removeCustomMission: (type: MissionType, text: string) => void;
   isFlashSale?: boolean;
 }
+
+const MissionCard = React.memo(({ mission, index, activeTab, state, handleMissionClick, xpReward, isDoubleXpActive, isDoubleCoinActive, coinReward }: { 
+  mission: Mission & { isLocked: boolean }, 
+  index: number, 
+  activeTab: MissionType, 
+  state: UserState, 
+  handleMissionClick: any,
+  xpReward: number,
+  isDoubleXpActive: boolean,
+  isDoubleCoinActive: boolean,
+  coinReward: number
+}) => {
+  const isLocked = mission.isLocked;
+
+  return (
+    <motion.div
+      key={`${mission.id || mission.text}-${index}`}
+      id={`mission-card-${mission.id}`}
+      initial={{ y: 10, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ delay: index * 0.05 }}
+      onClick={() => {
+        if (!isLocked) {
+          sounds.playClick();
+          handleMissionClick(mission);
+        }
+      }}
+      className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all ${
+        mission.completed 
+          ? 'bg-surface/30 border-white/5 opacity-50' 
+          : isLocked
+            ? 'bg-surface/10 border-white/5 opacity-40 cursor-not-allowed grayscale'
+            : 'bg-gradient-to-br from-surface to-surface-hover border-white/10 cursor-pointer hover:border-white/30 hover:shadow-lg hover:shadow-accent/5'
+      }`}
+    >
+      {mission.completed ? (
+        <CheckCircle2 className="w-6 h-6 text-accent shrink-0" />
+      ) : (
+        <Circle className={`w-6 h-6 shrink-0 ${isLocked ? 'text-secondary/30' : 'text-secondary'}`} />
+      )}
+      <div className="flex-1 min-w-0">
+        <span className={`font-medium block break-words leading-snug ${mission.completed ? 'line-through text-secondary' : 'text-primary'}`}>
+          {mission.text}
+        </span>
+        {isLocked && (
+          <span className="text-[10px] font-mono text-rose-500">
+            {t('home.locked_mission', state.language)}
+          </span>
+        )}
+      </div>
+      {!mission.completed && !isLocked && (
+        <div className="ml-auto flex flex-col items-end space-y-0.5">
+          <div className="flex items-center space-x-1">
+            {isDoubleXpActive && (
+              <div className="flex items-center bg-purple-500/20 px-1 rounded text-[10px] font-bold text-purple-400 animate-pulse border border-purple-500/30">
+                <Zap className="w-2.5 h-2.5 mr-0.5" />
+                2x
+              </div>
+            )}
+            <span className="text-xs font-mono text-accent">+{xpReward} XP</span>
+          </div>
+          {isDoubleCoinActive && (
+            <div className="flex items-center space-x-1">
+              <div className="flex items-center bg-yellow-500/20 px-1 rounded text-[10px] font-bold text-yellow-400 animate-pulse border border-yellow-500/30">
+                <ZoneCoinIcon className="w-2.5 h-2.5 mr-0.5" />
+                2x
+              </div>
+              <span className="text-[10px] font-mono text-yellow-500">+{coinReward} ZC</span>
+            </div>
+          )}
+        </div>
+      )}
+    </motion.div>
+  );
+});
 
 const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onReplaceMission, addCustomMission, removeCustomMission, isFlashSale = false }: HomeScreenProps) => {
   const activeUserEmail = useAppState(s => s.activeUserEmail);
@@ -222,6 +298,27 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
   }, [state.burstLockUntil]);
 
   const isBurstLocked = burstLockRemaining > 0;
+  const [showOverheatAnim, setShowOverheatAnim] = useState(false);
+  const [overheatMotivation, setOverheatMotivation] = useState('');
+  const [hasPlayedOverheatSound, setHasPlayedOverheatSound] = useState(false);
+
+  useEffect(() => {
+    if (isBurstLocked) {
+      setShowOverheatAnim(true);
+      if (!hasPlayedOverheatSound) {
+        sounds.playOverheat();
+        setHasPlayedOverheatSound(true);
+      }
+      if (!overheatMotivation) {
+        const randomIdx = Math.floor(Math.random() * 5) + 1;
+        setOverheatMotivation(t(`home.overheat.motivation.${randomIdx}`, state.language));
+      }
+    } else {
+      setShowOverheatAnim(false);
+      setOverheatMotivation('');
+      setHasPlayedOverheatSound(false);
+    }
+  }, [isBurstLocked, state.language, hasPlayedOverheatSound, overheatMotivation]);
 
   const handleMissionClick = (mission: Mission) => {
     if (mission.completed) return;
@@ -254,15 +351,36 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
     return `${hours}h ${minutes}m ${seconds}s`;
   };
 
+  const [potionTimeRemaining, setPotionTimeRemaining] = useState<string>('');
+
+  useEffect(() => {
+    if (!potionToast) return;
+    
+    const updateTime = () => {
+      const currentState = useAppState.getState().state;
+      if (!currentState) return;
+      
+      const until = potionToast.type === 'xp' ? currentState.doubleXpActiveUntil : currentState.doubleCoinActiveUntil;
+      const time = formatPotionTime(until);
+      if (time) {
+        setPotionTimeRemaining(time);
+      } else {
+        setPotionToast(null);
+      }
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [potionToast]);
+
   const handlePotionClick = (type: 'xp' | 'coin') => {
     sounds.playClick();
     const until = type === 'xp' ? state.doubleXpActiveUntil : state.doubleCoinActiveUntil;
     const time = formatPotionTime(until);
     if (time) {
-      setPotionToast({ 
-        message: `${type === 'xp' ? '2x XP' : '2x ZC'} ${state.language === 'id' ? 'Aktif' : 'Active'}: ${time}`, 
-        type 
-      });
+      setPotionTimeRemaining(time);
+      setPotionToast({ message: '', type }); // message is no longer used directly
     }
   };
 
@@ -352,6 +470,68 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
       exit={{ opacity: 0 }}
       className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24 relative"
     >
+      {/* Neural Overheat Animation Overlay */}
+      <AnimatePresence>
+        {showOverheatAnim && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[600] bg-rose-950/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center"
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", damping: 12 }}
+              className="relative mb-8"
+            >
+              <div className="absolute inset-0 bg-rose-500/20 blur-3xl rounded-full" />
+              <div className="relative w-32 h-32 rounded-3xl bg-rose-500/20 flex items-center justify-center border border-rose-500/30 shadow-[0_0_50px_rgba(244,63,94,0.4)]">
+                <Zap className="w-16 h-16 text-rose-500 animate-pulse" />
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="max-w-xs w-full"
+            >
+              <h2 className="text-4xl font-black text-rose-500 font-display tracking-tighter uppercase mb-4 italic">
+                {t('home.overheat.title', state.language)}
+              </h2>
+              <div className="h-1 w-24 bg-rose-500/30 mx-auto mb-6 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ x: '-100%' }}
+                  animate={{ x: '100%' }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  className="h-full w-full bg-rose-500"
+                />
+              </div>
+              <p className="text-xl text-rose-100 font-medium leading-tight mb-8">
+                {overheatMotivation}
+              </p>
+              
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-6 mb-8">
+                <p className="text-xs font-mono text-rose-500/60 uppercase tracking-widest mb-2">
+                  System Cooldown
+                </p>
+                <div className="text-4xl font-mono font-black text-rose-500">
+                  {burstLockRemaining}s
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowOverheatAnim(false)}
+                className="w-full py-4 rounded-xl bg-rose-500 text-black font-black uppercase tracking-widest shadow-lg shadow-rose-500/20 active:scale-95 transition-all"
+              >
+                {t('home.continue', state.language)}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Streak Freeze Notification Banner - Moved below header */}
       <AnimatePresence>
         {state.streakFreezeUsedToday && (
@@ -491,32 +671,38 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
 
       {/* Header */}
       <div className="sticky top-0 bg-background/80 backdrop-blur-sm z-30 border-b border-white/5">
-        <div className="px-4 pt-2 pb-2 flex justify-between items-start">
-          <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2 mt-1">
+        <div className="px-3 pt-3 pb-3 flex justify-between items-start">
+          <div className="flex items-center space-x-3 min-w-0 flex-1 mr-1 mt-0.5">
             <div className="relative flex-shrink-0">
-              <ProfileFrame frame={state.equippedFrame} src={state.profilePicture} size="sm" />
-              <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border border-background z-10 ${currentRank.bg}`}></div>
+              <ProfileFrame frame={state.equippedFrame} src={state.profilePicture} size="md" />
+              <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-background z-10 ${currentRank.bg}`}></div>
             </div>
-            <div className="min-w-0">
-              <h1 className="text-lg font-display font-black tracking-tight truncate">ZONE</h1>
-              <div className="flex items-center space-x-1 mt-0.5">
-                <Shield className={`w-3 h-3 flex-shrink-0 ${currentRank.color}`} />
-                <p className={`text-[12px] font-mono uppercase tracking-wider ${currentRank.color}`}>{currentRank.name} • Lvl {state.level}</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center space-x-2">
+                <h1 className="text-xl font-display font-black tracking-tight truncate">ZONE</h1>
                 <button 
                   onClick={() => {
                     sounds.playClick();
                     setIsIntegrityHelpOpen(true);
                   }}
-                  className={`ml-2 px-1.5 py-0.5 rounded-md text-[10px] font-black border border-white/10 ${getIntegrityRating(state.integrityScore).glow}`}
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-black border border-white/10 ${getIntegrityRating(state.integrityScore).glow}`}
                   style={{ color: getIntegrityRating(state.integrityScore).color, backgroundColor: `${getIntegrityRating(state.integrityScore).color}10` }}
                 >
                   {getIntegrityRating(state.integrityScore).letter}
                 </button>
               </div>
+              <div className="flex items-center space-x-1.5 mt-1 min-w-0">
+                <Shield className={`w-3.5 h-3.5 flex-shrink-0 ${currentRank.color}`} />
+                <div className={`text-[12px] font-mono uppercase tracking-tight min-w-0 flex-1 flex items-center ${currentRank.color}`}>
+                  <span className="truncate font-bold">{currentRank.name}</span>
+                  <span className="mx-1 flex-shrink-0 opacity-40">•</span>
+                  <span className="flex-shrink-0 whitespace-nowrap font-bold">LVL {state.level}</span>
+                </div>
+              </div>
               {state.equippedTitle && (() => {
                 const titleDef = TITLES.find(t => t.id === state.equippedTitle);
                 return (
-                  <div className={`text-[8px] font-mono uppercase tracking-widest mt-0.5 inline-block truncate max-w-full ${titleDef?.specialColor || 'text-accent/80'}`}>
+                  <div className={`text-[9px] font-mono uppercase tracking-tighter mt-1 inline-block truncate max-w-full ${titleDef?.specialColor || 'text-accent/80'}`}>
                     {titleDef?.name[state.language] || state.equippedTitle}
                   </div>
                 );
@@ -539,7 +725,7 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
               >
                 <Bell className="w-4 h-4 text-secondary" />
                 {unreadNotificationsCount > 0 && (
-                  <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-surface"></div>
+                  <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-rose-500 rounded-full border border-surface"></div>
                 )}
               </button>
             </div>
@@ -641,7 +827,7 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                     {state.language === 'id' ? 'Sisa Waktu' : 'Time Remaining'}
                   </p>
                   <p className={`text-2xl font-mono font-bold ${potionToast.type === 'xp' ? 'text-purple-400' : 'text-yellow-400'}`}>
-                    {potionToast.message.split(': ')[1]}
+                    {potionTimeRemaining}
                   </p>
                 </div>
 
@@ -748,70 +934,23 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                   xpReward = Math.floor(xpReward * 1.5);
                 }
                 
-                // For ROUTINE missions, lock them if the previous one isn't completed
                 const isRoutine = activeTab === 'ROUTINE';
                 const firstUncompletedIndex = displayedMissions.findIndex(m => !m.completed);
                 const isLocked = isRoutine && !mission.completed && firstUncompletedIndex !== -1 && index > firstUncompletedIndex;
 
                 return (
-                  <motion.div
+                  <MissionCard 
                     key={`${mission.id || mission.text}-${index}`}
-                    id={`mission-card-${mission.id}`}
-                    initial={{ y: 10, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: index * 0.1 }}
-                    onClick={() => {
-                      if (!isLocked) {
-                        sounds.playClick();
-                        handleMissionClick(mission);
-                      }
-                    }}
-                    className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all ${
-                      mission.completed 
-                        ? 'bg-surface/30 border-white/5 opacity-50' 
-                        : isLocked
-                          ? 'bg-surface/10 border-white/5 opacity-40 cursor-not-allowed grayscale'
-                          : 'bg-gradient-to-br from-surface to-surface-hover border-white/10 cursor-pointer hover:border-white/30 hover:shadow-lg hover:shadow-accent/5'
-                    }`}
-                  >
-                    {mission.completed ? (
-                      <CheckCircle2 className="w-6 h-6 text-accent shrink-0" />
-                    ) : (
-                      <Circle className={`w-6 h-6 shrink-0 ${isLocked ? 'text-secondary/30' : 'text-secondary'}`} />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <span className={`font-medium block break-words leading-snug ${mission.completed ? 'line-through text-secondary' : 'text-primary'}`}>
-                        {mission.text}
-                      </span>
-                      {isLocked && (
-                        <span className="text-[10px] font-mono text-rose-500">
-                          {t('home.locked_mission', state.language)}
-                        </span>
-                      )}
-                    </div>
-                    {!mission.completed && !isLocked && (
-                      <div className="ml-auto flex flex-col items-end space-y-0.5">
-                        <div className="flex items-center space-x-1">
-                          {isDoubleXpActive && (
-                            <div className="flex items-center bg-purple-500/20 px-1 rounded text-[10px] font-bold text-purple-400 animate-pulse border border-purple-500/30">
-                              <Zap className="w-2.5 h-2.5 mr-0.5" />
-                              2x
-                            </div>
-                          )}
-                          <span className="text-xs font-mono text-accent">+{xpReward} XP</span>
-                        </div>
-                        {isDoubleCoinActive && (
-                          <div className="flex items-center space-x-1">
-                            <div className="flex items-center bg-yellow-500/20 px-1 rounded text-[10px] font-bold text-yellow-400 animate-pulse border border-yellow-500/30">
-                              <ZoneCoinIcon className="w-2.5 h-2.5 mr-0.5" />
-                              2x
-                            </div>
-                            <span className="text-[10px] font-mono text-yellow-500">+{coinReward} ZC</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </motion.div>
+                    mission={{...mission, isLocked}}
+                    index={index}
+                    activeTab={activeTab}
+                    state={state}
+                    handleMissionClick={handleMissionClick}
+                    xpReward={xpReward}
+                    isDoubleXpActive={!!isDoubleXpActive}
+                    isDoubleCoinActive={!!isDoubleCoinActive}
+                    coinReward={coinReward}
+                  />
                 );
               })
             )}
@@ -903,12 +1042,47 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-[500] bg-background flex flex-col px-6 py-12"
+            className="fixed inset-0 z-[500] bg-background flex flex-col"
           >
-            <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
-              <h2 className="text-3xl sm:text-4xl font-display font-black mb-8 text-center leading-tight tracking-tight">
-                {selectedMission.text}
-              </h2>
+            <button 
+              onClick={() => setSelectedMissionId(null)}
+              className="absolute top-6 right-6 z-[510] p-2 bg-surface/80 backdrop-blur-sm border border-white/10 rounded-full text-secondary hover:text-primary transition-colors"
+            >
+              <X size={24} />
+            </button>
+            <div className="flex-1 overflow-y-auto px-6 py-12">
+              <div className="min-h-full flex flex-col justify-center max-w-md mx-auto w-full py-8">
+                <h2 className="text-3xl sm:text-4xl font-display font-black mb-6 text-center leading-tight tracking-tight">
+                  {selectedMission.text}
+                </h2>
+
+              {(() => {
+                const isBossTask = selectedMission.id.startsWith('boss-task-');
+                if (!isBossTask) return null;
+                
+                const details = getMissionDetails(selectedMission.originalText || selectedMission.text);
+                if (!details) return null;
+                return (
+                  <div className="mb-8 p-4 bg-surface/50 border border-white/5 rounded-2xl overflow-hidden">
+                    <p className="text-sm text-primary/80 mb-4 leading-relaxed italic">
+                      {details.description[state.language] || details.description.en}
+                    </p>
+                    <div className="space-y-2">
+                      <h4 className="text-[10px] font-mono font-black uppercase tracking-widest text-accent/60">
+                        {state.language === 'id' ? 'TIPS NEURAL' : 'NEURAL TIPS'}
+                      </h4>
+                      <ul className="space-y-1.5">
+                        {(details.tips[state.language] || details.tips.en).map((tip, i) => (
+                          <li key={i} className="text-xs text-secondary flex items-start">
+                            <span className="text-accent mr-2 mt-1">•</span>
+                            <span>{tip}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {timeLeft !== null ? (
                 <div className="flex flex-col items-center mb-12">
@@ -1055,7 +1229,8 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                 </button>
               </div>
             </div>
-          </motion.div>
+          </div>
+        </motion.div>
         )}
       </AnimatePresence>
 

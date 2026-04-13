@@ -1,13 +1,20 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserState, RANKS, getRankForLevel, TITLES, calculateOVR, useAppState, getIntegrityRating } from '../store';
-import { Trophy, Flame, Shield, User, AlertCircle, X, CheckCircle2, Star, Swords, Zap, Crown } from 'lucide-react';
+import { UserState, RANKS, getRankForLevel, TITLES, calculateOVR, useAppState, getIntegrityRating, BADGES } from '../store';
+import { 
+  Trophy, Flame, Shield, User, AlertCircle, X, CheckCircle2, Star, Swords, Zap, Crown,
+  Footprints, Moon, Sun, Heart, Compass
+} from 'lucide-react';
 import ProfileFrame from './ProfileFrame';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { sounds } from '../utils/sounds';
 
 import { t } from '../utils/translations';
+
+const BADGE_ICONS: Record<string, any> = {
+  Footprints, CheckCircle2, Flame, Zap, Crown, Moon, Sun, Swords, Shield, Star, Trophy, Heart, Compass
+};
 
 interface LeaderboardScreenProps {
   state: UserState;
@@ -38,6 +45,97 @@ function getRankIcon(rankName: string, className: string) {
   if (rankName === 'Mythic') return <Crown className={className} />;
   return <Trophy className={className} />;
 }
+
+const LeaderboardRow = React.memo(({ 
+  user, 
+  index, 
+  state, 
+  isCurrentUser, 
+  activeUserEmail, 
+  setSelectedActionUser, 
+  userRowRef 
+}: { 
+  user: LeaderboardUser, 
+  index: number, 
+  state: UserState, 
+  isCurrentUser: boolean, 
+  activeUserEmail: string | null, 
+  setSelectedActionUser: (user: LeaderboardUser) => void,
+  userRowRef: any
+}) => {
+  const rankObj = getRankForLevel(user.level);
+  
+  return (
+    <div 
+      ref={isCurrentUser ? userRowRef : null}
+      onClick={() => setSelectedActionUser(user)}
+      className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all cursor-pointer hover:scale-[1.02] ${
+        isCurrentUser 
+          ? 'bg-accent/10 border-accent/50 shadow-[0_0_15px_var(--color-accent)]' 
+          : 'bg-surface border-white/5 hover:bg-surface-hover'
+      }`}
+    >
+      <div className={`w-6 text-center font-mono font-bold text-sm ${isCurrentUser ? 'text-accent' : 'text-secondary'}`}>
+        {index + 4}
+      </div>
+      
+      <div className="w-10 h-10 flex items-center justify-center shrink-0">
+        <ProfileFrame frame={user.equippedFrame} src={user.profilePicture || null} size="sm" />
+      </div>
+      
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center space-x-2">
+              <h4 className={`font-bold truncate ${isCurrentUser ? 'text-primary' : 'text-secondary'}`}>
+                {user.username} {isCurrentUser && t('leaderboard.you', state.language)}
+              </h4>
+              {state.rivalId === user.userId && (
+                <span className="px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-500 text-[8px] font-bold uppercase tracking-wider border border-rose-500/30 shrink-0">
+                  {t('leaderboard.rival_tag', state.language)}
+                </span>
+              )}
+            </div>
+            
+            <div className="flex items-center space-x-3 mt-1 shrink-0">
+              <div className="flex items-center space-x-1">
+                <span className="text-[8px] font-black text-white/40 uppercase">OVR</span>
+                <span className="text-xs font-black text-primary">{user.ovr || calculateOVR(user as any, isCurrentUser ? activeUserEmail : null).ovr}</span>
+              </div>
+              {(() => {
+                const rating = getIntegrityRating(user.integrityScore ?? 90);
+                return (
+                  <div 
+                    className={`w-4 h-4 rounded-md flex items-center justify-center text-[8px] font-black border border-white/10 ${rating.glow}`}
+                    style={{ color: rating.color, backgroundColor: `${rating.color}20` }}
+                  >
+                    {rating.letter}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+        {user.equippedTitle && (() => {
+          const titleDef = TITLES.find(t => t.id === user.equippedTitle);
+          return (
+            <div className={`text-[10px] font-mono uppercase tracking-widest mt-0.5 inline-block ${titleDef?.specialColor || 'text-accent/80'}`}>
+              {titleDef?.name[state.language] || user.equippedTitle}
+            </div>
+          );
+        })()}
+        <div className="flex items-center space-x-3 mt-1">
+          <span className="text-xs font-mono text-accent">{t('leaderboard.lvl', state.language).replace('{level}', user.level.toString())}</span>
+          <span className="text-xs font-mono text-secondary">{user.xp} {t('leaderboard.pts', state.language)}</span>
+        </div>
+      </div>
+      
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${rankObj.bg}/20`}>
+        {getRankIcon(rankObj.name, `w-4 h-4 ${rankObj.color}`)}
+      </div>
+    </div>
+  );
+});
 
 const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
   if (!state) return null;
@@ -128,7 +226,9 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
           equippedTitle: state.equippedTitle,
           profilePicture: state.profilePicture,
           streak: state.streak || 0,
+          badges: state.badges || [],
           badgesCount: state.badges?.length || 0,
+          unlockedFrames: state.unlockedFrames || [],
           framesCount: state.unlockedFrames?.length || 0,
           missionsCompleted: state.missionsCompleted || 0,
           isProfilePublic: state.isProfilePublic !== false,
@@ -181,7 +281,7 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
     });
 
     return finalUsers;
-  }, [users, state]);
+  }, [users, state.userId, state.username, state.level, state.xp, state.equippedFrame, state.equippedTitle, state.profilePicture, state.streak, state.badges, state.unlockedFrames, state.missionsCompleted, state.isProfilePublic, state.integrityScore, activeUserEmail]);
 
   const currentUserRank = useMemo(() => 
     allUsers.findIndex(u => u.userId === state.userId || u.username === state.username) + 1
@@ -360,83 +460,18 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
 
           {/* List */}
           <div className="space-y-3">
-            {top50Users.slice(3).map((user, index) => {
-              const rankObj = getRankForLevel(user.level);
-              const isCurrentUser = user.username === state.username;
-              
-              return (
-                <div 
-                  key={`${user.userId || user.username}-${index}`}
-                  ref={isCurrentUser ? userRowRef : null}
-                  onClick={() => setSelectedActionUser(user)}
-                  className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all cursor-pointer hover:scale-[1.02] ${
-                    isCurrentUser 
-                      ? 'bg-accent/10 border-accent/50 shadow-[0_0_15px_var(--color-accent)]' 
-                      : 'bg-surface border-white/5 hover:bg-surface-hover'
-                  }`}
-                >
-                  <div className={`w-6 text-center font-mono font-bold text-sm ${isCurrentUser ? 'text-accent' : 'text-secondary'}`}>
-                    {index + 4}
-                  </div>
-                  
-                  <div className="w-10 h-10 flex items-center justify-center shrink-0">
-                    <ProfileFrame frame={user.equippedFrame} src={user.profilePicture || null} size="sm" />
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <h4 className={`font-bold truncate ${isCurrentUser ? 'text-primary' : 'text-secondary'}`}>
-                            {user.username} {isCurrentUser && t('leaderboard.you', state.language)}
-                          </h4>
-                          {state.rivalId === user.userId && (
-                            <span className="px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-500 text-[8px] font-bold uppercase tracking-wider border border-rose-500/30 shrink-0">
-                              {t('leaderboard.rival_tag', state.language)}
-                            </span>
-                          )}
-                        </div>
-                        
-                        {/* OVR & Integrity Display - Moved Below Username */}
-                        <div className="flex items-center space-x-3 mt-1 shrink-0">
-                          <div className="flex items-center space-x-1">
-                            <span className="text-[8px] font-black text-white/40 uppercase">OVR</span>
-                            <span className="text-xs font-black text-primary">{user.ovr || calculateOVR(user as any, isCurrentUser ? activeUserEmail : null).ovr}</span>
-                          </div>
-                          {(() => {
-                            const rating = getIntegrityRating(user.integrityScore ?? 90);
-                            return (
-                              <div 
-                                className={`w-4 h-4 rounded-md flex items-center justify-center text-[8px] font-black border border-white/10 ${rating.glow}`}
-                                style={{ color: rating.color, backgroundColor: `${rating.color}20` }}
-                              >
-                                {rating.letter}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    </div>
-                    {user.equippedTitle && (() => {
-                      const titleDef = TITLES.find(t => t.id === user.equippedTitle);
-                      return (
-                        <div className={`text-[10px] font-mono uppercase tracking-widest mt-0.5 inline-block ${titleDef?.specialColor || 'text-accent/80'}`}>
-                          {titleDef?.name[state.language] || user.equippedTitle}
-                        </div>
-                      );
-                    })()}
-                    <div className="flex items-center space-x-3 mt-1">
-                      <span className="text-xs font-mono text-accent">{t('leaderboard.lvl', state.language).replace('{level}', user.level.toString())}</span>
-                      <span className="text-xs font-mono text-secondary">{user.xp} {t('leaderboard.pts', state.language)}</span>
-                    </div>
-                  </div>
-                  
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${rankObj.bg}/20`}>
-                    {getRankIcon(rankObj.name, `w-4 h-4 ${rankObj.color}`)}
-                  </div>
-                </div>
-              );
-            })}
+            {top50Users.slice(3).map((user, index) => (
+              <LeaderboardRow 
+                key={`${user.userId || user.username}-${index}`}
+                user={user}
+                index={index}
+                state={state}
+                isCurrentUser={user.username === state.username}
+                activeUserEmail={activeUserEmail}
+                setSelectedActionUser={setSelectedActionUser}
+                userRowRef={userRowRef}
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -673,6 +708,60 @@ const LeaderboardScreen = ({ state }: LeaderboardScreenProps) => {
                     <div className="w-5 h-5 border-2 border-accent rounded-md mb-1" />
                     <span className="text-xs text-secondary mb-1">{t('leaderboard.frames', state.language)}</span>
                     <span className="font-mono font-bold text-lg">{selectedUser.framesCount ?? selectedUser.unlockedFrames?.length ?? 1}</span>
+                  </div>
+                </div>
+
+                {/* Badges Section */}
+                <div className="w-full mt-6">
+                  <h4 className="text-xs font-mono uppercase tracking-widest text-secondary mb-3 px-1">Badges</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(() => {
+                      const userBadges = selectedUser.badges || [];
+                      const sortedBadges = [...BADGES].filter(b => userBadges.includes(b.id)).sort((a, b) => {
+                        if (a.id === 'ELITE_ZONE') return -1;
+                        if (b.id === 'ELITE_ZONE') return 1;
+                        return 0;
+                      });
+                      
+                      if (sortedBadges.length === 0) {
+                        // If we have a count but no array, show a placeholder for the first step at least
+                        if ((selectedUser.badgesCount || 0) > 0) {
+                          return (
+                            <div className="p-4 rounded-xl border bg-white/5 border-white/10 flex flex-col items-center justify-center text-center col-span-2">
+                              <Trophy className="w-8 h-8 text-accent/50 mb-2" />
+                              <span className="text-xs font-bold text-primary">{selectedUser.badgesCount} Badges Earned</span>
+                              <span className="text-[10px] text-secondary mt-1 italic">Syncing details...</span>
+                            </div>
+                          );
+                        }
+                        return <p className="text-[10px] text-secondary/50 italic px-1 col-span-2">No badges earned yet</p>;
+                      }
+
+                      return sortedBadges.map(badge => {
+                        const Icon = BADGE_ICONS[badge.icon] || Trophy;
+                        const isElite = badge.id === 'ELITE_ZONE';
+                        return (
+                          <div 
+                            key={badge.id} 
+                            className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center transition-all ${
+                              isElite 
+                                ? 'bg-gradient-to-b from-amber-400/20 to-amber-600/20 border-amber-400/50 shadow-lg shadow-amber-400/20' 
+                                : 'bg-zinc-900/50 border-white/10 shadow-xl'
+                            }`}
+                          >
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${isElite ? 'bg-amber-400/20' : 'bg-accent/20'}`}>
+                              <Icon className={`w-6 h-6 ${isElite ? 'text-amber-400' : 'text-accent'}`} />
+                            </div>
+                            <span className={`text-xs font-bold leading-tight mb-1 ${isElite ? 'text-amber-400' : 'text-primary'}`}>
+                              {badge.name[state.language]}
+                            </span>
+                            <span className="text-[9px] text-secondary leading-tight opacity-80">
+                              {badge.desc[state.language]}
+                            </span>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               </div>

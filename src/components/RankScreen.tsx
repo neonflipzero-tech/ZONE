@@ -17,6 +17,14 @@ interface RankScreenProps {
 const RankScreen = ({ state }: RankScreenProps) => {
   if (!state) return null;
   const currentRank = useMemo(() => getRankForLevel(state.level), [state.level]);
+  const highestRank = useMemo(() => {
+    const storedRank = RANKS.find(r => r.name === state.highestRankAchieved) || currentRank;
+    const currentRankIndex = RANKS.findIndex(r => r.name === currentRank.name);
+    const storedRankIndex = RANKS.findIndex(r => r.name === storedRank.name);
+    
+    // Always show the actual highest rank, even if state is out of sync
+    return currentRankIndex > storedRankIndex ? currentRank : storedRank;
+  }, [state.highestRankAchieved, currentRank]);
   
   const isMaxLevel = useMemo(() => state.level >= 50, [state.level]);
   const xpProgress = useMemo(() => isMaxLevel ? 100 : (state.xp / (state.level * 100)) * 100, [isMaxLevel, state.xp, state.level]);
@@ -68,14 +76,14 @@ const RankScreen = ({ state }: RankScreenProps) => {
             <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center mb-2">
               <Flame className="w-5 h-5 text-accent" />
             </div>
-            <span className="text-2xl font-bold">{state.missions.filter(m => m.completed).length}</span>
+            <span className="text-2xl font-bold">{state.missionsCompleted || 0}</span>
             <span className="text-xs text-secondary uppercase tracking-wider">{t('rank.missions_done', state.language)}</span>
           </div>
           <div className="bg-zinc-900 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-2">
               <Shield className="w-5 h-5 text-primary" />
             </div>
-            <span className={`text-2xl font-bold ${currentRank.color}`}>{currentRank.name}</span>
+            <span className={`text-2xl font-bold ${highestRank.color}`}>{highestRank.name}</span>
             <span className="text-xs text-secondary uppercase tracking-wider">{t('rank.highest_rank', state.language)}</span>
           </div>
         </div>

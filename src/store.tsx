@@ -42,7 +42,7 @@ export interface AppStore {
   removeCustomMission: (type: MissionType, text: string) => void;
   clearCustomMissions: () => void;
   dismissUnlockedItem: () => void;
-  addNotification: (notif: Omit<AppNotification, 'id' | 'read' | 'timestamp'>) => void;
+  addNotification: (notif: Omit<AppNotification, 'id' | 'read' | 'timestamp'>, options?: { silent?: boolean }) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   incrementShareCount: () => void;
@@ -132,6 +132,16 @@ export const useAppState = create<AppStore>((set, get) => ({
             if (!parsed.pathProgress) parsed.pathProgress = {};
             if (!parsed.titles) parsed.titles = [];
             if (!parsed.unlockedTitles) parsed.unlockedTitles = [];
+            
+            // Migration: ensure missionsCompleted is synced with dailyStats if it's 0
+            if (!parsed.missionsCompleted && parsed.dailyStats) {
+              parsed.missionsCompleted = Object.values(parsed.dailyStats).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+            }
+
+            // Migration: ensure highestRankAchieved is set
+            if (!parsed.highestRankAchieved) {
+              parsed.highestRankAchieved = getRankForLevel(parsed.level).name;
+            }
             
             // Auto-grant OG title to Zaiki
             if (email === 'zaikiwildan@gmail.com' && !parsed.unlockedTitles.includes('OG')) {
@@ -465,7 +475,10 @@ export const useAppState = create<AppStore>((set, get) => ({
       }
 
       selected.forEach(text => {
-        const scaledText = scaleMissionText(text, state.level);
+        // Don't scale custom missions - they are already specific to the user
+        const isCustom = customPool.includes(text);
+        const completionCount = state.missionCompletionCounts?.[text] || 0;
+        const scaledText = isCustom ? text : scaleMissionText(text, state.level, completionCount);
         const goal = extractGoal(scaledText);
         missions.push({
           id: Math.random().toString(36).substring(2, 9),
@@ -524,6 +537,14 @@ export const useAppState = create<AppStore>((set, get) => ({
     }
 
     if (!mission || mission.completed) return;
+
+    // Play sound immediately for better responsiveness
+    const isLevelingUp = (state.xp + (mission.type === 'WEEKLY' ? 200 : (mission.type === 'DAILY' ? 100 : 50))) >= (state.level * 100);
+    if (isLevelingUp || mission.type === 'WEEKLY') {
+      sounds.playLevelUp();
+    } else {
+      sounds.playMissionComplete();
+    }
 
     // Burst Limit Check
     const now = Date.now();
@@ -600,15 +621,12 @@ export const useAppState = create<AppStore>((set, get) => ({
       coinGain = 1; // Minimal Coins
       integrityPenalty += 10;
       isPenaltyTriggered = true;
-      const msg = state.language === 'id'
-        ? "Memproses... Kamu yakin sudah melakukan ini? Dirimu di masa depan sedang mengawasi."
-        : "Processing... Are you sure you did this? Your future self is watching.";
       
       addNotification({
-        title: state.language === 'id' ? "Peringatan Integritas" : "Integrity Warning",
-        description: msg,
+        title: JSON.stringify({ key: 'integrity.explanation.title' }),
+        description: JSON.stringify({ key: 'integrity.explanation.desc' }),
         icon: 'AlertCircle'
-      });
+      }, { silent: true });
     }
 
     if (state.doubleXpActiveUntil && new Date(state.doubleXpActiveUntil) > new Date()) {
@@ -635,12 +653,11 @@ export const useAppState = create<AppStore>((set, get) => ({
       animatingLevelUp = true;
     }
 
-    // Play sound immediately for better responsiveness
-    if (animatingLevelUp || mission.type === 'WEEKLY') {
-      sounds.playLevelUp();
-    } else {
-      sounds.playMissionComplete();
-    }
+    const currentRank = getRankForLevel(newLevel);
+    const highestRank = getRankForLevel(state.level); // Previous highest rank
+    const newHighestRankAchieved = (RANKS.findIndex(r => r.name === currentRank.name) > RANKS.findIndex(r => r.name === state.highestRankAchieved))
+      ? currentRank.name
+      : state.highestRankAchieved;
 
     const today = getTodayISO();
     let newStreak = state.streak;
@@ -659,15 +676,11 @@ export const useAppState = create<AppStore>((set, get) => ({
       integrityPenalty += 15; // Increased from 10
       isPenaltyTriggered = true;
       
-      const msg = state.language === 'id'
-        ? "Neural Overheat. Tarik napas. Progres nyata bukanlah balapan."
-        : "Neural Overheat. Take a breath. Real progress isn't a race.";
-      
       addNotification({
-        title: state.language === 'id' ? "Limit Terdeteksi" : "Limit Detected",
-        description: msg,
+        title: JSON.stringify({ key: 'home.overheat.title' }),
+        description: JSON.stringify({ key: `home.overheat.motivation.${Math.floor(Math.random() * 5) + 1}` }),
         icon: 'Zap'
-      });
+      }, { silent: true });
     }
 
     if (recentCompletions.length > 5) {
@@ -678,14 +691,14 @@ export const useAppState = create<AppStore>((set, get) => ({
 
     if (recentCompletions.length >= 7) {
       const msg = state.language === 'id' 
-        ? "Aktivitas Abnormal Terdeteksi. Pertumbuhan OVR-mu terlihat buatan. Apakah kamu membangun kerajaan palsu?"
-        : "Abnormal Activity Detected. Your OVR growth looks artificial. Are you building a fake empire?";
-      
+        ? "Aktivitas Abnormal Terdeteksi. Pertumbuhan OVR-mu terlihat buatan."
+        : "Abnormal Activity Detected. Your OVR growth looks artificial.";
+
       addNotification({
-        title: state.language === 'id' ? "Peringatan Sistem" : "System Warning",
-        description: msg,
+        title: JSON.stringify({ key: 'integrity.explanation.title' }),
+        description: JSON.stringify({ key: 'integrity.explanation.desc' }),
         icon: 'AlertCircle'
-      });
+      }, { silent: true });
 
       // Browser notification
       if (typeof window !== 'undefined' && "Notification" in window && (Notification as any).permission === "granted") {
@@ -795,6 +808,12 @@ export const useAppState = create<AppStore>((set, get) => ({
     const currentAffinity = newMissionAffinity[category] || 1.0;
     newMissionAffinity[category] = Math.min(5.0, currentAffinity + 0.1); // Max weight 5.0
 
+    // Update specific mission completion counts for dynamic difficulty
+    const newMissionCompletionCounts = { ...(state.missionCompletionCounts || {}) };
+    if (mission.originalText) {
+      newMissionCompletionCounts[mission.originalText] = (newMissionCompletionCounts[mission.originalText] || 0) + 1;
+    }
+
     // Integrity Score Logic (Calculated at the end to catch all penalties)
     let newIntegrityScore = Math.max(0, state.integrityScore - integrityPenalty);
     let newConsecutiveCleanMissions = isPenaltyTriggered ? 0 : state.consecutiveCleanMissions + 1;
@@ -821,11 +840,13 @@ export const useAppState = create<AppStore>((set, get) => ({
       dailyStats: newDailyStats,
       dailyCategoryStats: newDailyCategoryStats,
       missionsCompleted: newMissionsCompleted,
+      highestRankAchieved: newHighestRankAchieved,
       zoneCoins: newCoins,
       badges: newBadges,
       unlockedTitles: newUnlockedTitles,
       unlockedItemsQueue: newUnlockedItems,
       missionAffinity: newMissionAffinity,
+      missionCompletionCounts: newMissionCompletionCounts,
       showStreakAnimation: newStreak > state.streak
     });
 
@@ -880,7 +901,8 @@ export const useAppState = create<AppStore>((set, get) => ({
     
     const newText = filteredPool[Math.floor(Math.random() * filteredPool.length)];
     const isCustom = customPool.includes(newText);
-    const scaledText = isCustom ? newText : scaleMissionText(newText, state.level);
+    const completionCount = state.missionCompletionCounts?.[newText] || 0;
+    const scaledText = isCustom ? newText : scaleMissionText(newText, state.level, completionCount);
     const translatedText = translateMissionText(scaledText, state.language);
     const goal = extractGoal(scaledText);
 
@@ -1095,7 +1117,7 @@ export const useAppState = create<AppStore>((set, get) => ({
     });
   },
 
-  addNotification: (notif) => {
+  addNotification: (notif, options) => {
     const { state, updateState } = get();
     if (!state) return;
     
@@ -1120,8 +1142,10 @@ export const useAppState = create<AppStore>((set, get) => ({
       shownNotifications: newShownNotifications
     });
 
-    // Play notification sound
-    sounds.playNotification();
+    // Play notification sound if not silent
+    if (!options?.silent) {
+      sounds.playNotification();
+    }
 
     // Send native notification if enabled
     if (state.notificationsEnabled) {
@@ -1182,7 +1206,8 @@ export const useAppState = create<AppStore>((set, get) => ({
     const selected = [...pool].sort(() => 0.5 - Math.random()).slice(0, 3);
     
     const bossTasks = selected.map((text, i) => {
-      const scaledText = scaleMissionText(text, state.level);
+      const completionCount = state.missionCompletionCounts?.[text] || 0;
+      const scaledText = scaleMissionText(text, state.level, completionCount);
       const goal = extractGoal(scaledText);
       return {
         id: `boss-task-${Date.now()}-${i}`,
@@ -1465,12 +1490,14 @@ export function translateMissionText(text: string, lang: 'en' | 'id'): string {
   return MISSION_TRANSLATIONS[text] || text;
 }
 
-export function scaleMissionText(text: string, level: number): string {
-  // Scaling factor: increases every 5 levels
-  // Level 1-5: 1.0x
-  // Level 6-10: 1.5x
-  // Level 11-15: 2.0x, etc.
-  const levelFactor = 1 + Math.floor((level - 1) / 5) * 0.5;
+export function scaleMissionText(text: string, level: number, completionCount: number = 0): string {
+  // Global scaling factor: increases slightly every 10 levels
+  const baseFactor = 1 + Math.floor((level - 1) / 10) * 0.2;
+  
+  // Specific scaling factor: increases significantly every 5 completions of this specific mission
+  const completionFactor = Math.floor(completionCount / 5) * 0.5;
+  
+  const totalFactor = baseFactor + completionFactor;
   
   return text.replace(/(\d+(?:[.,]\d+)?)/g, (match) => {
     const val = parseFloat(match.replace(',', '.'));
@@ -1481,7 +1508,7 @@ export function scaleMissionText(text: string, level: number): string {
     // Don't scale if it looks like a year or a very large number already
     if (val > 1000) return match;
 
-    const scaled = Math.round(val * levelFactor);
+    const scaled = Math.round(val * totalFactor);
     return scaled.toString();
   });
 }
@@ -1584,6 +1611,7 @@ export interface UserState {
   activeTab: MissionType;
   bossState?: BossState;
   missionAffinity: Record<PathType, number>;
+  missionCompletionCounts: Record<string, number>;
   streakFreezesUsed?: number;
 }
 
@@ -1885,7 +1913,8 @@ export const createDefaultState = (username: string, email?: string, uid?: strin
       DISCIPLINE: 1.0,
       MENTAL_HEALTH: 1.0,
       OTHER: 1.0
-    }
+    },
+    missionCompletionCounts: {}
   };
 };
 
@@ -2251,14 +2280,19 @@ export function usePosts() {
 
 export const analyzeMissionPath = (text: string): PathType => {
   const lower = text.toLowerCase();
+  
+  // Mental Health - Moved up and expanded keywords
+  if (/(meditate|breathe|breath|journal|calm|relax|sleep|nap|yoga|meditasi|nafas|tenang|tidur|jurnal|doa|pray|ibadah|sholat|dzikir|healing|mindful|rest|istirahat|self-care|syukur|gratitude|terima|kasih|thanks|puji|ikhlas|sabar|patience|maaf|forgive|ampun|tobat|muhasabah|renung|refleksi|reflection|hening|silent|solitude|me-time|hobi|hobby|senang|happy|bahagia|puas|content|lega|bebas|free|lepas|let|go|water|air|minum|window|jendela|outside|luar|animal|hewan|kucing|anjing|doodle|quote|kutipan|sky|langit|tea|teh|bath|mandi|shower|news|berita|social media|sosmed|offline|detox|therapy|terapi|spa|massage|pijat|garden|taman|museum|smile|senyum|laugh|tertawa|santai|affirmation|afirmasi|thought|pikiran|feeling|perasaan|emotion|emosi|mental|jiwa|batin|rohani)/.test(lower)) return 'MENTAL_HEALTH';
+
   // Physical / Stronger
-  if (/(push|pull|run|walk|jog|gym|workout|exercise|squat|plank|situp|sit-up|crunch|burpee|jump|lari|jalan|otot|fisik|olahraga|renang|sepeda|angkat|sweat|cardio|training|fitness|bola|basket|futsal|badminton|tenis|yoga|stretching|boxing|muaythai|karate|silat|treadmill|dumbell|barbell|lifting|kardio|sehat|kesehatan|atlet|atletik|maraton|sprint|lompat|tendang|pukul|tangkis|sparring|gowes|pedal|kolam|lap|set|rep|reps|kalori|bakar|lemak)/.test(lower)) return 'STRONGER';
+  if (/(push|pull|run|walk|jog|gym|workout|exercise|squat|plank|situp|sit-up|crunch|burpee|jump|lari|jalan|otot|fisik|olahraga|renang|sepeda|angkat|sweat|cardio|training|fitness|bola|basket|futsal|badminton|tenis|stretching|boxing|muaythai|karate|silat|treadmill|dumbell|barbell|lifting|kardio|sehat|kesehatan|atlet|atletik|maraton|sprint|lompat|tendang|pukul|tangkis|sparring|gowes|pedal|kolam|lap|set|rep|reps|kalori|bakar|lemak)/.test(lower)) return 'STRONGER';
+  
   // Productivity / Productive
-  if (/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article|work|project|tugas|kerja|nulis|write|skripsi|exam|ujian|coding|dev|design|produktivitas|fokus|focus|prioritas|priority|jadwal|schedule|rencana|plan|organisir|organize|rapi|bersih|meja|email|inbox|belanja|masak|makan|persiapan|prep|resume|cv|portofolio|portfolio|investasi|invest|nabung|tabungan|keuangan|budget|anggaran|bisnis|usaha|omzet|sales|marketing|penjualan|klien|client|meeting|rapat|notulensi|notula|catatan|note|notes|ide|idea|kreatif|creative|gambar|lukis|desain|edit|video|audio|musik|instrumen|alat|latihan|practice|subscription|langganan|download|unduhan|password|sandi|contact|kontak|backup|cadangan|wallet|dompet|file|berkas|folder|trash|sampah|mail|surat|bill|tagihan|bank|balance|saldo)/.test(lower)) return 'PRODUCTIVE';
+  if (/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article|work|project|tugas|kerja|nulis|write|skripsi|exam|ujian|coding|dev|design|produktivitas|fokus|focus|prioritas|priority|jadwal|schedule|rencana|plan|organisir|organize|rapi|bersih|meja|email|inbox|belanja|masak|makan|persiapan|prep|resume|cv|portofolio|portfolio|investasi|invest|nabung|tabungan|keuangan|budget|anggaran|bisnis|usaha|omzet|sales|marketing|penjualan|klien|client|meeting|rapat|notulensi|notula|catatan|note|notes|ide|idea|kreatif|creative|gambar|lukis|desain|edit|video|audio|musik|instrumen|alat|latihan|practice|subscription|langganan|download|unduhan|password|sandi|contact|kontak|backup|cadangan|wallet|dompet|file|berkas|folder|trash|sampah|mail|surat|bill|tagihan|bank|balance|saldo|bake|panggang|cook)/.test(lower)) return 'PRODUCTIVE';
+  
   // Social / Extrovert
-  if (/(talk|call|meet|friend|family|greet|help|bicara|telepon|teman|keluarga|sapa|bantu|nongkrong|sosial|chat|hangout|date|dinner|lunch|party|community|komunitas|relasi|network|kenalan|kenal|ngobrol|diskusi|debat|presentasi|panggung|tampil|perform|puji|compliment|senyum|smile|kontak|mata|eye|contact|jabat|tangan|peluk|hug|kado|hadiah|gift|donasi|sedekah|amal|zakat|tolong|peduli|care|empati|dengar|listen|curhat|cerita|story|berbagi|share|ajak|invite|gabung|join|kumpul|gathering|reuni|reunion|bukber|halal|bihalal|silaturahmi|question|tanya|stranger|orang asing|someone|seseorang|conversation|percakapan|interaction|interaksi|group|grup|kelompok|event|acara|public|publik|colleague|kolega|coworker|rekan kerja|neighbor|tetangga|cashier|kasir|opinion|pendapat|feedback|umpan balik|joke|canda|meme|voice|suara|intro)/.test(lower)) return 'SOCIAL';
-  // Mental Health
-  if (/(meditate|breathe|journal|calm|relax|sleep|nap|yoga|meditasi|nafas|tenang|tidur|jurnal|doa|pray|ibadah|sholat|dzikir|healing|mindful|rest|istirahat|self-care|syukur|gratitude|terima|kasih|thanks|puji|syukur|tenang|damai|peace|ikhlas|sabar|patience|maaf|forgive|ampun|tobat|muhasabah|renung|refleksi|reflection|hening|silent|solitude|me-time|hobi|hobby|senang|happy|bahagia|puas|content|lega|bebas|free|lepas|let|go)/.test(lower)) return 'MENTAL_HEALTH';
+  if (/(talk|call|meet|friend|family|greet|help|bicara|telepon|teman|keluarga|sapa|bantu|nongkrong|sosial|chat|hangout|date|dinner|lunch|party|community|komunitas|relasi|network|kenalan|kenal|ngobrol|diskusi|debat|presentasi|panggung|tampil|perform|compliment|kontak|mata|eye|contact|jabat|tangan|peluk|hug|kado|hadiah|gift|donasi|sedekah|amal|zakat|tolong|peduli|care|empati|dengar|listen|curhat|cerita|story|berbagi|share|ajak|invite|gabung|join|kumpul|gathering|reuni|reunion|bukber|halal|bihalal|silaturahmi|question|tanya|stranger|orang asing|someone|seseorang|conversation|percakapan|interaction|interaksi|group|grup|kelompok|event|acara|public|publik|colleague|kolega|coworker|rekan kerja|neighbor|tetangga|cashier|kasir|opinion|pendapat|feedback|umpan balik|joke|canda|meme|voice|suara|intro)/.test(lower)) return 'SOCIAL';
+  
   // Default to Discipline
   return 'DISCIPLINE';
 };

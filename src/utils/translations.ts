@@ -22,6 +22,7 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
     'home.timer.stop': { en: 'Stop', id: 'Berhenti' },
     'home.timer.reset': { en: 'Reset', id: 'Atur Ulang' },
     'home.timer.resume': { en: 'Resume', id: 'Lanjutkan' },
+    'home.timer.pause': { en: 'Pause', id: 'Jeda' },
     'home.mission.start_complete': { en: 'Start & Complete', id: 'Mulai & Selesaikan' },
     'home.mission.complete_manually': { en: 'Complete Manually', id: 'Selesaikan Manual' },
     'home.streak_freeze.used': { en: 'Streak Freeze used! Your streak is safe.', id: 'Streak Freeze digunakan! Streak kamu aman.' },
@@ -103,6 +104,7 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
     'integrity.explanation.rank_d': { en: 'D (0-24): Dishonest. Critical cheating detected. You are flagged as a cheater.', id: 'D (0-24): Dishonest. Terdeteksi curang secara kritis. Anda ditandai sebagai curang.' },
     'integrity.explanation.how_to_recover': { en: 'How to Recover: Complete 3 clean missions (with logical duration) to gain +5 Integrity.', id: 'Cara Pemulihan: Selesaikan 3 misi bersih (dengan durasi logis) untuk mendapatkan +5 Integritas.' },
     'integrity.explanation.penalty': { en: 'Penalty: Completing missions too fast or Overheat (Burst Lock) will reduce your Integrity.', id: 'Penalti: Menyelesaikan misi terlalu cepat atau Overheat (Burst Lock) akan mengurangi Integritas Anda.' },
+    'integrity.explanation.understood': { en: 'UNDERSTOOD', id: 'MENGERTI' },
     'integrity.rating.s': { en: 'Supreme', id: 'Supreme' },
     'integrity.rating.a': { en: 'Honest', id: 'Honest' },
     'integrity.rating.b': { en: 'Average', id: 'Average' },
@@ -433,6 +435,12 @@ export const t = (key: string, lang: 'en' | 'id', params?: Record<string, string
 
     // Home Screen
     'home.neural_overheat': { en: 'Neural Overheat. Wait {seconds} seconds.', id: 'Neural Overheat. Tunggu {seconds} detik.' },
+    'home.overheat.title': { en: 'NEURAL OVERHEAT', id: 'NEURAL OVERHEAT' },
+    'home.overheat.motivation.1': { en: 'Real growth is a marathon, not a sprint. Take a breath.', id: 'Pertumbuhan nyata adalah maraton, bukan sprint. Tarik napas.' },
+    'home.overheat.motivation.2': { en: 'Quality over quantity. Focus on the execution.', id: 'Kualitas di atas kuantitas. Fokus pada eksekusi.' },
+    'home.overheat.motivation.3': { en: 'Your brain needs time to process greatness. Slow down.', id: 'Otakmu butuh waktu untuk memproses kehebatan. Pelan-pelan.' },
+    'home.overheat.motivation.4': { en: 'Discipline is about consistency, not just speed.', id: 'Disiplin adalah tentang konsistensi, bukan sekadar kecepatan.' },
+    'home.overheat.motivation.5': { en: 'Don\'t cheat yourself. The journey is the reward.', id: 'Jangan bohongi dirimu sendiri. Perjalanan adalah hadiahnya.' },
     'home.mission_complete': { en: 'MISSION COMPLETE!', id: 'MISI SELESAI!' },
     'home.mission_complete_desc': { en: 'You are one step closer to your best self.', id: 'Kamu selangkah lebih dekat menuju versi terbaikmu.' },
     'home.rewards_earned': { en: 'REWARDS EARNED', id: 'HADIAH DIDAPAT' },

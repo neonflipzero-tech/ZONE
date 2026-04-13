@@ -17,16 +17,19 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
   const [activeTab, setActiveTab] = useState<'frames' | 'titles' | 'items'>('frames');
   const [timeLeft, setTimeLeft] = useState<string | null>(null);
   const [coinTimeLeft, setCoinTimeLeft] = useState<string | null>(null);
+  const [isUsing, setIsUsing] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
     
     const updateTimer = () => {
+      const currentState = useAppState.getState().state;
+      if (!currentState) return;
       const now = new Date().getTime();
 
       // XP Timer
-      if (state.doubleXpActiveUntil) {
-        const end = new Date(state.doubleXpActiveUntil).getTime();
+      if (currentState.doubleXpActiveUntil) {
+        const end = new Date(currentState.doubleXpActiveUntil).getTime();
         const diff = end - now;
         
         if (diff > 0) {
@@ -43,8 +46,8 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
       }
 
       // Coin Timer
-      if (state.doubleCoinActiveUntil) {
-        const end = new Date(state.doubleCoinActiveUntil).getTime();
+      if (currentState.doubleCoinActiveUntil) {
+        const end = new Date(currentState.doubleCoinActiveUntil).getTime();
         const diff = end - now;
         
         if (diff > 0) {
@@ -64,7 +67,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [isOpen, state.doubleXpActiveUntil, state.doubleCoinActiveUntil, updateState]);
+  }, [isOpen, updateState]);
 
   if (!isOpen) return null;
 
@@ -105,6 +108,39 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
             </h2>
             <div className="w-10" />
           </div>
+
+          {/* Use Animation Overlay */}
+          <AnimatePresence>
+            {isUsing && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-[110] bg-accent/20 backdrop-blur-md flex items-center justify-center pointer-events-none"
+              >
+                <motion.div
+                  initial={{ scale: 0.5, opacity: 0, rotate: -20 }}
+                  animate={{ 
+                    scale: [0.5, 1.2, 1], 
+                    opacity: 1,
+                    rotate: 0
+                  }}
+                  className="flex flex-col items-center"
+                >
+                  <div className="bg-white text-accent p-6 rounded-full shadow-[0_0_50px_rgba(255,255,255,0.5)] mb-4">
+                    <CheckCircle2 className="w-16 h-16" strokeWidth={3} />
+                  </div>
+                  <motion.div
+                    initial={{ y: 10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="bg-white text-black px-6 py-2 rounded-full font-black text-xl uppercase italic shadow-xl"
+                  >
+                    {state.language === 'id' ? 'ITEM DIGUNAKAN!' : 'ITEM USED!'}
+                  </motion.div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Preview Area */}
           <div className="flex-shrink-0 flex flex-col items-center justify-center py-6 px-6 bg-gradient-to-b from-surface/80 to-background border-b border-white/5">
@@ -251,49 +287,54 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                   <>
                     {/* 2x XP Potion */}
                     {(state.doubleXpPotions || 0) > 0 && (
-                      <div className="p-4 rounded-2xl bg-surface/50 border border-white/10 flex flex-col">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
-                              <Zap className="w-6 h-6 text-purple-400" />
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-primary">2x XP Potion</h4>
-                              <p className="text-xs text-secondary mt-0.5">
-                                {state.language === 'id' ? 'Gandakan XP selama 24 jam' : 'Double XP for 24 hours'}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="bg-surface px-3 py-1 rounded-full border border-white/10 text-xs font-bold text-primary">
-                            x{state.doubleXpPotions || 0}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            if ((state.doubleXpPotions || 0) > 0) {
-                              sounds.playUseItem();
-                              const now = new Date();
-                              now.setHours(now.getHours() + 24);
-                              updateState({
-                                doubleXpPotions: (state.doubleXpPotions || 0) - 1,
-                                doubleXpActiveUntil: now.toISOString()
-                              });
-                            }
-                          }}
-                          disabled={(state.doubleXpPotions || 0) === 0 || (state.doubleXpActiveUntil ? new Date(state.doubleXpActiveUntil) > new Date() : false)}
-                          className={`w-full py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${
-                            (state.doubleXpPotions || 0) > 0 && !(state.doubleXpActiveUntil ? new Date(state.doubleXpActiveUntil) > new Date() : false)
-                              ? 'bg-purple-500 text-white hover:bg-purple-600' 
-                              : 'bg-white/5 text-white/30 cursor-not-allowed'
-                          }`}
+                        <motion.div 
+                          whileTap={{ scale: 0.98 }}
+                          className="p-4 rounded-2xl bg-surface/50 border border-white/10 flex flex-col"
                         >
-                          <span>
-                            {state.doubleXpActiveUntil && new Date(state.doubleXpActiveUntil) > new Date()
-                              ? (state.language === 'id' ? `Aktif (${timeLeft})` : `Active (${timeLeft})`)
-                              : (state.language === 'id' ? 'Gunakan' : 'Use')}
-                          </span>
-                        </button>
-                      </div>
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
+                                <Zap className="w-6 h-6 text-purple-400" />
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-primary">2x XP Potion</h4>
+                                <p className="text-xs text-secondary mt-0.5">
+                                  {state.language === 'id' ? 'Gandakan XP selama 24 jam' : 'Double XP for 24 hours'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="bg-surface px-3 py-1 rounded-full border border-white/10 text-xs font-bold text-primary">
+                              x{state.doubleXpPotions || 0}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              if ((state.doubleXpPotions || 0) > 0) {
+                                sounds.playUseItem();
+                                setIsUsing(true);
+                                setTimeout(() => setIsUsing(false), 1500);
+                                const now = new Date();
+                                now.setHours(now.getHours() + 24);
+                                updateState({
+                                  doubleXpPotions: (state.doubleXpPotions || 0) - 1,
+                                  doubleXpActiveUntil: now.toISOString()
+                                });
+                              }
+                            }}
+                            disabled={(state.doubleXpPotions || 0) === 0 || (state.doubleXpActiveUntil ? new Date(state.doubleXpActiveUntil) > new Date() : false)}
+                            className={`w-full py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${
+                              (state.doubleXpPotions || 0) > 0 && !(state.doubleXpActiveUntil ? new Date(state.doubleXpActiveUntil) > new Date() : false)
+                                ? 'bg-purple-500 text-white hover:bg-purple-600' 
+                                : 'bg-white/5 text-white/30 cursor-not-allowed'
+                            }`}
+                          >
+                            <span>
+                              {state.doubleXpActiveUntil && new Date(state.doubleXpActiveUntil) > new Date()
+                                ? (state.language === 'id' ? `Aktif (${timeLeft})` : `Active (${timeLeft})`)
+                                : (state.language === 'id' ? 'Gunakan' : 'Use')}
+                            </span>
+                          </button>
+                        </motion.div>
                     )}
 
                     {/* Streak Freeze */}
@@ -323,7 +364,10 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
 
                     {/* 2x Coin Potion */}
                     {(state.doubleCoinPotions || 0) > 0 && (
-                      <div className="p-4 rounded-2xl bg-surface/50 border border-white/10 flex flex-col">
+                      <motion.div 
+                        whileTap={{ scale: 0.98 }}
+                        className="p-4 rounded-2xl bg-surface/50 border border-white/10 flex flex-col"
+                      >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center space-x-3">
                             <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
@@ -344,6 +388,8 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                           onClick={() => {
                             if ((state.doubleCoinPotions || 0) > 0) {
                               sounds.playUseItem();
+                              setIsUsing(true);
+                              setTimeout(() => setIsUsing(false), 1500);
                               const now = new Date();
                               now.setHours(now.getHours() + 24);
                               updateState({
@@ -365,7 +411,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                               : (state.language === 'id' ? 'Gunakan' : 'Use')}
                           </span>
                         </button>
-                      </div>
+                      </motion.div>
                     )}
                   </>
                 )}

@@ -335,7 +335,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
               </div>
               <div>
                 <div className="text-2xl font-display font-bold text-primary">
-                  {Object.values(state.dailyStats || {}).reduce((a, b) => a + b, 0)}
+                  {state.missionsCompleted || 0}
                 </div>
                 <div className="text-[10px] text-secondary font-mono uppercase tracking-wider">{t('profile.missions_done', state.language)}</div>
               </div>
@@ -744,7 +744,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
               {t('profile.view_all', state.language)}
             </button>
           </div>
-          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-2">
+          <div className="grid grid-cols-2 gap-3 px-2">
             {(() => {
               // Sort badges: unlocked first, then locked
               const sortedBadges = [...BADGES].sort((a, b) => {
@@ -761,22 +761,42 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
               return displayBadges.map((badgeDef) => {
                 const isUnlocked = state.badges.includes(badgeDef.id);
                 const Icon = BADGE_ICONS[badgeDef.icon] || Trophy;
+                const isElite = badgeDef.id === 'ELITE_ZONE';
                 
                 return (
                   <div 
                     key={badgeDef.id} 
-                    className={`shrink-0 w-32 snap-center border rounded-xl p-4 flex flex-col items-center justify-center text-center transition-all ${
+                    className={`border rounded-xl p-4 flex flex-col items-center justify-center text-center transition-all ${
                       isUnlocked 
-                        ? 'bg-gradient-to-b from-surface to-surface-hover border-accent/30 shadow-lg shadow-accent/5' 
+                        ? isElite
+                          ? 'bg-gradient-to-b from-amber-400/20 to-amber-600/20 border-amber-400/50 shadow-lg shadow-amber-400/20'
+                          : 'bg-gradient-to-b from-surface to-surface-hover border-accent/30 shadow-lg shadow-accent/5' 
                         : 'bg-surface/30 border-white/5 opacity-50 grayscale'
                     }`}
                   >
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${isUnlocked ? 'bg-accent/20' : 'bg-white/5'}`}>
-                      <Icon className={`w-6 h-6 ${isUnlocked ? 'text-accent' : 'text-secondary'}`} />
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${
+                      isUnlocked 
+                        ? isElite ? 'bg-amber-400/20' : 'bg-accent/20' 
+                        : 'bg-white/5'
+                    }`}>
+                      <Icon className={`w-6 h-6 ${
+                        isUnlocked 
+                          ? isElite ? 'text-amber-400' : 'text-accent' 
+                          : 'text-secondary'
+                      }`} />
                     </div>
-                    <span className={`text-xs font-bold leading-tight mb-1 ${isUnlocked ? 'text-primary' : 'text-secondary'}`}>
+                    <span className={`text-xs font-bold leading-tight mb-1 ${
+                      isUnlocked 
+                        ? isElite ? 'text-amber-400' : 'text-primary' 
+                        : 'text-secondary'
+                    }`}>
                       {badgeDef.name[state.language]}
                     </span>
+                    {isUnlocked && (
+                      <span className="text-[9px] text-secondary leading-tight opacity-80">
+                        {badgeDef.desc[state.language]}
+                      </span>
+                    )}
                   </div>
                 );
               });

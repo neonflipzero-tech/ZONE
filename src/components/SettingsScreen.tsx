@@ -5,7 +5,7 @@ import React, { useState, useRef } from 'react';
 import { sounds } from '../utils/sounds';
 import { NotificationService } from '../services/NotificationService';
 import { db } from '../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, deleteDoc } from 'firebase/firestore';
 
 import { t } from '../utils/translations';
 
@@ -614,9 +614,14 @@ export default function SettingsScreen({
                 
                 <div className="w-full space-y-3 pt-4">
                   <button
-                    onClick={() => {
-                      // In a real app, this would call a backend to delete user data
-                      // For now, we'll just logout and reset local state
+                    onClick={async () => {
+                      try {
+                        if (db && state.userId) {
+                          await deleteDoc(doc(db, 'users', state.userId));
+                        }
+                      } catch (e) {
+                        console.error("Error deleting user data:", e);
+                      }
                       onLogout();
                       setIsDeleteModalOpen(false);
                     }}

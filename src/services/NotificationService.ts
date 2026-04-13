@@ -390,6 +390,9 @@ export class NotificationService {
           delay: delay,
           tag: 'exit-delayed'
         });
+
+        // Schedule 1h, 2h and 12h reminders
+        this.scheduleLongTermReminders(language);
       }
     };
 
@@ -409,6 +412,146 @@ export class NotificationService {
           type: 'CANCEL_NOTIFICATION',
           tag: 'exit-delayed'
         });
+        registration.active.postMessage({
+          type: 'CANCEL_NOTIFICATION',
+          tag: 'exit-1h'
+        });
+        registration.active.postMessage({
+          type: 'CANCEL_NOTIFICATION',
+          tag: 'exit-2h'
+        });
+        registration.active.postMessage({
+          type: 'CANCEL_NOTIFICATION',
+          tag: 'exit-12h'
+        });
+      }
+    };
+
+    sendMessage();
+  }
+
+  private static scheduleLongTermReminders(language: 'en' | 'id') {
+    const variations1h = language === 'id' ? [
+      { title: 'Satu jam berlalu. Masih di luar? ⏳', body: 'Zona lu mulai dingin. Balik sekarang sebelum momentum lu ilang.' },
+      { title: 'Rival lu gak berhenti, lu malah ilang. 🏃‍♂️', body: 'Satu jam tanpa progres itu kemunduran. Jangan biarkan mereka nyalip!' },
+      { title: 'Disiplin itu konsistensi, bukan sesekali. 🌊', body: 'Udah satu jam lu ninggalin target. Balik ke jalur sekarang!' },
+      { title: 'Balik ke jalur, atau lupakan target lu. 🛤️', body: 'Waktu terus jalan, tapi lu malah diem. Buktiin lu serius!' },
+      { title: 'Waktu adalah aset paling berharga. 💎', body: 'Jangan buang-buang waktu lu buat hal gak berguna. Lock In lagi!' },
+      { title: 'Satu jam kemunduran terdeteksi. 📉', body: 'OVR lu gak bakal naik kalau lu cuma rebahan. Gerak!' },
+      { title: 'Ingat janji lu sama diri sendiri. 🤝', body: 'Lu bilang mau berubah, tapi satu jam ini lu malah santai.' },
+      { title: 'Fokus lu mulai pudar. 🧠', body: 'Jangan biarkan distraksi menang. Balik ke Zone dan fokus!' },
+      { title: 'Jangan biarkan hari ini sia-sia. 🚫', body: 'Satu jam ini gak bakal balik lagi. Gunakan sisa harimu dengan bijak.' },
+      { title: 'Zona lu nungguin, bos! 👑', body: 'Udah cukup istirahatnya. Sekarang waktunya kerja keras lagi.' }
+    ] : [
+      { title: 'One hour passed. Still out? ⏳', body: 'Your zone is getting cold. Get back before you lose your momentum.' },
+      { title: 'Your rival doesn\'t stop. 🏃‍♂️', body: 'One hour without progress is regression. Don\'t let them pass you!' },
+      { title: 'Discipline is consistency. 🌊', body: 'You\'ve left your targets for an hour. Get back on track now!' },
+      { title: 'Back on track, or forget it. 🛤️', body: 'Time keeps moving, but you\'re standing still. Prove you\'re serious!' },
+      { title: 'Time is your most valuable asset. 💎', body: 'Don\'t waste your time on useless things. Lock In again!' },
+      { title: 'One hour regression detected. 📉', body: 'Your OVR won\'t climb if you\'re just lying around. Move!' },
+      { title: 'Remember your promise. 🤝', body: 'You said you\'d change, but you spent this hour relaxing.' },
+      { title: 'Your focus is fading. 🧠', body: 'Don\'t let distractions win. Get back to the Zone and focus!' },
+      { title: 'Don\'t let today be wasted. 🚫', body: 'This hour won\'t come back. Use the rest of your day wisely.' },
+      { title: 'The Zone is waiting, boss! 👑', body: 'Enough rest. Now it\'s time to work hard again.' }
+    ];
+
+    const variations2h = language === 'id' ? [
+      { title: 'Dua jam sudah berlalu. 🕰️', body: 'Jangan biarkan rasa malas menang. Balik ke Zone dan selesaikan misi lu.' },
+      { title: 'Fokus lu mulai teralih. 🧠', body: 'Dua jam di luar Zone itu cukup lama. Saatnya kembali ke frekuensi elit.' },
+      { title: 'Ingat target OVR lu! 📈', body: 'Dua jam tanpa grinding berarti dua jam tanpa progres. Balik sekarang!' },
+      { title: 'Disiplin adalah kunci. 🔑', body: 'Dua jam istirahat sudah lebih dari cukup. Buktikan lu punya disiplin tinggi.' },
+      { title: 'Jangan biarkan momentum hilang. 🌊', body: 'Membangun momentum itu sulit. Jangan hancurkan dengan jeda dua jam.' },
+      { title: 'Zone lu merindukan fokus lu. ✨', body: 'Dua jam adalah waktu yang lama untuk menjauh. Lock In lagi!' },
+      { title: 'Satu misi lagi? 🎯', body: 'Lu cuma butuh satu langkah kecil buat balik ke jalur. Dua jam sudah cukup.' },
+      { title: 'Rival lu makin jauh di depan. 🏃‍♂️', body: 'Dua jam mereka grinding, lu malah di luar. Kejar sekarang!' },
+      { title: 'Jangan tunda sampai besok. 🚫', body: 'Dua jam ini bisa lu pakai buat beresin misi. Balik ke Zone!' },
+      { title: 'Kendalikan waktu lu. ⏳', body: 'Dua jam berlalu begitu saja. Ambil kendali dan balik Lock In!' }
+    ] : [
+      { title: 'Two hours have passed. 🕰️', body: 'Don\'t let laziness win. Get back to the Zone and finish your missions.' },
+      { title: 'Your focus is drifting. 🧠', body: 'Two hours out of the Zone is long enough. Time to return to elite frequency.' },
+      { title: 'Remember your OVR target! 📈', body: 'Two hours without grinding means two hours without progress. Return now!' },
+      { title: 'Discipline is key. 🔑', body: 'Two hours of rest is more than enough. Prove you have high discipline.' },
+      { title: 'Don\'t let momentum fade. 🌊', body: 'Building momentum is hard. Don\'t break it with a two-hour break.' },
+      { title: 'The Zone misses your focus. ✨', body: 'Two hours is a long time to stay away. Lock In again!' },
+      { title: 'One more mission? 🎯', body: 'You only need one small step to get back on track. Two hours is enough.' },
+      { title: 'Your rival is further ahead. 🏃‍♂️', body: 'They spent two hours grinding while you were out. Catch up now!' },
+      { title: 'Don\'t postpone until tomorrow. 🚫', body: 'You could use these two hours to finish missions. Back to the Zone!' },
+      { title: 'Control your time. ⏳', body: 'Two hours just slipped by. Take control and Lock In again!' }
+    ];
+
+    const variations12h = language === 'id' ? [
+      { title: 'Lu udah nyerah ya? Gampang banget. 🏳️', body: '12 jam sia-sia. Lu emang mau jadi orang rata-rata? Pikirin lagi.' },
+      { title: 'Orang tua lu bangga gak liat lu gini? 🥀', body: 'Mereka berharap lu sukses, tapi lu malah buang waktu 12 jam.' },
+      { title: 'Dirimu di masa depan lagi nangis. 😭', body: 'Dia kecewa liat lu yang sekarang cuma bisa males-malesan.' },
+      { title: 'Potensi lu cuma jadi sampah. 🗑️', body: 'Kalau gak diasah, lu gak ada bedanya sama barang rongsokan.' },
+      { title: 'Lu cuma jago di omongan. 🤐', body: 'Tindakan lu nol besar. Mana bukti kalau lu mau sukses?' },
+      { title: 'Selamat, lu ngebunuh mimpi lu. ⚰️', body: '12 jam ini adalah paku terakhir di peti mati ambisi lu.' },
+      { title: 'Rasa bersalah ini bakal ngejar lu. 💀', body: 'Lu tau lu salah. Balik sekarang atau hancur selamanya.' },
+      { title: 'Lu emang gak pantes sukses. 🚫', body: 'Sukses itu buat orang disiplin, bukan buat orang manja kyk lu.' },
+      { title: 'Zona lu udah mati. 🌑', body: 'Sama kyk semangat lu yang udah ilang ditelan rasa malas.' },
+      { title: 'Lihat cermin, apa lu bangga? 🪞', body: '12 jam terbuang. Lu cuma pecundang yang takut sama kerja keras.' }
+    ] : [
+      { title: 'Given up already? That was easy. 🏳️', body: '12 hours wasted. Do you really want to be average? Think again.' },
+      { title: 'Would your parents be proud? 🥀', body: 'They hope for your success, but you\'ve wasted 12 hours.' },
+      { title: 'Your future self is crying. 😭', body: 'They\'re disappointed seeing you just being lazy right now.' },
+      { title: 'Your potential is just trash. 🗑️', body: 'If not sharpened, you\'re no different from scrap metal.' },
+      { title: 'You\'re only good at talking. 🤐', body: 'Your actions are zero. Where\'s the proof you want to succeed?' },
+      { title: 'Congrats, you killed your dreams. ⚰️', body: 'These 12 hours are the final nail in the coffin of your ambition.' },
+      { title: 'This guilt will haunt you. 💀', body: 'You know you\'re wrong. Get back now or perish forever.' },
+      { title: 'You don\'t deserve success. 🚫', body: 'Success is for the disciplined, not for soft people like you.' },
+      { title: 'Your zone is dead. 🌑', body: 'Just like your spirit that vanished into laziness.' },
+      { title: 'Look in the mirror, proud? 🪞', body: '12 hours gone. You\'re just a loser afraid of hard work.' }
+    ];
+
+    const v1h = variations1h[Math.floor(Math.random() * variations1h.length)];
+    const v2h = variations2h[Math.floor(Math.random() * variations2h.length)];
+    const v12h = variations12h[Math.floor(Math.random() * variations12h.length)];
+
+    const sendMessage = async () => {
+      let registration = this.swRegistration;
+      if (!registration && 'serviceWorker' in navigator) {
+        registration = await navigator.serviceWorker.ready;
+        this.swRegistration = registration;
+      }
+
+      if (registration && registration.active) {
+        // 1 Hour
+        registration.active.postMessage({
+          type: 'SCHEDULE_NOTIFICATION',
+          title: v1h.title,
+          body: v1h.body,
+          delay: 60 * 60 * 1000,
+          tag: 'exit-1h'
+        });
+
+        // 2 Hours
+        registration.active.postMessage({
+          type: 'SCHEDULE_NOTIFICATION',
+          title: v2h.title,
+          body: v2h.body,
+          delay: 120 * 60 * 1000,
+          tag: 'exit-2h'
+        });
+
+        // 12 Hours - Check if it lands in sleep time (22:00 - 07:00)
+        const now = new Date();
+        const target12h = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+        const targetHour = target12h.getHours();
+        
+        // Don't show if it lands between 10 PM and 7 AM
+        const isSleepTime = targetHour >= 22 || targetHour < 7;
+
+        if (!isSleepTime) {
+          registration.active.postMessage({
+            type: 'SCHEDULE_NOTIFICATION',
+            title: v12h.title,
+            body: v12h.body,
+            delay: 12 * 60 * 60 * 1000,
+            tag: 'exit-12h'
+          });
+        } else {
+          console.log('NotificationService: 12h reminder skipped because it lands in sleep time (' + targetHour + ':00)');
+        }
       }
     };
 

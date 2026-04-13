@@ -17,6 +17,7 @@ import JourneyScreen from './components/JourneyScreen';
 import PfpPromptModal from './components/PfpPromptModal';
 import UnlockNotification from './components/UnlockNotification';
 import ElitePromotionModal from './components/ElitePromotionModal';
+import IntegrityCheckModal from './components/IntegrityCheckModal';
 import ProfileFrame from './components/ProfileFrame';
 import { Target, Trophy, User, BarChart2, Map, Swords } from 'lucide-react';
 import { NotificationService } from './services/NotificationService';
@@ -26,24 +27,22 @@ type Tab = 'home' | 'leaderboard' | 'journey' | 'rank' | 'profile';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
-  const { 
-    state, 
-    activeUserEmail,
-    login,
-    logout,
-    updateState, 
-    generateMissions, 
-    checkStreakFreezeNeeded,
-    completeMission,
-    replaceMission,
-    changePath,
-    addCustomMission,
-    removeCustomMission,
-    dismissUnlockedItem,
-    addNotification,
-    init,
-    isAuthReady
-  } = useAppState();
+  const state = useAppState(s => s.state);
+  const activeUserEmail = useAppState(s => s.activeUserEmail);
+  const login = useAppState(s => s.login);
+  const logout = useAppState(s => s.logout);
+  const updateState = useAppState(s => s.updateState);
+  const generateMissions = useAppState(s => s.generateMissions);
+  const checkStreakFreezeNeeded = useAppState(s => s.checkStreakFreezeNeeded);
+  const completeMission = useAppState(s => s.completeMission);
+  const replaceMission = useAppState(s => s.replaceMission);
+  const changePath = useAppState(s => s.changePath);
+  const addCustomMission = useAppState(s => s.addCustomMission);
+  const removeCustomMission = useAppState(s => s.removeCustomMission);
+  const dismissUnlockedItem = useAppState(s => s.dismissUnlockedItem);
+  const addNotification = useAppState(s => s.addNotification);
+  const init = useAppState(s => s.init);
+  const isAuthReady = useAppState(s => s.isAuthReady);
 
   useEffect(() => {
     if (state?.isLoggedIn) {
@@ -51,6 +50,20 @@ export default function App() {
       checkBossReset();
     }
   }, [state?.isLoggedIn]);
+
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      sounds.unlock();
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+    };
+    window.addEventListener('click', handleFirstInteraction);
+    window.addEventListener('touchstart', handleFirstInteraction);
+    return () => {
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+    };
+  }, []);
 
   useEffect(() => {
     const unsubscribe = init();
@@ -91,22 +104,6 @@ export default function App() {
   useEffect(() => {
     NotificationService.init();
   }, []);
-
-  useEffect(() => {
-    if (!state?.isLoggedIn || state?.isPremium) return;
-
-    const interval = setInterval(() => {
-      // 60% chance to show promotion
-      if (Math.random() < 0.6) {
-        // 1 in 3 chance for flash sale (rare)
-        const isFlash = Math.random() < 0.33;
-        setIsFlashSale(isFlash);
-        setIsPromoOpen(true);
-      }
-    }, 5 * 60 * 1000); // Every 5 minutes
-
-    return () => clearInterval(interval);
-  }, [state?.isLoggedIn, state?.isPremium]);
 
   useEffect(() => {
     if (state?.notificationsEnabled) {
@@ -310,22 +307,30 @@ export default function App() {
   const [isLevelUpAnimationComplete, setIsLevelUpAnimationComplete] = useState(true);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [isPromoOpen, setIsPromoOpen] = useState(false);
+  const [isIntegrityModalOpen, setIsIntegrityModalOpen] = useState(false);
   const [isFlashSale, setIsFlashSale] = useState(false);
 
-  // Promotion Trigger Logic
+  // Promotion & Integrity Trigger Logic
   useEffect(() => {
-    if (state?.isLoggedIn && !state?.isPremium) {
+    if (state?.isLoggedIn) {
       const interval = setInterval(() => {
-        // 60% chance to show promo
-        if (Math.random() < 0.6) {
-          // 1 in 3 chance for flash sale (approx 33.3%)
+        const rand = Math.random();
+        
+        // 45% chance for Integrity Check
+        if (rand < 0.45) {
+          setIsIntegrityModalOpen(true);
+        } 
+        // Remainder chance for Elite Promo (if not premium)
+        else if (!state.isPremium) {
           const isRare = Math.random() < 0.333;
           setIsFlashSale(isRare);
           setIsPromoOpen(true);
         }
-      }, 5 * 60 * 1000); // 5 minutes
+      }, 10 * 60 * 1000); // 10 minutes
 
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+      };
     }
   }, [state?.isLoggedIn, state?.isPremium]);
 
@@ -630,7 +635,7 @@ export default function App() {
                   transition={{ duration: 0.6, times: [0, 0.7, 1], ease: "backOut" }}
                   className="absolute inset-0 flex items-center justify-center z-10"
                 >
-                  <div className="text-9xl drop-shadow-[0_0_40px_rgba(225,29,72,1)]">👊</div>
+                  <div className="text-9xl drop-shadow-[0_0_40px_rgba(225,29,72,1)]">💀</div>
                 </motion.div>
 
                 {/* Impact Sparks */}
@@ -759,6 +764,16 @@ export default function App() {
               onClose={() => setIsPromoOpen(false)}
               language={state.language}
               isFlashSale={isFlashSale}
+            />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {isIntegrityModalOpen && state && (
+            <IntegrityCheckModal
+              username={state.username}
+              language={state.language}
+              onClose={() => setIsIntegrityModalOpen(false)}
             />
           )}
         </AnimatePresence>

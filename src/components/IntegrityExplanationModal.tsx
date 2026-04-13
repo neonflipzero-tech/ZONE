@@ -110,7 +110,7 @@ export default function IntegrityExplanationModal({ isOpen, onClose, language }:
               onClick={onClose}
               className="px-8 py-3 bg-accent text-background rounded-xl font-bold text-sm hover:bg-accent/90 transition-all active:scale-95"
             >
-              UNDERSTOOD
+              {t('integrity.explanation.understood', language)}
             </button>
           </div>
         </motion.div>
