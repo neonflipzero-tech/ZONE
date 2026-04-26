@@ -36,7 +36,7 @@ export const BossBattle: React.FC<BossBattleProps> = ({ onMissionClick }) => {
               {t('boss.title', lang)}
             </h2>
             <p className="text-xs font-mono text-secondary uppercase tracking-widest">
-              {t('boss.guardian', lang, { topic: t(`onboarding.path.${boss.topic.toUpperCase()}.name`, lang) })}
+              {boss.topic ? t('boss.guardian', lang, { topic: t(`onboarding.path.${boss.topic.toUpperCase()}.name`, lang) }) : 'Guardian'}
             </p>
           </div>
         </div>

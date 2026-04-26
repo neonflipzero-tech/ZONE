@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { sounds } from '../utils/sounds';
 import { useState, useEffect } from 'react';
+import { ShieldAlert, Zap, Scale, Heart, Smile } from 'lucide-react';
 
 interface IntegrityCheckModalProps {
   username: string;
@@ -118,7 +119,7 @@ const IntegrityCheckModal = ({ username, language, onClose }: IntegrityCheckModa
             {step === 'initial' && (
               <>
                 <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-6 mx-auto border border-white/10">
-                  <span className="text-3xl">👁️</span>
+                  <ShieldAlert className="w-8 h-8 text-secondary" />
                 </div>
                 
                 <h2 className="text-xl font-display font-black text-white text-center mb-8 leading-relaxed tracking-tight">
@@ -149,7 +150,7 @@ const IntegrityCheckModal = ({ username, language, onClose }: IntegrityCheckModa
                 className="text-center"
               >
                 <div className="w-16 h-16 bg-rose-500/20 rounded-2xl flex items-center justify-center mb-6 mx-auto border border-rose-500/30">
-                  <span className="text-3xl animate-pulse">⚖️</span>
+                  <Scale className="w-8 h-8 text-rose-500 animate-pulse" />
                 </div>
                 
                 <h2 className="text-xl font-display font-black text-rose-500 uppercase tracking-tighter mb-4 italic">
@@ -184,7 +185,7 @@ const IntegrityCheckModal = ({ username, language, onClose }: IntegrityCheckModa
                 className="text-center"
               >
                 <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-6 mx-auto border border-white/10">
-                  <span className="text-3xl">🧘</span>
+                  <Smile className="w-8 h-8 text-secondary" />
                 </div>
                 <p className="text-lg text-zinc-300 mb-8 leading-relaxed font-medium tracking-tight">
                   {language === 'id' ? selectedLieResponse.id : selectedLieResponse.en}
@@ -205,7 +206,7 @@ const IntegrityCheckModal = ({ username, language, onClose }: IntegrityCheckModa
                 className="text-center"
               >
                 <div className="w-16 h-16 bg-green-500/20 rounded-2xl flex items-center justify-center mb-6 mx-auto border border-green-500/30">
-                  <span className="text-3xl">🔥</span>
+                  <Zap className="w-8 h-8 text-green-500" />
                 </div>
                 <h3 className="text-2xl font-display font-black text-white mb-4 uppercase tracking-tight italic">
                   {language === 'id' ? 'GOKIL!' : 'AWESOME!'}

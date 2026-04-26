@@ -86,7 +86,7 @@ export default function PremiumModal({ isOpen, onClose, language, isFlashSale = 
     'Analisis Distribusi Fokus (Donut Chart)',
     'Misi kustom tanpa batas (Unlimited)',
     'Bingkai Profil Eksklusif "Elite"',
-    'Lencana (Badge) Emas Premium',
+    'Lencana Emas Premium',
     'Tema Profil Kustom (Neon/Dark)',
     'Mendukung pengembangan aplikasi'
   ] : [

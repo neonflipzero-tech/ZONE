@@ -1,4 +1,4 @@
-import { UserState } from "../store";
+import { UserState, PathType } from "../store";
 
 export class NotificationService {
   private static swRegistration: ServiceWorkerRegistration | null = null;
@@ -127,10 +127,326 @@ export class NotificationService {
     const delay = scheduledTime.getTime() - now.getTime();
     console.log(`Notification scheduled for ${scheduledTime.toLocaleTimeString()} (in ${Math.round(delay / 1000 / 60)} minutes)`);
 
-    const title = state.language === 'id' ? 'Waktunya Lock In! 🧠' : 'Time to Lock In! 🧠';
-    const body = state.language === 'id' 
-      ? 'Zona lu udah nungguin. Jangan kasih kendor, beresin misi hari ini!' 
-      : 'Your zone is waiting. Don\'t slack off, finish your missions today!';
+    const getRandomMessage = (path: PathType | null, language: 'en' | 'id') => {
+      const messages: Record<string, { title: string, body: string }[]> = {
+        MENTAL_HEALTH: [
+          {
+            title: language === 'id' ? 'Waktunya Self-Check! 🌱' : 'Time for a Self-Check! 🌱',
+            body: language === 'id' 
+              ? 'Luangkan waktu sejenak untuk kesehatan mentalmu. Beresin misi mindfulness hari ini!'
+              : 'Take a moment for your mental well-being. Complete your missions today!'
+          },
+          {
+            title: language === 'id' ? 'Tarik napas dulu... 🌬️' : 'Just breathe... 🌬️',
+            body: language === 'id'
+              ? 'Hari ini mungkin berat, tapi misi mindfulness lu bisa bantu tenangin pikiran.'
+              : 'Today might be tough, but your mindfulness mission can help you reset.'
+          },
+          {
+            title: language === 'id' ? 'Mental lu prioritas. 🧘' : 'Mind needs air. 🧠',
+            body: language === 'id'
+              ? 'Jangan paksa diri, kerjakan misi refleksi atau meditasi sekarang.'
+              : 'Don\'t push too hard. Take 5 minutes for reflection in the Zone.'
+          },
+          {
+            title: language === 'id' ? 'Apa kabar hari ini? ✨' : 'How are you today? ✨',
+            body: language === 'id'
+              ? 'Kadang berhenti sejenak itu progres. Cek misi mental health lu.'
+              : 'Sometimes stopping is progress. Check your mental health missions now.'
+          },
+          {
+            title: language === 'id' ? 'Lu berharga, Ki. 💎' : 'You matter, Ki. 💎',
+            body: language === 'id'
+              ? 'Jaga kesehatan mentalmu dengan beresin misi simpel hari ini.'
+              : 'Protect your mind by finishing your simple tasks today.'
+          },
+          {
+            title: language === 'id' ? 'Tenangkan badai di hati. 🌊' : 'Calm the storm. 🌊',
+            body: language === 'id'
+              ? 'Dunia bisa bising, tapi Zone tetap tenang. Balik ke misi kedamaianmu.'
+              : 'The world is loud, but the Zone is calm. Return to your peace mission.'
+          },
+          {
+            title: language === 'id' ? 'Cahaya di ujung hari. 🕯️' : 'Light at day\'s end. 🕯️',
+            body: language === 'id'
+              ? 'Beresin satu misi mental health buat nutup hari dengan perasaan lega.'
+              : 'Finish one mental health mission to close your day with relief.'
+          },
+          {
+            title: language === 'id' ? 'Biarkan pikiran lewat. ☁️' : 'Let thoughts pass. ☁️',
+            body: language === 'id'
+              ? 'Jangan dipendam. Misi refleksi nungguin buat membantu lu ngelepas beban.'
+              : 'Don\'t suppress it. Your reflection mission is waiting to help release the weight.'
+          },
+          {
+            title: language === 'id' ? 'Keberanian untuk diam. 🦁' : 'Courage in silence. 🦁',
+            body: language === 'id'
+              ? 'Butuh mental kuat buat berani jujur sama diri sendiri. Mulai misinya!'
+              : 'It takes strong mental grit to be honest with yourself. Start the mission!'
+          },
+          {
+            title: language === 'id' ? 'Segarkan jiwa. 🍃' : 'Refresh your soul. 🍃',
+            body: language === 'id'
+              ? 'Keluar dari distraksi, masuk ke mode tenang. Zone nunggu lu balik.'
+              : 'Step away from distractions, enter calm mode. The Zone awaits.'
+          }
+        ],
+        STRONGER: [
+          {
+            title: language === 'id' ? 'Bakar kalori, Ki! 🔥' : 'Burn those calories! 🔥',
+            body: language === 'id'
+              ? 'Tubuh lu butuh tantangan fisik sekarang. Jangan kasih kendor!'
+              : 'Your body needs a challenge. No excuses today!'
+          },
+          {
+            title: language === 'id' ? 'Latihan atau Nyesel. 💪' : 'Train or Regret. 💪',
+            body: language === 'id'
+              ? 'Rival lu mungkin lagi grinding fisik. Lu mau diem aja disalip?'
+              : 'Your rival might be working out right now. Don\'t stay behind!'
+          },
+          {
+            title: language === 'id' ? 'Rasa sakit itu sementara. ⚡' : 'Pain is temporary. ⚡',
+            body: language === 'id'
+              ? 'Level up fisik lu di Zone. OVR fisik nunggu naik!'
+              : 'Level up your physique. Physical OVR is waiting for you!'
+          },
+          {
+            title: language === 'id' ? 'Keringat itu emas. 💦' : 'Sweat is gold. 💦',
+            body: language === 'id'
+              ? 'Tukar keringat lu dengan progres nyata di Zone hari ini.'
+              : 'Exchange your effort for real progress in the Zone today.'
+          },
+          {
+            title: language === 'id' ? 'Push Your Limit! 💪' : 'Push Your Limit! 💪',
+            body: language === 'id'
+              ? 'Fisik lu butuh tantangan. Ayo bakar kalori dan beresin misi fisik hari ini!'
+              : 'Your body needs a challenge. Burn those calories and finish your physical missions!'
+          },
+          {
+            title: language === 'id' ? 'Besi menajamkan besi. ⚔️' : 'Iron sharpens iron. ⚔️',
+            body: language === 'id'
+              ? 'Lu gak bakal makin kuat kalau cuma duduk. Angkat misi fisik lu!'
+              : 'You won\'t get stronger just sitting. Pick up your physical mission!'
+          },
+          {
+            title: language === 'id' ? 'Evolusi tubuh. 🧬' : 'Body evolution. 🧬',
+            body: language === 'id'
+              ? 'Setiap gerakan bawa lu makin deket ke versi terbaik. Jangan skip hari ini.'
+              : 'Every movement brings you closer to your best version. Don\'t skip today.'
+          },
+          {
+            title: language === 'id' ? 'Taklukkan diri sendiri. 🏔️' : 'Conquer yourself. 🏔️',
+            body: language === 'id'
+              ? 'Fisik yang kuat lahir dari mental yang berani capek. Sikat misinya!'
+              : 'A strong physique is born from a mind that dares to be tired. Crush it!'
+          },
+          {
+            title: language === 'id' ? 'Mesin tubuh butuh bensin. 🚀' : 'Body machine needs fuel. 🚀',
+            body: language === 'id'
+              ? 'Gerak sekarang biar metabolisme dan OVR lu melonjak.'
+              : 'Move now to boost your metabolism and OVR.'
+          },
+          {
+            title: language === 'id' ? 'Jangan jadi domba. 🐺' : 'Don\'t be a sheep. 🐺',
+            body: language === 'id'
+              ? 'Jadilah serigala yang haus progres fisik. Balik ke Zone dan tempur!'
+              : 'Be a wolf hungry for physical progress. Get back to the Zone and fight!'
+          }
+        ],
+        PRODUCTIVE: [
+          {
+            title: language === 'id' ? 'Mode Produktif: ON! 🚀' : 'Productive Mode: ON! 🚀',
+            body: language === 'id'
+              ? 'Dunia gak nungguin orang males. Sikat misi produktifitas lu sekarang!'
+              : 'The world doesn\'t wait for the lazy. Crush your productivity missions now!'
+          },
+          {
+            title: language === 'id' ? 'Stop Scroll, Start Grind. 📱' : 'Stop Scrolling. 📱',
+            body: language === 'id'
+              ? 'Fokus lu dicuri medsos. Ambil balik fokus lu di Zone!'
+              : 'Your focus is being stolen. Reclaim it in the Zone right now!'
+          },
+          {
+            title: language === 'id' ? 'Sukses butuh eksekusi. 🎯' : 'Execution is everything. 🎯',
+            body: language === 'id'
+              ? 'Jangan cuma rencana, buktiin dengan nyelesain target hari ini.'
+              : 'Don\'t just plan, prove it by finishing your targets today.'
+          },
+          {
+            title: language === 'id' ? 'Jadilah mesin progres. ⚙️' : 'Be a progress machine. ⚙️',
+            body: language === 'id'
+              ? 'Efisiensi lu diuji lewat misi produktifitas hari ini. Beresin!'
+              : 'Your efficiency is being tested. Complete your tasks now!'
+          },
+          {
+            title: language === 'id' ? 'Kerja cerdas, Ki. 💡' : 'Work smart, work hard. 💡',
+            body: language === 'id'
+              ? 'Beresin misi produktivitas buat OVR intelektual melonjak.'
+              : 'Finish your productivity missions to boost your intellect OVR.'
+          },
+          {
+            title: language === 'id' ? 'Waktu itu berlian. 💎' : 'Time is a diamond. 💎',
+            body: language === 'id'
+              ? 'Lu gak bakal dapet 10 menit ini lagi. Pake buat beresin misi produktif!'
+              : 'You won\'t get these 10 minutes back. Use them for your productivity mission!'
+          },
+          {
+            title: language === 'id' ? 'Selesaikan puzzle harimu. 🧩' : 'Finish your daily puzzle. 🧩',
+            body: language === 'id'
+              ? 'Misi produktivitas adalah potongan puzzle kesuksesan lu. Pasang sekarang.'
+              : 'Productivity missions are pieces of your success puzzle. Fit them in now.'
+          },
+          {
+            title: language === 'id' ? 'Badai eksekusi. 🌪️' : 'Execution storm. 🌪️',
+            body: language === 'id'
+              ? 'Jadilah orang yang paling cepet nyelesain masalah. Mulai misinya di Zone!'
+              : 'Be the one who solves problems the fastest. Start the mission in the Zone!'
+          },
+          {
+            title: language === 'id' ? 'Bangun kerajaanmu. 🏰' : 'Build your kingdom. 🏰',
+            body: language === 'id'
+              ? 'Setiap misi produktif adalah batu bata buat masa depan lu. Jangan berhenti.'
+              : 'Every productive mission is a brick for your future. Don\'t stop.'
+          },
+          {
+            title: language === 'id' ? '🏹 Fokus satu titik.' : 'Focus on one point. 🏹',
+            body: language === 'id'
+              ? 'Hilangkan gangguan, fokus ke satu misi produktif. Lock In sekarang!'
+              : 'Remove distractions, focus on one productive mission. Lock In now!'
+          }
+        ],
+        DISCIPLINE: [
+          {
+            title: language === 'id' ? 'Uji Disiplin Lu! ⚔️' : 'Test Your Discipline! ⚔️',
+            body: language === 'id'
+              ? 'Konsistensi adalah kunci elit. Jangan biarkan streak lu putus!'
+              : 'Consistency is the key to elite status. Don\'t let your streak break!'
+          },
+          {
+            title: language === 'id' ? 'Streak lu taruhannya! 🔥' : 'Streak at risk! 🔥',
+            body: language === 'id'
+              ? `Udah hari ke-${state.streak} nih, masa mau angus gitu aja? Lock In!`
+              : `You've reached ${state.streak} days, don't let it go to waste. Lock In!`
+          },
+          {
+            title: language === 'id' ? 'Disiplin > Motivasi. 🛠️' : 'Discipline > Motivation. 🛠️',
+            body: language === 'id'
+              ? 'Gak peduli lagi males atau mood ancur, tetep sikat misi hari ini.'
+              : 'Doesn\'t matter if you\'re tired or lazy. Finish the mission now.'
+          },
+          {
+            title: language === 'id' ? 'Janji adalah hutang. 🤝' : 'A promise is a debt. 🤝',
+            body: language === 'id'
+              ? 'Lu janji mau berubah, Ki. Buktiin dengan beresin satu misi hari ini.'
+              : 'You promised to change, Ki. Prove it with one mission today.'
+          },
+          {
+            title: language === 'id' ? 'Gak ada libur buat elit. 🏴' : 'No days off for elite. 🏴',
+            body: language === 'id'
+              ? 'Orang biasa istirahat pas males, orang elit tetep jalan. Balik ke Zone!'
+              : 'Average people rest when lazy, the elite keep going. Get back!'
+          },
+          {
+            title: language === 'id' ? 'Jadi batu karang. 🗿' : 'Be a rock. 🗿',
+            body: language === 'id'
+              ? 'Jangan goyah sama godaan males. Disiplin adalah karakter lu sekarang.'
+              : 'Don\'t sway to the temptation of laziness. Discipline is your character now.'
+          },
+          {
+            title: language === 'id' ? 'Pilih bebanmu. ⚖️' : 'Choose your burden. ⚖️',
+            body: language === 'id'
+              ? 'Beban disiplin atau beban penyesalan? Balik ke Zone dan pilih disiplin.'
+              : 'The weight of discipline or the weight of regret? Choose discipline.'
+          },
+          {
+            title: language === 'id' ? 'Rantai konsistensi. ⛓️' : 'Chain of consistency. ⛓️',
+            body: language === 'id'
+              ? 'Jangan putus rantai streak lu. Satu misi simpel nunggu buat disikat.'
+              : 'Don\'t break your streak chain. One simple mission is waiting.'
+          },
+          {
+            title: language === 'id' ? 'Jaga posmu. 💂' : 'Guard your post. 💂',
+            body: language === 'id'
+              ? 'Zone adalah markas disiplin lu. Jangan biarkan area ini kosong tanpa progres.'
+              : 'The Zone is your discipline base. Don\'t let this area be empty of progress.'
+          },
+          {
+            title: language === 'id' ? 'Mentalitas Prajurit. 🎖️' : 'Warrior Mentality. 🎖️',
+            body: language === 'id'
+              ? 'Terus maju walau berat. Itulah definisi disiplin sejati. Selesaikan misinya!'
+              : 'Keep going even when it\'s hard. That\'s true discipline. Finish it!'
+          }
+        ],
+        SOCIAL: [
+          {
+            title: language === 'id' ? 'Connect via Zone! 🤝' : 'Connect via Zone! 🤝',
+            body: language === 'id'
+              ? 'Energi sosial lu lagi diuji. Beresin misi interaksi lu hari ini!'
+              : 'Your social energy is being tested. Finish your interaction missions today!'
+          },
+          {
+            title: language === 'id' ? 'Jangan jadi kuper, Ki. 👥' : 'Don\'t isolate yourself. 👥',
+            body: language === 'id'
+              ? 'Skill sosial itu kyk otot, harus dilatih. Sikat misi sosial lu!'
+              : 'Social skills are like muscles, train them. Start the mission!'
+          },
+          {
+            title: language === 'id' ? 'Komunikasi itu skill elit. 🗣️' : 'Communication is key. 🗣️',
+            body: language === 'id'
+              ? 'Asah kemampuan bicara lu lewat tantangan sosial hari ini.'
+              : 'Sharpen your speaking skills with today\'s social challenge.'
+          },
+          {
+            title: language === 'id' ? 'Networking Mode: ON. 🕸️' : 'Networking Mode. 🕸️',
+            body: language === 'id'
+              ? 'Selesaikan misi sosial buat perluas pengaruh lu di dunia nyata.'
+              : 'Complete social missions to expand your influence in real life.'
+          },
+          {
+            title: language === 'id' ? 'Jadilah magnet orang. 🧲' : 'Be a people magnet. 🧲',
+            body: language === 'id'
+              ? 'Karisma lu naik setiap kali misi sosial beres. Jangan skip!'
+              : 'Your charisma grows every time a social mission is cleared.'
+          },
+          {
+            title: language === 'id' ? 'Pahami panggungmu. 🎭' : 'Understand your stage. 🎭',
+            body: language === 'id'
+              ? 'Dunia adalah panggung sosial. Pelajari perannya lewat misi hari ini.'
+              : 'The world is a social stage. Learn your role through missions today.'
+          },
+          {
+            title: language === 'id' ? 'Pancarkan auramu. 🌟' : 'Radiate your aura. 🌟',
+            body: language === 'id'
+              ? 'Interaksi positif bawa energi baru. Beresin misi sosial lu sekarang.'
+              : 'Positive interactions bring new energy. Finish your social mission now.'
+          },
+          {
+            title: language === 'id' ? 'Bangun jembatan. 🏗️' : 'Build bridges. 🏗️',
+            body: language === 'id'
+              ? 'Jangan cuma diem di zona nyaman. Hubungkan dirimu dengan misi sosial.'
+              : 'Don\'t just stay in your comfort zone. Connect through social missions.'
+          },
+          {
+            title: language === 'id' ? 'Suaramu berharga. 📢' : 'Your voice matters. 📢',
+            body: language === 'id'
+              ? 'Latih kepercayaan diri lewat tantangan interaksi di Zone hari ini.'
+              : 'Practice confidence through interaction challenges in the Zone today.'
+          },
+          {
+            title: language === 'id' ? 'Juara di hati orang. 🥇' : 'Champion of hearts. 🥇',
+            body: language === 'id'
+              ? 'Karakter lu dinilai dari cara lu berinteraksi. Level up di misi sosial!'
+              : 'Your character is judged by how you interact. Level up social missions!'
+          }
+        ]
+      };
+
+      const pathKey = path || 'PRODUCTIVE';
+      const pathVariations = messages[pathKey] || messages['PRODUCTIVE'];
+      return pathVariations[Math.floor(Math.random() * pathVariations.length)];
+    };
+
+    const { title, body } = getRandomMessage(state.chosenPath, state.language);
 
     // Send message to SW to schedule
     const sendMessage = async () => {
@@ -151,12 +467,12 @@ export class NotificationService {
       } else {
         // Fallback to local timeout if SW not active yet
         setTimeout(() => {
-          this.sendNotification(title, body, 'daily-reminder');
+          this.sendNotification(title, body, 'daily-reminder').catch(e => console.error("Fallback notification failed:", e));
         }, delay);
       }
     };
 
-    sendMessage();
+    sendMessage().catch(err => console.error('NotificationService: Error in sendMessage:', err));
   }
 
   static notifyRivalLevelUp(rivalName: string, level: number, myLevel: number, language: 'en' | 'id') {
@@ -165,7 +481,7 @@ export class NotificationService {
       ? `${rivalName} baru aja naik ke Level ${level}! Lu mau diem aja disalip? Kejar sekarang!`
       : `${rivalName} just reached Level ${level}! You gonna let them pass you? Catch up now!`;
     
-    this.sendNotification(title, body, 'rival-update');
+    this.sendNotification(title, body, 'rival-update').catch(err => console.error('NotificationService: Error sending rival level up notification:', err));
   }
 
   static notifyStreakAtRisk(streak: number, language: 'en' | 'id') {
@@ -174,16 +490,16 @@ export class NotificationService {
       ? `Hari hampir berakhir! Buruan beresin misi buat selamatin streak ${streak} hari lu.`
       : `The day is almost over! Finish your mission now to save your ${streak}-day streak.`;
     
-    this.sendNotification(title, body, 'streak-warning');
+    this.sendNotification(title, body, 'streak-warning').catch(err => console.error('NotificationService: Error sending streak warning notification:', err));
   }
 
   static notifyBadgeUnlocked(badgeName: string, language: 'en' | 'id') {
-    const title = language === 'id' ? 'Lencana Baru Unlocked! 🏆' : 'New Badge Unlocked! 🏆';
+    const title = language === 'id' ? 'Lencana Baru Terbuka! 🏆' : 'New Badge Unlocked! 🏆';
     const body = language === 'id'
       ? `Gokil! Lu baru aja dapet lencana "${badgeName}". Terus berkembang!`
       : `Incredible! You just earned the "${badgeName}" badge. Keep growing!`;
     
-    this.sendNotification(title, body, 'badge-unlocked');
+    this.sendNotification(title, body, 'badge-unlocked').catch(err => console.error('NotificationService: Error sending badge unlocked notification:', err));
   }
 
   static notifyRankAchieved(rankName: string, language: 'en' | 'id') {
@@ -192,11 +508,26 @@ export class NotificationService {
       ? `Gila, lu makin elit! Sekarang lu udah jadi "${rankName}".`
       : `You're becoming elite! You are now a "${rankName}".`;
     
-    this.sendNotification(title, body, 'rank-achieved');
+    this.sendNotification(title, body, 'rank-achieved').catch(err => console.error('NotificationService: Error sending rank achieved notification:', err));
   }
 
-  static notifyExitImmediate(language: 'en' | 'id') {
-    const variations = language === 'id' ? [
+  static notifyExitImmediate(language: 'en' | 'id', path?: PathType | null) {
+    const isMentalHealth = path === 'MENTAL_HEALTH';
+    
+    const variations = language === 'id' ? (isMentalHealth ? [
+      {
+        title: 'Bernapas dulu, Ki. 🌬️',
+        body: 'Ambil jeda sejenak buat tenangin pikiran. Zone nungguin lu balik pas udah sejuk.'
+      },
+      {
+        title: 'Mental lu butuh istirahat. 🧘',
+        body: 'Jauhi layar bentar, hirup udara segar. Inget misi mindfulness lu belum beres.'
+      },
+      {
+        title: 'Lu udah kerja bagus hari ini. ✨',
+        body: 'Recharge energi mental lu. Kabari gue kalau lu udah siap buat lanjut lagi.'
+      }
+    ] : [
       {
         title: 'Istirahat sejenak, jangan kebablasan! 🌬️',
         body: 'Fokus lu mahal harganya. Ambil napas, tapi jangan biarkan target lu kabur.'
@@ -236,6 +567,19 @@ export class NotificationService {
       {
         title: 'Disiplin gak ada hari libur! 🌊',
         body: 'Tenang boleh, santai jangan. Konsistensi lu lagi diuji sekarang. Balik lagi!'
+      }
+    ]) : (isMentalHealth ? [
+      {
+        title: 'Breathe, Ki. 🌬️',
+        body: 'Take a short break to calm your mind. The Zone waits for you to return when you\'re cool.'
+      },
+      {
+        title: 'Your mind needs rest. 🧘',
+        body: 'Step away from the screen, breathe fresh air. Remember your mindfulness mission.'
+      },
+      {
+        title: 'You\'ve done great today. ✨',
+        body: 'Recharge your mental energy. Let me know when you\'re ready to continue.'
       }
     ] : [
       {
@@ -278,14 +622,33 @@ export class NotificationService {
         title: 'Discipline has no days off! 🌊',
         body: 'Stay calm, but don\'t get soft. Your consistency is being tested. Get back!'
       }
-    ];
+    ]);
 
     const randomVariation = variations[Math.floor(Math.random() * variations.length)];
-    this.sendNotification(randomVariation.title, randomVariation.body, 'exit-immediate');
+    this.sendNotification(randomVariation.title, randomVariation.body, 'exit-immediate').catch(err => console.error('NotificationService: Error sending exit immediate notification:', err));
   }
 
-  static scheduleExitDelayed(language: 'en' | 'id', hasRival: boolean = false) {
-    const variations = language === 'id' ? [
+  static scheduleExitDelayed(language: 'en' | 'id', hasRival: boolean = false, consecutiveFailures: number = 0, path?: PathType | null) {
+    const isSupportive = consecutiveFailures >= 3;
+
+    const variations = language === 'id' ? (isSupportive ? [
+      {
+        title: 'Gak apa-apa buat jatuh, Ki. 👋',
+        body: '3 hari ini berat ya? Jangan nyerah sama keadaan. Zone masih nunggu lu buat bangkit pelan-pelan.'
+      },
+      {
+        title: 'Gue tau lu bisa lebih dari ini. 🔥',
+        body: 'Momentum lu emang lagi turun, tapi disiplin lu gak boleh mati. Sikat 1 misi aja buat hari ini!'
+      },
+      {
+        title: 'Nyerah bukan gaya lu, kan? ⚡',
+        body: 'Balik ke Zone. Gak perlu sempurna, yang penting gerak. Lu masih punya ambisi itu!'
+      },
+      {
+        title: 'Capek itu wajar, berhenti itu janggal. 🛋️',
+        body: 'Udah cukup istirahatnya. Ayo buktiin kalau lu masih punya kontrol atas hidup lu sendiri.'
+      }
+    ] : [
       {
         title: 'Capek? Lemah! 💤',
         body: 'Inget kenapa lu mulai. Balik sekarang atau nyesel liat progres lu stuck.'
@@ -326,6 +689,23 @@ export class NotificationService {
       {
         title: 'Jangan manja sama males! 👣',
         body: 'Satu misi lagi buat OVR naik. Sikat rasa males lu sebelum dia ngerusak lu!'
+      }
+    ]) : (isSupportive ? [
+      {
+        title: 'It\'s okay to fall. 👋',
+        body: 'These 3 days been tough? Don\'t give up. The Zone is waiting for you to return slowly.'
+      },
+      {
+        title: 'I know you\'re better than this. 🔥',
+        body: 'Momentum is down, but your discipline shouldn\'t die. Just finish 1 mission today!'
+      },
+      {
+        title: 'Quitting isn\'t your style, right? ⚡',
+        body: 'Back to the Zone. Doesn\'t have to be perfect, just move. You still have that ambition!'
+      },
+      {
+        title: 'Tired is normal, stopping is weird. 🛋️',
+        body: 'Enough rest. Prove you still have control over your own life.'
       }
     ] : [
       {
@@ -369,7 +749,7 @@ export class NotificationService {
         title: 'Don\'t baby your laziness! 👣',
         body: 'One more mission for an OVR boost. Crush your laziness before it crushes you!'
       }
-    ];
+    ]);
 
     const filteredVariations = variations.filter(v => !(v as any).requiresRival || hasRival);
     const randomVariation = filteredVariations[Math.floor(Math.random() * filteredVariations.length)];
@@ -396,7 +776,7 @@ export class NotificationService {
       }
     };
 
-    sendMessage();
+    sendMessage().catch(err => console.error('NotificationService: Error in scheduleExitDelayed sendMessage:', err));
   }
 
   static cancelExitDelayed() {
@@ -427,7 +807,7 @@ export class NotificationService {
       }
     };
 
-    sendMessage();
+    sendMessage().catch(err => console.error('NotificationService: Error in cancelExitDelayed sendMessage:', err));
   }
 
   private static scheduleLongTermReminders(language: 'en' | 'id') {
@@ -555,7 +935,7 @@ export class NotificationService {
       }
     };
 
-    sendMessage();
+    sendMessage().catch(err => console.error('NotificationService: Error in scheduleLongTermReminders sendMessage:', err));
   }
 
   static notifyTimerProgress(timeLeft: number, language: 'en' | 'id') {
@@ -568,7 +948,7 @@ export class NotificationService {
       ? `Sisa waktu: ${timeStr}. Jangan menyerah!`
       : `Time left: ${timeStr}. Keep going!`;
     
-    this.sendNotification(title, body, 'timer-progress');
+    this.sendNotification(title, body, 'timer-progress').catch(err => console.error('NotificationService: Error sending timer progress notification:', err));
   }
 
   static notifyBossDefeated(bossName: string, language: 'en' | 'id') {
@@ -577,7 +957,7 @@ export class NotificationService {
       ? `Lu berhasil bantai ${bossName}! Zona ini sekarang aman berkat lu.`
       : `You successfully crushed ${bossName}! This zone is safe thanks to you.`;
     
-    this.sendNotification(title, body, 'boss-defeated');
+    this.sendNotification(title, body, 'boss-defeated').catch(err => console.error('NotificationService: Error sending boss defeated notification:', err));
   }
 
   static notifyNewBossAppeared(bossName: string, language: 'en' | 'id') {
@@ -586,6 +966,6 @@ export class NotificationService {
       ? `Waspada! ${bossName} muncul di zona lu. Sikat dia sebelum bikin kacau!`
       : `Alert! ${bossName} appeared in your zone. Take them down before they cause chaos!`;
     
-    this.sendNotification(title, body, 'boss-appeared');
+    this.sendNotification(title, body, 'boss-appeared').catch(err => console.error('NotificationService: Error sending boss appeared notification:', err));
   }
 }

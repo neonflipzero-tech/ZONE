@@ -5,8 +5,9 @@ import { Shield, Trophy, Flame, Zap, Crown, Star } from 'lucide-react';
 
 import { t } from '../utils/translations';
 
-function getRankIcon(rankName: string, className: string) {
-  if (rankName === 'Mythic') return <Crown className={className} />;
+function getRankIcon(rankName: any, className: string) {
+  const name = typeof rankName === 'string' ? rankName : rankName?.en || '';
+  if (name === 'Mythic') return <Crown className={className} />;
   return <Trophy className={className} />;
 }
 
@@ -18,9 +19,16 @@ const RankScreen = ({ state }: RankScreenProps) => {
   if (!state) return null;
   const currentRank = useMemo(() => getRankForLevel(state.level), [state.level]);
   const highestRank = useMemo(() => {
-    const storedRank = RANKS.find(r => r.name === state.highestRankAchieved) || currentRank;
-    const currentRankIndex = RANKS.findIndex(r => r.name === currentRank.name);
-    const storedRankIndex = RANKS.findIndex(r => r.name === storedRank.name);
+    const storedRank = RANKS.find(r => {
+      const rNameEn = typeof r.name === 'string' ? r.name : r.name.en;
+      return rNameEn === state.highestRankAchieved;
+    }) || currentRank;
+    
+    const currentRankEn = typeof currentRank.name === 'string' ? currentRank.name : currentRank.name.en;
+    const storedRankEn = typeof storedRank.name === 'string' ? storedRank.name : storedRank.name.en;
+    
+    const currentRankIndex = RANKS.findIndex(r => (typeof r.name === 'string' ? r.name : r.name.en) === currentRankEn);
+    const storedRankIndex = RANKS.findIndex(r => (typeof r.name === 'string' ? r.name : r.name.en) === storedRankEn);
     
     // Always show the actual highest rank, even if state is out of sync
     return currentRankIndex > storedRankIndex ? currentRank : storedRank;
@@ -48,10 +56,10 @@ const RankScreen = ({ state }: RankScreenProps) => {
           </div>
           
           <h2 className={`text-3xl font-display font-black tracking-tighter mb-2 ${currentRank.color} drop-shadow-md`}>
-            {currentRank.name}
+            {currentRank.name[state.language]}
           </h2>
           <p className="text-secondary font-mono uppercase tracking-widest text-sm mb-6">
-            {t('rank.level', state.language).replace('{level}', state.level.toString())}
+            {t('rank.level', state.language, { level: state.level })}
           </p>
 
           <div className="w-full">
@@ -83,7 +91,7 @@ const RankScreen = ({ state }: RankScreenProps) => {
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-2">
               <Shield className="w-5 h-5 text-primary" />
             </div>
-            <span className={`text-2xl font-bold ${highestRank.color}`}>{highestRank.name}</span>
+            <span className={`text-2xl font-bold ${highestRank.color}`}>{typeof highestRank.name === 'string' ? highestRank.name : highestRank.name[state.language]}</span>
             <span className="text-xs text-secondary uppercase tracking-wider">{t('rank.highest_rank', state.language)}</span>
           </div>
         </div>
@@ -93,12 +101,12 @@ const RankScreen = ({ state }: RankScreenProps) => {
           <h3 className="text-xl font-display font-bold mb-4">{t('rank.all_ranks', state.language)}</h3>
           <div className="space-y-3">
             {RANKS.map((rank, index) => {
-              const isCurrent = currentRank.name === rank.name;
+              const isCurrent = (typeof currentRank.name === 'string' ? currentRank.name : currentRank.name.en) === (typeof rank.name === 'string' ? rank.name : rank.name.en);
               const isUnlocked = state.level >= rank.minLevel;
               
               return (
                 <div 
-                  key={rank.name}
+                  key={typeof rank.name === 'string' ? rank.name : rank.name.en}
                   className={`p-4 rounded-2xl flex items-center space-x-4 border transition-all ${
                     isCurrent 
                       ? 'bg-gradient-to-r from-zinc-900 to-zinc-800 border-accent/30 shadow-lg shadow-accent/5' 
@@ -111,8 +119,8 @@ const RankScreen = ({ state }: RankScreenProps) => {
                     {getRankIcon(rank.name, `w-6 h-6 ${isUnlocked ? rank.color : 'text-secondary'}`)}
                   </div>
                   <div className="flex-1">
-                    <h4 className={`font-bold ${isUnlocked ? 'text-primary' : 'text-secondary'}`}>{rank.name}</h4>
-                    <p className="text-xs text-secondary font-mono">{t('rank.unlocks_at', state.language).replace('{level}', rank.minLevel.toString())}</p>
+                    <h4 className={`font-bold ${isUnlocked ? 'text-primary' : 'text-secondary'}`}>{rank.name[state.language]}</h4>
+                    <p className="text-xs text-secondary font-mono">{t('rank.unlocks_at', state.language, { level: rank.minLevel })}</p>
                   </div>
                   {isCurrent && (
                     <span className="text-xs font-bold text-accent uppercase tracking-wider">{t('rank.current', state.language)}</span>

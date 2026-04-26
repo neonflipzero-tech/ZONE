@@ -145,35 +145,40 @@ export default function OnboardingScreen({ onSelectPath, language }: OnboardingS
     setIsAnalyzing(true);
     setStep(QUESTIONS.length);
     
-    // AI Analysis
-    const analysis = await analyzeOnboardingAnswers(answers, language);
-    
-    if (analysis) {
-      // Ensure all stats have numeric values to prevent NaN
-      const defaultStats = {
-        intellect: 0,
-        physical: 0,
-        social: 0,
-        ambition: 0,
-        discipline: 0,
-        mental: 0
-      };
+    try {
+      // AI Analysis
+      const analysis = await analyzeOnboardingAnswers(answers, language);
       
-      const mergedStats = { ...defaultStats };
-      Object.entries(analysis.statAdjustments).forEach(([stat, value]) => {
-        if (stat in mergedStats) {
-          mergedStats[stat as keyof typeof defaultStats] = Number(value) || 0;
-        }
-      });
+      if (analysis) {
+        // Ensure all stats have numeric values to prevent NaN
+        const defaultStats = {
+          intellect: 0,
+          physical: 0,
+          social: 0,
+          ambition: 0,
+          discipline: 0,
+          mental: 0
+        };
+        
+        const mergedStats = { ...defaultStats };
+        Object.entries(analysis.statAdjustments).forEach(([stat, value]) => {
+          if (stat in mergedStats) {
+            mergedStats[stat as keyof typeof defaultStats] = Number(value) || 0;
+          }
+        });
 
-      setBaseStats(mergedStats);
-      setSelectedPath(analysis.suggestedPath);
-      setAiFeedback(analysis.feedback);
+        setBaseStats(mergedStats);
+        setSelectedPath(analysis.suggestedPath);
+        setAiFeedback(analysis.feedback);
+      }
+    } catch (error) {
+      console.error('Error during onboarding analysis:', error);
+      // Fallback or just continue with defaults
+    } finally {
+      setIsAnalyzing(false);
+      setShowOVR(true);
+      sounds.playSuccess();
     }
-    
-    setIsAnalyzing(false);
-    setShowOVR(true);
-    sounds.playSuccess();
   };
 
   const handleOtherSubmit = () => {

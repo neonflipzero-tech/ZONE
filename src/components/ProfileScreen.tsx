@@ -35,8 +35,9 @@ interface ProfileScreenProps {
   isFlashSale?: boolean;
 }
 
-function getRankIcon(rankName: string, className: string) {
-  if (rankName === 'Mythic') return <Crown className={className} />;
+function getRankIcon(rankName: any, className: string) {
+  const name = typeof rankName === 'string' ? rankName : rankName?.en || '';
+  if (name === 'Mythic') return <Crown className={className} />;
   return <Trophy className={className} />;
 }
 
@@ -176,26 +177,35 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
   };
 
   const handleShare = async () => {
-    const success = await shareElementAsImage(
-      'profile-card',
-      'My ZONE Profile',
-      `I'm currently Level ${state.level} (${currentRank.name}) with an OVR of ${ovr} on ZONE! Can you beat my stats?`
-    );
+    try {
+      const rankNameLocal = typeof currentRank.name === 'string' ? currentRank.name : currentRank.name[state.language];
+      const success = await shareElementAsImage(
+        'profile-card',
+        'My ZONE Profile',
+        `I'm currently Level ${state.level} (${rankNameLocal}) with an OVR of ${ovr} on ZONE! Can you beat my stats?`
+      );
 
-    if (success) {
-      incrementShareCount();
+      if (success) {
+        incrementShareCount();
+      }
+    } catch (error) {
+      console.error('Error sharing profile:', error);
     }
   };
 
   const handleShareOvr = async () => {
-    const success = await shareElementAsImage(
-      'ovr-stats-card',
-      'My ZONE OVR Stats',
-      `Check out my OVR Stats on ZONE! My overall rating is ${ovr}. Can you beat my consistency?`
-    );
+    try {
+      const success = await shareElementAsImage(
+        'ovr-stats-card',
+        'My ZONE OVR Stats',
+        `Check out my OVR Stats on ZONE! My overall rating is ${ovr}. Can you beat my consistency?`
+      );
 
-    if (success) {
-      incrementShareCount();
+      if (success) {
+        incrementShareCount();
+      }
+    } catch (error) {
+      console.error('Error sharing OVR stats:', error);
     }
   };
 
@@ -269,7 +279,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
             <div className="w-full flex items-center justify-between mb-3 px-2">
               <div className="flex items-center space-x-2">
                 {getRankIcon(currentRank.name, `w-5 h-5 ${currentRank.color}`)}
-                <span className={`font-bold ${currentRank.color}`}>{currentRank.name}</span>
+                <span className={`font-bold ${currentRank.color}`}>{typeof currentRank.name === 'string' ? currentRank.name : currentRank.name[state.language]}</span>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="flex flex-col items-end leading-none">
@@ -466,7 +476,10 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
               </div>
               {state.isPremium && totalTodayMissions > 0 && (
                 <button 
-                  onClick={() => shareElementAsImage('focus-distribution-card', t('profile.focus_distribution', state.language), 'Check out my daily focus on Zone!')}
+                  onClick={() => {
+                    shareElementAsImage('focus-distribution-card', t('profile.focus_distribution', state.language), 'Check out my daily focus on Zone!')
+                      .catch(err => console.error('Error sharing focus distribution:', err));
+                  }}
                   data-html2canvas-ignore
                   className="p-1.5 rounded-full bg-surface border border-white/10 hover:bg-white/10 transition-colors"
                 >
@@ -655,7 +668,10 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
                 <HelpCircle className="w-4 h-4 text-secondary" />
               </button>
               <button 
-                onClick={() => shareElementAsImage('weekly-chart-card', t('profile.consistency_record', state.language), 'My Weekly Consistency in Zone')}
+                onClick={() => {
+                  shareElementAsImage('weekly-chart-card', t('profile.consistency_record', state.language), 'My Weekly Consistency in Zone')
+                    .catch(err => console.error('Error sharing weekly chart:', err));
+                }}
                 className="p-1.5 rounded-full bg-surface border border-white/10 hover:bg-white/10 transition-colors"
               >
                 <Share2 className="w-4 h-4 text-secondary" />
@@ -890,7 +906,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
                 <div className="flex flex-col">
                   <div className="flex justify-between text-[10px] font-mono mb-1">
                     <span className="text-accent">Lvl {state.level}</span>
-                    <span className="text-secondary uppercase tracking-widest">Level</span>
+                    <span className="text-secondary uppercase tracking-widest">{t('profile.level', state.language)}</span>
                     <span className="text-fuchsia-500">Lvl {rivalData.level}</span>
                   </div>
                   <div className="flex w-full h-2 bg-background rounded-full overflow-hidden">
@@ -907,7 +923,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
                 <div className="flex flex-col">
                   <div className="flex justify-between text-[10px] font-mono mb-1">
                     <span className="text-accent">{state.streak} <Flame className="w-3 h-3 inline" /></span>
-                    <span className="text-secondary uppercase tracking-widest">Streak</span>
+                    <span className="text-secondary uppercase tracking-widest">{t('profile.streak', state.language)}</span>
                     <span className="text-fuchsia-500">{rivalData.streak || 0} <Flame className="w-3 h-3 inline" /></span>
                   </div>
                   <div className="flex w-full h-2 bg-background rounded-full overflow-hidden">
@@ -924,7 +940,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
                 <div className="flex flex-col">
                   <div className="flex justify-between text-[10px] font-mono mb-1">
                     <span className="text-accent">{(state.xp + 50 * state.level * (state.level - 1)).toLocaleString()} XP</span>
-                    <span className="text-secondary uppercase tracking-widest">Total XP</span>
+                    <span className="text-secondary uppercase tracking-widest">{t('profile.total_xp', state.language)}</span>
                     <span className="text-fuchsia-500">{(rivalData.totalXp || 0).toLocaleString()} XP</span>
                   </div>
                   <div className="flex w-full h-2 bg-background rounded-full overflow-hidden">
@@ -971,11 +987,33 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
                 className="mt-6 w-full py-3 rounded-xl font-bold text-sm bg-surface-hover text-primary border border-white/10 hover:bg-white/5 transition-colors flex items-center justify-center space-x-2"
               >
                 <User className="w-4 h-4" />
-                <span>VIEW RIVAL PROFILE</span>
+                <span>{t('profile.view_rival', state.language)}</span>
               </button>
             </div>
           </div>
         )}
+
+        {/* Neural AI Advisor */}
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="bg-accent/5 border border-accent/20 rounded-2xl p-4 mt-8 flex items-start space-x-3 mb-4"
+        >
+          <Zap className="w-5 h-5 text-accent shrink-0 mt-0.5 animate-pulse" />
+          <div>
+            <div className="text-[10px] font-black text-accent uppercase tracking-widest mb-1">{t('profile.neural_advisor', state.language)}</div>
+            <p className="text-xs text-secondary leading-relaxed font-medium italic">
+              "{(function() {
+                const integrity = state.integrityScore || 90;
+                if (integrity < 40) return state.language === 'id' ? 'Jalur saraf rusak. Konsistensi gagal. Reset disarankan sebelum kehancuran total.' : 'Neural pathways corrupted. Consistency is failing. Reset recommended before total collapse.';
+                if (state.streak > 30) return state.language === 'id' ? 'Resonansi saraf tercapai. Anda adalah anomali biologis dalam fokus. Teruslah mengunci (lock in).' : 'Neural resonance achieved. You are a biological anomaly in focus. Keep locking in.';
+                if (state.level > 20) return state.language === 'id' ? 'Beban kognitif tingkat tinggi terdeteksi. Mesin produktivitas Anda bekerja maksimal.' : 'High-tier cognitive load detected. Your productivity engine is firing on all cylinders.';
+                return state.language === 'id' ? 'Memantau aktivitas saraf. Fokus memadai, tetapi potensi optimasi masih tinggi.' : 'Monitoring neural activity. Focus is adequate, but potential for optimization is high.';
+              })()}"
+            </p>
+          </div>
+        </motion.div>
       </div>
 
       {/* Public Profile Modal */}
@@ -1014,31 +1052,34 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
 
                   <h3 className="text-2xl font-bold mb-1">{selectedUser.username}</h3>
                   
-                  {selectedUser.equippedTitle && (
-                    <div className={`text-xs font-mono uppercase tracking-widest mb-4 inline-block ${TITLES.find(t => t.id === selectedUser.equippedTitle)?.specialColor || 'text-accent'}`}>
-                      {selectedUser.equippedTitle}
-                    </div>
-                  )}
+                  {selectedUser.equippedTitle && (() => {
+                    const titleDef = TITLES.find(t => t.id === selectedUser.equippedTitle);
+                    return (
+                      <div className={`text-xs font-mono uppercase tracking-widest mb-4 inline-block ${titleDef?.specialColor || 'text-accent'}`}>
+                        {titleDef?.name[state.language] || selectedUser.equippedTitle}
+                      </div>
+                    );
+                  })()}
 
                   <div className="w-full bg-black/30 rounded-2xl p-4 mb-4 border border-white/5">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-secondary">Rank</span>
+                      <span className="text-sm text-secondary">{t('leaderboard.rank', state.language)}</span>
                       <span className={`font-bold ${getRankForLevel(selectedUser.level).color}`}>
-                        {getRankForLevel(selectedUser.level).name}
+                        {getRankForLevel(selectedUser.level).name[state.language]}
                       </span>
                     </div>
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-secondary">Level</span>
+                      <span className="text-sm text-secondary">{t('leaderboard.level', state.language)}</span>
                       <span className="font-mono font-bold text-primary">{selectedUser.level}</span>
                     </div>
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-secondary">Integrity</span>
+                      <span className="text-sm text-secondary">{t('profile.stat.integrity', state.language)}</span>
                       <button 
                         onClick={() => setIsIntegrityHelpOpen(true)}
-                        className={`font-mono font-black text-lg px-2 rounded-lg ${getIntegrityRating(selectedUser.integrityScore || 100).glow}`}
-                        style={{ color: getIntegrityRating(selectedUser.integrityScore || 100).color }}
+                        className={`font-mono font-black text-lg px-2 rounded-lg ${getIntegrityRating(selectedUser.integrityScore || 100, state.language).glow}`}
+                        style={{ color: getIntegrityRating(selectedUser.integrityScore || 100, state.language).color }}
                       >
-                        {getIntegrityRating(selectedUser.integrityScore || 100).letter}
+                        {getIntegrityRating(selectedUser.integrityScore || 100, state.language).letter}
                       </button>
                     </div>
                     <div className="flex justify-between items-center mb-2">
@@ -1046,7 +1087,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
                       <span className="font-mono font-bold text-[#F43F5E]">{selectedUser?.ovr || (selectedUser ? calculateOVR({ ...selectedUser, dailyStats: {}, badges: [], missionsCompleted: selectedUser.missionsCompleted || 0, streak: selectedUser.streak || 0, unlockedFrames: [] } as any).ovr : 44)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-secondary">Total XP</span>
+                      <span className="text-sm text-secondary">{t('leaderboard.total_xp', state.language)}</span>
                       <span className="font-mono font-bold text-accent">
                         {selectedUser.totalXp?.toLocaleString() || (50 * selectedUser.level * (selectedUser.level - 1) + selectedUser.xp).toLocaleString()}
                       </span>
@@ -1056,17 +1097,17 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
                   <div className="grid grid-cols-2 gap-3 w-full">
                     <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
                       <Flame className="w-5 h-5 text-orange-500 mb-1" />
-                      <span className="text-xs text-secondary mb-1">Streak</span>
+                      <span className="text-xs text-secondary mb-1">{t('leaderboard.streak', state.language)}</span>
                       <span className="font-mono font-bold text-lg text-orange-500">{selectedUser.streak || 0}</span>
                     </div>
                     <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
                       <CheckCircle2 className="w-5 h-5 text-emerald-500 mb-1" />
-                      <span className="text-xs text-secondary mb-1">Missions</span>
+                      <span className="text-xs text-secondary mb-1">{t('leaderboard.missions', state.language)}</span>
                       <span className="font-mono font-bold text-lg">{selectedUser.missionsCompleted || 0}</span>
                     </div>
                     <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
                       <Star className="w-5 h-5 text-rose-400 mb-1" />
-                      <span className="text-xs text-secondary mb-1">Badges</span>
+                      <span className="text-xs text-secondary mb-1">{t('profile.badges', state.language)}</span>
                       <span className="font-mono font-bold text-lg">{selectedUser.badgesCount ?? selectedUser.badges?.length ?? 0}</span>
                     </div>
                     <div className="bg-black/30 rounded-2xl p-3 border border-white/5 flex flex-col items-center justify-center">
@@ -1182,7 +1223,7 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h3 className="text-xl font-display font-black tracking-tight uppercase italic">{t('profile.consistency_record', state.language)}</h3>
-                  <p className="text-[10px] text-secondary font-mono uppercase tracking-widest">Guide & Information</p>
+                  <p className="text-[10px] text-secondary font-mono uppercase tracking-widest">{t('profile.guide_info', state.language)}</p>
                 </div>
                 <button onClick={() => setIsConsistencyHelpOpen(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
                   <X className="w-5 h-5 text-secondary" />
@@ -1191,21 +1232,21 @@ const ProfileScreen = ({ state, onLogout, updateState, changePath, clearCustomMi
 
               <div className="space-y-6">
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-accent uppercase tracking-wider">Weekly Bar Chart</h4>
+                  <h4 className="text-xs font-bold text-accent uppercase tracking-wider">{t('profile.weekly_chart', state.language)}</h4>
                   <p className="text-sm text-secondary leading-relaxed">
-                    This chart shows your mission completion count for the last 7 days.
+                    {t('profile.weekly_chart_desc', state.language)}
                   </p>
                 </div>
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-accent uppercase tracking-wider">Goal</h4>
+                  <h4 className="text-xs font-bold text-accent uppercase tracking-wider">{t('profile.goal', state.language)}</h4>
                   <p className="text-sm text-secondary leading-relaxed">
-                    The height of each bar represents how many missions you completed. Aim for higher bars to maintain your momentum!
+                    {t('profile.weekly_chart_goal_desc', state.language)}
                   </p>
                 </div>
                 
                 <div className="pt-4 border-t border-white/5">
                   <p className="text-[10px] text-secondary italic text-center">
-                    "Consistency is the key to mastery."
+                    "{t('profile.consistency_quote', state.language)}"
                   </p>
                 </div>
               </div>

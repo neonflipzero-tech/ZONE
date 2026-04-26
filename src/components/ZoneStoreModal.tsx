@@ -389,9 +389,9 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
                         <Zap className="w-6 h-6 text-purple-400" />
                       </div>
                       <div>
-                        <h4 className="font-bold text-primary">2x XP Potion</h4>
+                        <h4 className="font-bold text-primary">{t('item.xp_potion.name', state.language)}</h4>
                         <p className="text-xs text-secondary mt-0.5">
-                          {state.language === 'id' ? 'Gandakan XP selama 24 jam' : 'Double XP for 24 hours'}
+                          {t('item.xp_potion.desc', state.language)}
                         </p>
                       </div>
                     </div>
@@ -426,9 +426,9 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
                         <Snowflake className="w-6 h-6 text-blue-400" />
                       </div>
                       <div>
-                        <h4 className="font-bold text-primary">Streak Freeze</h4>
+                        <h4 className="font-bold text-primary">{t('item.streak_freeze.name', state.language)}</h4>
                         <p className="text-xs text-secondary mt-0.5">
-                          {state.language === 'id' ? 'Lindungi streak Anda selama 1 hari' : 'Protect your streak for 1 day'}
+                          {t('item.streak_freeze.desc', state.language)}
                         </p>
                       </div>
                     </div>
@@ -463,9 +463,9 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
                         <ZoneCoinIcon className="w-6 h-6 text-yellow-400" />
                       </div>
                       <div>
-                        <h4 className="font-bold text-primary">2x Coin Potion</h4>
+                        <h4 className="font-bold text-primary">{t('item.coin_potion.name', state.language)}</h4>
                         <p className="text-xs text-secondary mt-0.5">
-                          {state.language === 'id' ? 'Gandakan Zone Coins selama 24 jam' : 'Double Zone Coins for 24 hours'}
+                          {t('item.coin_potion.desc', state.language)}
                         </p>
                       </div>
                     </div>
@@ -529,9 +529,19 @@ export default function ZoneStoreModal({ isOpen, onClose, state, ovr, updateStat
                     {state.language === 'id' ? 'PEMBELIAN BERHASIL!' : 'PURCHASE SUCCESS!'}
                   </h3>
                   <p className="text-secondary mb-8">
-                    {state.language === 'id' 
-                      ? `${purchaseSuccess.replace('frame-', '').toUpperCase()} telah ditambahkan ke inventori Anda.` 
-                      : `${purchaseSuccess.replace('frame-', '').toUpperCase()} has been added to your inventory.`}
+                    {(() => {
+                      const itemNameKey = purchaseSuccess === '2x XP Potion' ? 'item.xp_potion.name' :
+                                        purchaseSuccess === 'Streak Freeze' ? 'item.streak_freeze.name' :
+                                        purchaseSuccess === '2x Coin Potion' ? 'item.coin_potion.name' : null;
+                      
+                      const displayName = itemNameKey 
+                        ? t(itemNameKey, state.language) 
+                        : purchaseSuccess.replace('frame-', '').replace(/-/g, ' ').toUpperCase();
+                        
+                      return state.language === 'id'
+                        ? `${displayName} telah ditambahkan ke inventori Anda.`
+                        : `${displayName} has been added to your inventory.`;
+                    })()}
                   </p>
                   
                   <button

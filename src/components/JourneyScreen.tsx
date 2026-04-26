@@ -22,7 +22,10 @@ const JourneyScreen = ({ state, updateState }: JourneyScreenProps) => {
   
   const prevRank = useMemo(() => getRankForLevel(state.previousLevel), [state.previousLevel]);
   const currentRank = useMemo(() => getRankForLevel(state.level), [state.level]);
-  const isRankUp = useMemo(() => prevRank.name !== currentRank.name && state.animatingLevelUp, [prevRank.name, currentRank.name, state.animatingLevelUp]);
+  const prevRankNameEn = typeof prevRank.name === 'string' ? prevRank.name : prevRank.name.en;
+  const currentRankNameEn = typeof currentRank.name === 'string' ? currentRank.name : currentRank.name.en;
+  
+  const isRankUp = useMemo(() => prevRankNameEn !== currentRankNameEn && state.animatingLevelUp, [prevRankNameEn, currentRankNameEn, state.animatingLevelUp]);
   
   // Generate levels to show (at least up to max level 50, or current level + 5)
   const levels = useMemo(() => {
@@ -170,20 +173,25 @@ const JourneyScreen = ({ state, updateState }: JourneyScreenProps) => {
                 transition={{ delay: 0.5 }}
                 className={`text-2xl font-mono uppercase tracking-widest ${currentRank.color} mb-8`}
               >
-                {currentRank.name}
+                {typeof currentRank.name === 'string' ? currentRank.name : currentRank.name[state.language]}
               </motion.p>
               <motion.button
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.7 }}
                 onClick={async () => {
-                  const success = await shareElementAsImage(
-                    'rank-up-card',
-                    'I Ranked Up!',
-                    `I just reached ${currentRank.name} (Level ${state.level}) on ZONE! Join me and lock in.`
-                  );
-                  if (success) {
-                    incrementShareCount();
+                  const rankNameLocal = typeof currentRank.name === 'string' ? currentRank.name : currentRank.name[state.language];
+                  try {
+                    const success = await shareElementAsImage(
+                      'rank-up-card',
+                      'I Ranked Up!',
+                      `I just reached ${rankNameLocal} (Level ${state.level}) on ZONE! Join me and lock in.`
+                    );
+                    if (success) {
+                      incrementShareCount();
+                    }
+                  } catch (error) {
+                    console.error('Error sharing rank up milestone:', error);
                   }
                 }}
                 className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/20 px-6 py-3 rounded-full font-bold transition-colors backdrop-blur-md"
@@ -300,7 +308,7 @@ const JourneyScreen = ({ state, updateState }: JourneyScreenProps) => {
                   ) : isCompleted ? (
                     <Check className="w-6 h-6 text-background" />
                   ) : isMilestone ? (
-                    rankForLevel.name === 'Mythic' ? (
+                    (typeof rankForLevel.name === 'string' ? rankForLevel.name : rankForLevel.name.en) === 'Mythic' ? (
                       <Crown className="w-6 h-6" style={{ color: `${rankForLevel.hex}80` }} />
                     ) : (
                       <Shield className="w-6 h-6" style={{ color: `${rankForLevel.hex}80` }} />
@@ -313,11 +321,11 @@ const JourneyScreen = ({ state, updateState }: JourneyScreenProps) => {
                 {/* Level Label */}
                 <div className={`absolute ${level % 2 === 0 ? 'right-20' : 'left-20'} whitespace-nowrap`}>
                   <div className={`font-bold text-lg ${isPfpHere ? 'text-accent' : isCompleted ? 'text-primary' : 'text-secondary'}`}>
-                    Level {level}
+                    {t('journey.level', state.language, { level })}
                   </div>
                   {isMilestone && (
                     <div className={`text-xs font-mono uppercase tracking-wider ${isPfpHere || isCompleted ? rankForLevel.color : 'text-secondary/50'}`}>
-                      {rankForLevel.name}
+                      {typeof rankForLevel.name === 'string' ? rankForLevel.name : rankForLevel.name[state.language]}
                     </div>
                   )}
                   {isMilestone && (

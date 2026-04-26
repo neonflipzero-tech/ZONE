@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useAppState, PathType, getRankForLevel, calculateOVR, MissionType, sanitizeForFirestore } from './store';
+import { useAppState, PathType, getRankForLevel, calculateOVR, MissionType, sanitizeForFirestore, BADGES } from './store';
 import { ZoneCoinIcon } from './components/ZoneCoinIcon';
 import { sounds } from './utils/sounds';
 import { db, handleFirestoreError, OperationType, auth } from './firebase';
@@ -21,6 +21,7 @@ import IntegrityCheckModal from './components/IntegrityCheckModal';
 import ProfileFrame from './components/ProfileFrame';
 import { Target, Trophy, User, BarChart2, Map, Swords } from 'lucide-react';
 import { NotificationService } from './services/NotificationService';
+import { t } from './utils/translations';
 
 type Tab = 'home' | 'leaderboard' | 'journey' | 'rank' | 'profile';
 
@@ -45,6 +46,43 @@ export default function App() {
   const isAuthReady = useAppState(s => s.isAuthReady);
 
   useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('Global Error Captured:', event.message || 'Unknown Error', event.error);
+    };
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      let message = 'No reason provided';
+      let stack = '';
+
+      if (reason instanceof Error) {
+        message = reason.message;
+        stack = reason.stack || '';
+      } else if (typeof reason === 'string') {
+        message = reason;
+      } else if (reason) {
+        try {
+          message = JSON.stringify(reason);
+        } catch (e) {
+          message = 'Unserializable Reason';
+        }
+      }
+
+      console.error('Unhandled Promise Rejection:', {
+        message,
+        stack,
+        reason,
+        promise: event.promise
+      });
+    };
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
+
+  useEffect(() => {
     if (state?.isLoggedIn) {
       const { checkBossReset } = useAppState.getState();
       checkBossReset();
@@ -57,8 +95,8 @@ export default function App() {
       window.removeEventListener('click', handleFirstInteraction);
       window.removeEventListener('touchstart', handleFirstInteraction);
     };
-    window.addEventListener('click', handleFirstInteraction);
-    window.addEventListener('touchstart', handleFirstInteraction);
+    window.addEventListener('click', handleFirstInteraction, { once: true });
+    window.addEventListener('touchstart', handleFirstInteraction, { once: true });
     return () => {
       window.removeEventListener('click', handleFirstInteraction);
       window.removeEventListener('touchstart', handleFirstInteraction);
@@ -75,6 +113,22 @@ export default function App() {
   const preAnimationTabRef = useRef<Tab | null>(null);
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [isChangingGoal, setIsChangingGoal] = useState(false);
+  const [currentDateISO, setCurrentDateISO] = useState(new Date().toISOString().split('T')[0]);
+
+  // Handle automatic day change detection
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const today = new Date().toISOString().split('T')[0];
+      if (today !== currentDateISO) {
+        setCurrentDateISO(today);
+        // If we are logged in, we might want to force a refresh if missions are old
+        if (state?.isLoggedIn && state?.chosenPath) {
+          generateMissions(state.chosenPath);
+        }
+      }
+    }, 30000); // Check every 30 seconds
+    return () => clearInterval(interval);
+  }, [currentDateISO, state?.isLoggedIn, state?.chosenPath, generateMissions]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -91,7 +145,7 @@ export default function App() {
             state.language === 'id' 
               ? 'Istirahat dulu, kalau sudah siap, masuk ke zone lagi.' 
               : 'Get some rest and then when you\'re ready, enter the zone again.'
-          );
+          ).catch(e => console.error("Visibility notification error:", e));
           updateState({ lastRestNotificationTime: now });
         }
       }
@@ -102,7 +156,7 @@ export default function App() {
   }, [state?.isLoggedIn, state?.dailyStats, state?.lastRestNotificationTime, state?.language]);
 
   useEffect(() => {
-    NotificationService.init();
+    NotificationService.init().catch(e => console.error("Notification Service Init Error:", e));
   }, []);
 
   useEffect(() => {
@@ -128,19 +182,6 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    const unlockAudio = () => {
-      sounds.unlock();
-      window.removeEventListener('click', unlockAudio);
-      window.removeEventListener('touchstart', unlockAudio);
-    };
-    window.addEventListener('click', unlockAudio);
-    window.addEventListener('touchstart', unlockAudio);
-    return () => {
-      window.removeEventListener('click', unlockAudio);
-      window.removeEventListener('touchstart', unlockAudio);
-    };
-  }, []);
 
   useEffect(() => {
     activeTabRef.current = activeTab;
@@ -149,71 +190,85 @@ export default function App() {
   useEffect(() => {
     if (state?.isLoggedIn && state?.onboardingCompleted && state?.chosenPath && !isChangingGoal) {
       // Only generate if we don't have missions or if it's a new day
-      const today = new Date().toISOString().split('T')[0];
-      if (!state.missions || state.missions.length === 0 || state.lastMissionDate !== today) {
+      // OR if on STRONGER path but focus banner data is missing (force initial sync)
+      const hasMissions = state.missions && state.missions.length > 0;
+      const isStrongerButNoFocus = state.chosenPath === 'STRONGER' && !state.dailyStrongerFocus;
+
+      if (!hasMissions || state.lastMissionDate !== currentDateISO || isStrongerButNoFocus) {
         generateMissions(state.chosenPath);
       }
     }
-  }, [state?.isLoggedIn, state?.onboardingCompleted, state?.chosenPath, isChangingGoal, state?.username, activeUserEmail]);
+  }, [
+    state?.isLoggedIn, 
+    state?.onboardingCompleted, 
+    state?.chosenPath, 
+    isChangingGoal, 
+    state?.username, 
+    activeUserEmail, 
+    state?.dailyStrongerFocus,
+    state?.lastMissionDate,
+    currentDateISO
+  ]);
 
   useEffect(() => {
     if (state?.isLoggedIn && state?.username && state?.userId && isAuthReady && auth && auth.currentUser) {
-      const ovrData = calculateOVR(state, activeUserEmail);
-      const totalXp = 50 * state.level * (state.level - 1) + state.xp;
-      const userData = {
-        userId: state.userId,
-        username: state.username,
-        level: state.level,
-        xp: state.xp,
-        totalXp: totalXp,
-        equippedFrame: state.equippedFrame,
-        equippedTitle: state.equippedTitle,
-        profilePicture: state.profilePicture,
-        streak: state.streak || 0,
-        badges: state.badges || [],
-        badgesCount: state.badges?.length || 0,
-        unlockedFrames: state.unlockedFrames || [],
-        framesCount: state.unlockedFrames?.length || 0,
-        missionsCompleted: state.missionsCompleted || 0,
-        isProfilePublic: state.isProfilePublic !== false,
-        isPremium: state.isPremium || false,
-        onboardingCompleted: state.onboardingCompleted || false,
-        chosenPath: state.chosenPath || null,
-        ovr: ovrData.ovr,
-        stats: ovrData.stats,
-        missionAffinity: state.missionAffinity || {},
-        lastActive: Date.now()
-      };
+      // Debounce leaderboard sync to prevent lag during frequent updates
+      const syncTimeout = setTimeout(() => {
+        const ovrData = calculateOVR(state, activeUserEmail);
+        const totalXp = 50 * state.level * (state.level - 1) + state.xp;
+        const userData = {
+          userId: state.userId,
+          username: state.username,
+          level: state.level,
+          xp: state.xp,
+          totalXp: totalXp,
+          equippedFrame: state.equippedFrame,
+          equippedTitle: state.equippedTitle,
+          profilePicture: state.profilePicture,
+          streak: state.streak || 0,
+          badges: state.badges || [],
+          badgesCount: state.badges?.length || 0,
+          unlockedFrames: state.unlockedFrames || [],
+          framesCount: state.unlockedFrames?.length || 0,
+          missionsCompleted: state.missionsCompleted || 0,
+          isProfilePublic: state.isProfilePublic !== false,
+          isPremium: state.isPremium || false,
+          onboardingCompleted: state.onboardingCompleted || false,
+          ovr: ovrData.ovr,
+          stats: ovrData.stats,
+          missionAffinity: state.missionAffinity || {},
+          lastActive: Date.now()
+        };
 
-      // Sync to Firebase is now handled in store.tsx updateState for better performance
-      
-      // Fallback to localStorage for local dev without Firebase
-      try {
-        const savedLeaderboard = localStorage.getItem('lockin_global_leaderboard');
-        let users = savedLeaderboard ? JSON.parse(savedLeaderboard) : [
-          { userId: 'zaiki-123', username: 'Zaiki', level: 50, xp: 99999, equippedFrame: 'frame-omniscience', equippedTitle: 'The Creator', profilePicture: 'https://picsum.photos/seed/zaiki/200/200' },
-          { userId: 'progamer-123', username: 'ProGamer', level: 42, xp: 15000, equippedFrame: 'frame-abyssal', equippedTitle: 'Grind Master', profilePicture: 'https://picsum.photos/seed/progamer/200/200' },
-          { userId: 'newbie-123', username: 'Newbie', level: 5, xp: 1200, equippedFrame: 'frame-bronze', equippedTitle: 'Newbie', profilePicture: 'https://picsum.photos/seed/newbie/200/200' },
-        ];
-        
-        const userIndex = users.findIndex((u: any) => u.userId === state.userId || u.username === state.username);
+        try {
+          const savedLeaderboard = localStorage.getItem('lockin_global_leaderboard');
+          let users = savedLeaderboard ? JSON.parse(savedLeaderboard) : [
+            { userId: 'zaiki-123', username: 'Zaiki', level: 50, xp: 99999, equippedFrame: 'frame-omniscience', equippedTitle: 'The Creator', profilePicture: 'https://picsum.photos/seed/zaiki/200/200' },
+            { userId: 'progamer-123', username: 'ProGamer', level: 42, xp: 15000, equippedFrame: 'frame-abyssal', equippedTitle: 'Grind Master', profilePicture: 'https://picsum.photos/seed/progamer/200/200' },
+            { userId: 'newbie-123', username: 'Newbie', level: 5, xp: 1200, equippedFrame: 'frame-bronze', equippedTitle: 'Newbie', profilePicture: 'https://picsum.photos/seed/newbie/200/200' },
+          ];
+          
+          const userIndex = users.findIndex((u: any) => u.userId === state.userId || u.username === state.username);
 
-        if (userIndex >= 0) {
-          users[userIndex] = { ...users[userIndex], ...userData };
-        } else {
-          users.push(userData);
+          if (userIndex >= 0) {
+            users[userIndex] = { ...users[userIndex], ...userData };
+          } else {
+            users.push(userData);
+          }
+
+          // Sort by level and xp
+          users.sort((a: any, b: any) => {
+            if (b.level !== a.level) return b.level - a.level;
+            return b.xp - a.xp;
+          });
+
+          localStorage.setItem('lockin_global_leaderboard', JSON.stringify(users.slice(0, 50)));
+        } catch (err) {
+          console.error('Failed to sync leaderboard to localStorage:', err);
         }
+      }, 5000); // 5 second debounce for leaderboard sync
 
-        // Sort by level and xp
-        users.sort((a: any, b: any) => {
-          if (b.level !== a.level) return b.level - a.level;
-          return b.xp - a.xp;
-        });
-
-        localStorage.setItem('lockin_global_leaderboard', JSON.stringify(users.slice(0, 50)));
-      } catch (err) {
-        console.error('Failed to sync leaderboard to localStorage:', err);
-      }
+      return () => clearTimeout(syncTimeout);
     }
   }, [state?.level, state?.xp, state?.equippedFrame, state?.equippedTitle, state?.profilePicture, state?.username, state?.isLoggedIn, state?.userId, state?.streak, state?.badges?.length, state?.unlockedFrames?.length, state?.missionsCompleted, state?.isProfilePublic, isAuthReady]);
 
@@ -264,7 +319,8 @@ export default function App() {
       if (state.badges.length > prevBadgesCountRef.current) {
         const newBadge = state.badges[state.badges.length - 1];
         // Map badge ID to readable name if needed, or just use ID
-        const badgeName = newBadge.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+        const badgeDef = BADGES.find(b => b.id === newBadge);
+        const badgeName = badgeDef ? badgeDef.name[state.language] : newBadge.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
         NotificationService.notifyBadgeUnlocked(badgeName, state.language);
       }
       prevBadgesCountRef.current = state.badges.length;
@@ -272,22 +328,26 @@ export default function App() {
       // Rank check
       const prevRank = getRankForLevel(prevLevelRef.current);
       const currentRank = getRankForLevel(state.level);
-      if (currentRank.name !== prevRank.name && state.level > prevLevelRef.current) {
-        const uniqueId = `rank-up-${currentRank.name.toLowerCase()}`;
+      const prevRankNameEn = typeof prevRank.name === 'string' ? prevRank.name : prevRank.name.en;
+      const currentRankNameEn = typeof currentRank.name === 'string' ? currentRank.name : currentRank.name.en;
+      const currentRankNameLocal = typeof currentRank.name === 'string' ? currentRank.name : currentRank.name[state.language];
+
+      if (currentRankNameEn !== prevRankNameEn && state.level > prevLevelRef.current) {
+        const uniqueId = `rank-up-${currentRankNameEn.toLowerCase()}`;
         
         if (!state.shownNotifications?.includes(uniqueId)) {
           // Internal notification
           addNotification({
             uniqueId,
-            title: state.language === 'id' ? `Pangkat Baru: ${currentRank.name}! ✨` : `New Rank: ${currentRank.name}! ✨`,
+            title: state.language === 'id' ? `Pangkat Baru: ${currentRankNameLocal}! ✨` : `New Rank: ${currentRankNameLocal}! ✨`,
             description: state.language === 'id'
-              ? `Gila, lu makin elit! Sekarang lu udah jadi "${currentRank.name}".`
-              : `You're becoming elite! You are now a "${currentRank.name}".`,
+              ? `Gila, lu makin elit! Sekarang lu udah jadi "${currentRankNameLocal}".`
+              : `You're becoming elite! You are now a "${currentRankNameLocal}".`,
             icon: 'Trophy'
           });
 
           // Push Notification
-          NotificationService.notifyRankAchieved(currentRank.name, state.language);
+          NotificationService.notifyRankAchieved(currentRankNameLocal, state.language);
         }
       }
       prevLevelRef.current = state.level;
@@ -481,7 +541,7 @@ export default function App() {
     
     // Check once on load
     if (state?.isLoggedIn) {
-      checkRival();
+      checkRival().catch(e => console.error("Unhandled error in checkRival:", e));
     }
   }, [state?.isLoggedIn, state?.rivalId, state?.totalXp, state?.level, state?.streak, state?.ovr]);
 
@@ -497,8 +557,12 @@ export default function App() {
     }
   }, [state?.animatingLevelUp]);
 
-  const handleLogin = useCallback((email: string, username: string) => {
-    login(email, username);
+  const handleLogin = useCallback(async (email: string, username: string) => {
+    try {
+      await login(email, username);
+    } catch (e) {
+      console.error("Error during login:", e);
+    }
   }, [login]);
 
   const handleSelectPath = useCallback((path: PathType, baseStats: Record<string, number>) => {
@@ -566,18 +630,22 @@ export default function App() {
           >
             ZONE
           </motion.h2>
-          <p className="text-white/40 font-mono text-[10px] uppercase tracking-[0.2em] ml-[0.2em]">
-            {isChangingGoal ? 'RECALIBRATING GOAL...' : 'ESTABLISHING CONNECTION...'}
-          </p>
+          <motion.p 
+            animate={{ opacity: [0.3, 0.7, 0.3] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            className="text-white/40 font-mono text-[10px] uppercase tracking-[0.2em] ml-[0.2em]"
+          >
+            {isChangingGoal ? 'RECALIBRATING...' : 'INITIALIZING...'}
+          </motion.p>
         </div>
       </div>
     );
   } else if (!state || !state.isLoggedIn) {
-    content = <LoginScreen onLogin={handleLogin} language={state?.language || 'en'} />;
+    content = <LoginScreen key="login" onLogin={handleLogin} language={state?.language || 'en'} />;
   } else if (!state.manifestoAccepted) {
-    content = <ManifestoScreen onAccept={handleAcceptManifesto} language={state.language} />;
+    content = <ManifestoScreen key="manifesto" onAccept={handleAcceptManifesto} language={state.language} />;
   } else if (!state.onboardingCompleted) {
-    content = <OnboardingScreen onSelectPath={handleSelectPath} language={state.language} />;
+    content = <OnboardingScreen key="onboarding" onSelectPath={handleSelectPath} language={state.language} />;
   } else if (state.showStreakAnimation) {
     content = (
       <StreakScreen 
@@ -663,7 +731,7 @@ export default function App() {
                 transition={{ delay: 0.8 }}
                 className="text-4xl font-black text-white font-display tracking-tighter uppercase mb-2 italic"
               >
-                {state.language === 'id' ? 'RIVAL DIHANCURKAN!' : 'RIVAL CRUSHED!'}
+                {t('app.rival_crushed', state.language)}
               </motion.h2>
               
               <motion.p 
@@ -682,16 +750,16 @@ export default function App() {
                 className="bg-white/5 border border-white/10 p-6 rounded-3xl mb-8 backdrop-blur-sm"
               >
                 <div className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.2em] mb-4">
-                  {state.language === 'id' ? 'HADIAH DIDAPAT' : 'REWARDS EARNED'}
+                  {t('home.rewards_earned', state.language)}
                 </div>
                 <div className="flex justify-center space-x-8">
                   <div className="flex flex-col items-center">
                     <div className="text-2xl font-black text-amber-400">+500 XP</div>
-                    <div className="text-[10px] text-gray-500 uppercase">Experience</div>
+                    <div className="text-[10px] text-gray-500 uppercase">{t('app.experience', state.language)}</div>
                   </div>
                   <div className="flex flex-col items-center">
                     <div className="text-2xl font-black text-rose-500">CRUSHER</div>
-                    <div className="text-[10px] text-gray-500 uppercase">New Title</div>
+                    <div className="text-[10px] text-gray-500 uppercase">{t('app.new_title', state.language)}</div>
                   </div>
                 </div>
               </motion.div>
@@ -703,7 +771,7 @@ export default function App() {
                 onClick={() => useAppState.getState().dismissCrushedAnimation()}
                 className="w-full py-5 bg-rose-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-[0_0_30px_rgba(225,29,72,0.4)] hover:bg-rose-500 active:scale-95 transition-all"
               >
-                {state.language === 'id' ? 'LANJUTKAN' : 'CONTINUE'}
+                {t('home.continue', state.language)}
               </motion.button>
             </div>
           </motion.div>
@@ -813,32 +881,35 @@ export default function App() {
             <button 
               onClick={() => {
                 sounds.playClick();
+                if (navigator.vibrate) navigator.vibrate(5);
                 setActiveTab('home');
               }}
               className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'home' ? 'text-primary' : 'text-secondary hover:text-primary/70'}`}
             >
               <Target className="w-6 h-6 mb-1" />
-              <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Misi' : 'Missions'}</span>
+              <span className="text-[10px] font-medium">{t('nav.missions', state.language)}</span>
             </button>
             <button 
               onClick={() => {
                 sounds.playClick();
+                if (navigator.vibrate) navigator.vibrate(5);
                 setActiveTab('leaderboard');
               }}
               className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'leaderboard' ? 'text-rose-500' : 'text-secondary hover:text-rose-500/70'}`}
             >
               <BarChart2 className="w-6 h-6 mb-1" />
-              <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Peringkat' : 'Global'}</span>
+              <span className="text-[10px] font-medium">{t('nav.leaderboard', state.language)}</span>
             </button>
             <button 
               onClick={() => {
                 sounds.playClick();
+                if (navigator.vibrate) navigator.vibrate(5);
                 setActiveTab('journey');
               }}
               className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'journey' ? 'text-amber-500' : 'text-secondary hover:text-amber-500/70'}`}
             >
               <Map className="w-6 h-6 mb-1" />
-              <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Perjalanan' : 'Journey'}</span>
+              <span className="text-[10px] font-medium">{t('nav.journey', state.language)}</span>
             </button>
             <button 
               onClick={() => {
@@ -848,17 +919,18 @@ export default function App() {
               className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'rank' ? 'text-primary' : 'text-secondary hover:text-primary/70'}`}
             >
               <Trophy className="w-6 h-6 mb-1" />
-              <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Pangkat' : 'Rank'}</span>
+              <span className="text-[10px] font-medium">{t('nav.rank', state.language)}</span>
             </button>
             <button 
               onClick={() => {
                 sounds.playClick();
+                if (navigator.vibrate) navigator.vibrate(5);
                 setActiveTab('profile');
               }}
               className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${activeTab === 'profile' ? 'text-primary' : 'text-secondary hover:text-primary/70'}`}
             >
               <User className="w-6 h-6 mb-1" />
-              <span className="text-[10px] font-medium">{state?.language === 'id' ? 'Profil' : 'Profile'}</span>
+              <span className="text-[10px] font-medium">{t('nav.profile', state.language)}</span>
             </button>
           </div>
         </div>

@@ -58,7 +58,7 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       borderClass = 'p-[4px]';
       decorations = (
         <div className="absolute inset-0 rounded-full z-0 shadow-[0_0_20px_rgba(234,179,8,0.6)] bg-amber-900">
-          <div className="absolute inset-[-20%] rounded-full bg-[conic-gradient(from_0deg,transparent,#facc15,transparent,#fbbf24,transparent)] animate-[spin_3s_linear_infinite] opacity-40" />
+          <div className="absolute inset-[-20%] rounded-full bg-[conic-gradient(from_0deg,transparent,#facc15,transparent,#fbbf24,transparent)] animate-[spin_3s_linear_infinite] opacity-40 will-change-transform" />
           <div className="absolute inset-0 rounded-full border-2 border-yellow-300 shadow-[inset_0_0_10px_rgba(253,224,71,0.4)]" />
         </div>
       );
@@ -78,20 +78,20 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       decorations = (
         <div className="absolute inset-0 z-0 flex items-center justify-center">
           {/* Blackhole Accretion Disk - More intense */}
-          <div className="absolute inset-[-40%] rounded-full bg-[conic-gradient(from_0deg,transparent,#7c3aed,#c084fc,#7c3aed,transparent)] animate-[spin_1.5s_linear_infinite] blur-md opacity-90" />
+          <div className="absolute inset-[-40%] rounded-full bg-[conic-gradient(from_0deg,transparent,#7c3aed,#c084fc,#7c3aed,transparent)] animate-[spin_1.5s_linear_infinite] blur-md opacity-90 will-change-transform" />
           
           {/* Event Horizon Glow */}
-          <div className="absolute inset-[-20%] rounded-full bg-violet-600/50 blur-2xl animate-pulse" />
+          <div className="absolute inset-[-20%] rounded-full bg-violet-600/50 blur-2xl animate-pulse will-change-[opacity,transform]" />
           
           {/* Swirling energy */}
           <div className="absolute inset-0 rounded-full overflow-hidden bg-black">
-            <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#000,#4c1d95,#7c3aed,#c084fc,#000)] animate-[spin_2s_linear_infinite] opacity-95" />
+            <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#000,#4c1d95,#7c3aed,#c084fc,#000)] animate-[spin_2s_linear_infinite] opacity-95 will-change-transform" />
             
             {/* Distorted inner ring */}
             <motion.div 
               animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.8, 0.4], rotate: 360 }}
               transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-[1px] rounded-full border-2 border-violet-300/40 border-dashed"
+              className="absolute inset-[1px] rounded-full border-2 border-violet-300/40 border-dashed will-change-transform"
             />
           </div>
           
@@ -105,7 +105,7 @@ function ProfileFrame({ frame, src, size = 'md' }: ProfileFrameProps) {
       borderClass = 'p-[2px]';
       decorations = (
         <div className="absolute inset-0 rounded-full z-0 overflow-hidden">
-          <div className="absolute inset-[-50%] rounded-full bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] animate-[spin_2s_linear_infinite]" />
+          <div className="absolute inset-[-50%] rounded-full bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] animate-[spin_2s_linear_infinite] will-change-transform" />
         </div>
       );
       break;

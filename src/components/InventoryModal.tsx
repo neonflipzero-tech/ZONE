@@ -104,7 +104,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
             </button>
             <h2 className="text-lg font-bold text-primary flex items-center">
               <Package className="w-5 h-5 text-accent mr-2" />
-              {state.language === 'id' ? 'Inventori' : 'Inventory'}
+              {t('inventory.title', state.language)}
             </h2>
             <div className="w-10" />
           </div>
@@ -116,7 +116,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-[110] bg-accent/20 backdrop-blur-md flex items-center justify-center pointer-events-none"
+                className="absolute inset-0 z-[110] flex items-center justify-center pointer-events-none"
               >
                 <motion.div
                   initial={{ scale: 0.5, opacity: 0, rotate: -20 }}
@@ -127,15 +127,15 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                   }}
                   className="flex flex-col items-center"
                 >
-                  <div className="bg-white text-accent p-6 rounded-full shadow-[0_0_50px_rgba(255,255,255,0.5)] mb-4">
+                  <div className="bg-surface text-accent p-6 rounded-3xl border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] mb-4">
                     <CheckCircle2 className="w-16 h-16" strokeWidth={3} />
                   </div>
                   <motion.div
                     initial={{ y: 10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    className="bg-white text-black px-6 py-2 rounded-full font-black text-xl uppercase italic shadow-xl"
+                    className="bg-accent text-black px-6 py-2 rounded-full font-black text-xl uppercase italic shadow-xl"
                   >
-                    {state.language === 'id' ? 'ITEM DIGUNAKAN!' : 'ITEM USED!'}
+                    {t('inventory.item_used', state.language)}
                   </motion.div>
                 </motion.div>
               </motion.div>
@@ -197,7 +197,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
             >
               <div className="flex items-center justify-center">
                 <Package className="w-4 h-4 mr-2" />
-                {state.language === 'id' ? 'Item' : 'Items'}
+                {t('inventory.items', state.language)}
               </div>
               {activeTab === 'items' && (
                 <motion.div layoutId="inventoryTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
@@ -297,9 +297,9 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                                 <Zap className="w-6 h-6 text-purple-400" />
                               </div>
                               <div>
-                                <h4 className="font-bold text-primary">2x XP Potion</h4>
+                                <h4 className="font-bold text-primary">{t('item.xp_potion.name', state.language)}</h4>
                                 <p className="text-xs text-secondary mt-0.5">
-                                  {state.language === 'id' ? 'Gandakan XP selama 24 jam' : 'Double XP for 24 hours'}
+                                  {t('item.xp_potion.desc', state.language)}
                                 </p>
                               </div>
                             </div>
@@ -330,7 +330,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                           >
                             <span>
                               {state.doubleXpActiveUntil && new Date(state.doubleXpActiveUntil) > new Date()
-                                ? (state.language === 'id' ? `Aktif (${timeLeft})` : `Active (${timeLeft})`)
+                                ? t('inventory.active', state.language, { time: timeLeft || '' })
                                 : (state.language === 'id' ? 'Gunakan' : 'Use')}
                             </span>
                           </button>
@@ -346,9 +346,9 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                               <Snowflake className="w-6 h-6 text-blue-400" />
                             </div>
                             <div>
-                              <h4 className="font-bold text-primary">Streak Freeze</h4>
+                              <h4 className="font-bold text-primary">{t('item.streak_freeze.name', state.language)}</h4>
                               <p className="text-xs text-secondary mt-0.5">
-                                {state.language === 'id' ? 'Lindungi streak Anda selama 1 hari' : 'Protect your streak for 1 day'}
+                                {t('item.streak_freeze.desc', state.language)}
                               </p>
                             </div>
                           </div>
@@ -357,7 +357,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                           </div>
                         </div>
                         <div className="w-full py-3 rounded-xl font-bold flex items-center justify-center space-x-2 bg-white/5 text-white/50">
-                          <span>{state.language === 'id' ? 'Otomatis digunakan saat terlewat' : 'Automatically used when missed'}</span>
+                          <span>{t('inventory.auto_use_streak', state.language)}</span>
                         </div>
                       </div>
                     )}
@@ -374,9 +374,9 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                               <ZoneCoinIcon className="w-6 h-6 text-yellow-400" />
                             </div>
                             <div>
-                              <h4 className="font-bold text-primary">2x Coin Potion</h4>
+                              <h4 className="font-bold text-primary">{t('item.coin_potion.name', state.language)}</h4>
                               <p className="text-xs text-secondary mt-0.5">
-                                {state.language === 'id' ? 'Gandakan Zone Coins selama 24 jam' : 'Double Zone Coins for 24 hours'}
+                                {t('item.coin_potion.desc', state.language)}
                               </p>
                             </div>
                           </div>
@@ -407,7 +407,7 @@ export default function InventoryModal({ isOpen, onClose }: InventoryModalProps)
                         >
                           <span>
                             {state.doubleCoinActiveUntil && new Date(state.doubleCoinActiveUntil) > new Date()
-                              ? (state.language === 'id' ? `Aktif (${coinTimeLeft})` : `Active (${coinTimeLeft})`)
+                              ? t('inventory.active', state.language, { time: coinTimeLeft || '' })
                               : (state.language === 'id' ? 'Gunakan' : 'Use')}
                           </span>
                         </button>

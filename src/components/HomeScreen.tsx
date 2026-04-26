@@ -1,8 +1,8 @@
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
-import { UserState, MissionType, getRankForLevel, Mission, useAppState, TITLES, analyzeMissionPath, extractDuration, getTodayISO } from '../store';
-import { CheckCircle2, Circle, Flame, User, Shield, Timer, Wand2, Bell, Zap, X, ArrowLeft, Target, Mountain, Star, Store, Dumbbell, BookOpen, Wind, Award, Lock, ChevronRight } from 'lucide-react';
+import { UserState, MissionType, getRankForLevel, Mission, useAppState, TITLES, analyzeMissionPath, extractDuration, getTodayISO, translateMissionText, BADGES } from '../store';
+import { CheckCircle2, Circle, Flame, User, Shield, Timer, Wand2, Bell, Zap, X, ArrowLeft, Target, Mountain, Star, Store, Dumbbell, BookOpen, Wind, Award, Lock, ChevronRight, Calendar, Info } from 'lucide-react';
 import { ZoneCoinIcon } from './ZoneCoinIcon';
 import { t } from '../utils/translations';
 import { sounds } from '../utils/sounds';
@@ -217,6 +217,10 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
     : "from-gray-500/10 to-gray-600/10 border-gray-500/20 shadow-gray-500/10";
 
   useEffect(() => {
+    updateState({ isFocusing: isTimerRunning });
+  }, [isTimerRunning, updateState]);
+
+  useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isTimerRunning && timeLeft !== null && timeLeft > 0) {
       interval = setInterval(() => {
@@ -240,11 +244,11 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
       if (document.hidden) {
         // Send immediate comfortable notification only once per session
         if (!exitNotifSentRef.current) {
-          NotificationService.notifyExitImmediate(state.language);
+          NotificationService.notifyExitImmediate(state.language, state.chosenPath);
           exitNotifSentRef.current = true;
         }
         // Always schedule delayed motivational notification when leaving
-        NotificationService.scheduleExitDelayed(state.language, !!state.rivalId);
+        NotificationService.scheduleExitDelayed(state.language, !!state.rivalId, state.consecutiveFailures || 0, state.chosenPath);
       } else {
         // Cancel delayed notification if user returns
         NotificationService.cancelExitDelayed();
@@ -253,7 +257,7 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [state.language]);
+  }, [state.language, state.chosenPath]);
 
   const handleMissionComplete = (missionId: string) => {
     // Capture state before completion to detect rewards in useEffect
@@ -263,6 +267,7 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
     });
 
     try {
+      sounds.playDopamine();
       onCompleteMission(missionId);
       setShowCompletionOverlay(true);
       handleCloseModal();
@@ -320,10 +325,15 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
     }
   }, [isBurstLocked, state.language, hasPlayedOverheatSound, overheatMotivation]);
 
-  const handleMissionClick = (mission: Mission) => {
+  const handleMissionClick = useCallback((mission: Mission) => {
     if (mission.completed) return;
     sounds.playClick();
-    if (isBurstLocked) {
+    
+    // Check burst lock using the latest state from store
+    const currentState = useAppState.getState().state;
+    const isLocked = currentState?.burstLockUntil && currentState.burstLockUntil > Date.now();
+    
+    if (isLocked) {
       sounds.playError();
       return;
     }
@@ -339,7 +349,7 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
       setTimeLeft(null);
     }
     setIsTimerRunning(false);
-  };
+  }, []);
 
   const formatPotionTime = (until: string | null) => {
     if (!until) return '';
@@ -470,6 +480,21 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
       exit={{ opacity: 0 }}
       className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar pb-24 relative"
     >
+      {/* Focus Aura Effect */}
+      <AnimatePresence>
+        {isTimerRunning && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 pointer-events-none z-[100]"
+          >
+            <div className="absolute inset-0 bg-accent/5 animate-pulse" />
+            <div className="absolute inset-0 shadow-[inset_0_0_100px_rgba(244,63,94,0.15)]" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Neural Overheat Animation Overlay */}
       <AnimatePresence>
         {showOverheatAnim && (
@@ -633,7 +658,9 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                               <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center mb-2">
                                 <Zap className="w-5 h-5 text-accent" />
                               </div>
-                              <div className="text-xs font-mono text-secondary uppercase">Level Up</div>
+                              <div className="text-xs font-mono text-secondary uppercase">
+                                {state.language === 'id' ? 'Naik Level' : 'Level Up'}
+                              </div>
                               <div className="text-xl font-display font-black text-primary">LVL {reward.value}</div>
                             </>
                           ) : (
@@ -641,9 +668,11 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                               <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center mb-2">
                                 <Award className="w-5 h-5 text-purple-400" />
                               </div>
-                              <div className="text-xs font-mono text-secondary uppercase">Badge</div>
+                              <div className="text-xs font-mono text-secondary uppercase">
+                                {state.language === 'id' ? 'Lencana' : 'Badge'}
+                              </div>
                               <div className="text-sm font-bold text-primary truncate max-w-[80px]">
-                                {String(reward.value).replace(/_/g, ' ')}
+                                {BADGES.find(b => b.id === reward.value)?.name[state.language] || String(reward.value).replace(/_/g, ' ')}
                               </div>
                             </>
                           )}
@@ -685,16 +714,16 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                     sounds.playClick();
                     setIsIntegrityHelpOpen(true);
                   }}
-                  className={`px-2 py-0.5 rounded-md text-[10px] font-black border border-white/10 ${getIntegrityRating(state.integrityScore).glow}`}
-                  style={{ color: getIntegrityRating(state.integrityScore).color, backgroundColor: `${getIntegrityRating(state.integrityScore).color}10` }}
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-black border border-white/10 ${getIntegrityRating(state.integrityScore, state.language).glow}`}
+                  style={{ color: getIntegrityRating(state.integrityScore, state.language).color, backgroundColor: `${getIntegrityRating(state.integrityScore, state.language).color}10` }}
                 >
-                  {getIntegrityRating(state.integrityScore).letter}
+                  {getIntegrityRating(state.integrityScore, state.language).letter}
                 </button>
               </div>
               <div className="flex items-center space-x-1.5 mt-1 min-w-0">
                 <Shield className={`w-3.5 h-3.5 flex-shrink-0 ${currentRank.color}`} />
                 <div className={`text-[12px] font-mono uppercase tracking-tight min-w-0 flex-1 flex items-center ${currentRank.color}`}>
-                  <span className="truncate font-bold">{currentRank.name}</span>
+                  <span className="truncate font-bold">{currentRank.name[state.language]}</span>
                   <span className="mx-1 flex-shrink-0 opacity-40">•</span>
                   <span className="flex-shrink-0 whitespace-nowrap font-bold">LVL {state.level}</span>
                 </div>
@@ -910,7 +939,7 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                   {t('home.no_missions_yet', state.language)}
                 </h4>
                 <p className="text-sm text-secondary mb-6 max-w-[250px] mx-auto">
-                  {t('home.add_custom_missions', state.language).replace('{tab}', activeTab.toLowerCase())}
+                  {t('home.add_custom_missions', state.language, { tab: activeTab.toLowerCase() })}
                 </p>
                 <button
                   onClick={() => setIsCustomMissionsModalOpen(true)}
@@ -956,9 +985,7 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
             )}
           </div>
         </section>
-      </div>
-
-      <CustomMissionsModal
+      </div>      <CustomMissionsModal
         isOpen={isCustomMissionsModalOpen}
         onClose={() => setIsCustomMissionsModalOpen(false)}
         state={state}
@@ -1057,9 +1084,6 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                 </h2>
 
               {(() => {
-                const isBossTask = selectedMission.id.startsWith('boss-task-');
-                if (!isBossTask) return null;
-                
                 const details = getMissionDetails(selectedMission.originalText || selectedMission.text);
                 if (!details) return null;
                 return (
@@ -1169,7 +1193,10 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                         {[1, 5, 10].map(inc => (
                           <button
                             key={inc}
-                            onClick={() => updateMissionProgress(selectedMission.id, inc)}
+                            onClick={() => {
+                              sounds.playClick();
+                              updateMissionProgress(selectedMission.id, inc);
+                            }}
                             className="group relative py-4 rounded-2xl bg-surface border border-white/10 font-mono font-black text-xl text-secondary hover:text-rose-500 hover:border-rose-500/50 hover:bg-rose-500/5 transition-all active:scale-95"
                           >
                             <span className="relative z-10">+{inc}</span>
@@ -1214,6 +1241,7 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                 
                 <button
                   onClick={() => {
+                    sounds.playClick();
                     onReplaceMission(selectedMission.id);
                     handleCloseModal();
                   }}
@@ -1222,7 +1250,10 @@ const HomeScreen = ({ state, onCompleteMission, checkStreakFreezeNeeded, onRepla
                   {t('home.cant_do_it', state.language)}
                 </button>
                 <button
-                  onClick={handleCloseModal}
+                  onClick={() => {
+                    sounds.playClick();
+                    handleCloseModal();
+                  }}
                   className="w-full py-5 rounded-2xl font-bold text-lg text-secondary hover:text-primary transition-colors"
                 >
                   {t('home.cancel', state.language)}

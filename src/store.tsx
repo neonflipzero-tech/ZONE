@@ -8,17 +8,28 @@ import { getDoc, doc, setDoc } from 'firebase/firestore';
 
 import { MISSION_TRANSLATIONS } from './utils/missionTranslations';
 
-// Helper to remove undefined values for Firestore
+// Helper to remove undefined values for Firestore - optimized for performance
 export const sanitizeForFirestore = (obj: any): any => {
   if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(sanitizeForFirestore);
+  if (obj instanceof Date) return obj.toISOString();
+  if (Array.isArray(obj)) {
+    const arr = [];
+    for (let i = 0; i < obj.length; i++) {
+      const val = sanitizeForFirestore(obj[i]);
+      if (val !== undefined) arr.push(val);
+    }
+    return arr;
+  }
   
   const sanitized: any = {};
-  Object.keys(obj).forEach(key => {
-    if (obj[key] !== undefined) {
-      sanitized[key] = sanitizeForFirestore(obj[key]);
+  const keys = Object.keys(obj);
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    const val = obj[key];
+    if (val !== undefined && typeof val !== 'function') {
+      sanitized[key] = sanitizeForFirestore(val);
     }
-  });
+  }
   return sanitized;
 };
 
@@ -47,6 +58,9 @@ export interface AppStore {
   markAllNotificationsRead: () => void;
   incrementShareCount: () => void;
   crushRival: () => void;
+  updateSchedule: (path: PathType, day: number, focus: Partial<{ title: string; focus: string; missions: string[] }>) => void;
+  resetSchedules: (path: PathType) => void;
+  swapSchedules: (path: PathType, day1: number, day2: number) => void;
   dismissCrushedAnimation: () => void;
   checkBossReset: () => void;
   triggerBoss: () => void;
@@ -84,107 +98,113 @@ export const useAppState = create<AppStore>((set, get) => ({
       return () => {};
     }
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user && user.email) {
-        const email = user.email;
-        const uid = user.uid;
-        const username = user.displayName || email.split('@')[0];
+      try {
+        if (user && user.email) {
+          const email = user.email;
+          const uid = user.uid;
+          const username = user.displayName || email.split('@')[0];
 
-        setActiveUserEmail(email);
-        const saved = localStorage.getItem(`lockin_user_${email}`);
-        
-        if (saved) {
-          try {
-            let parsed = JSON.parse(saved);
-            
-            if (!parsed || typeof parsed !== 'object') {
-              throw new Error("Invalid state in local storage");
-            }
-
-            // Data Reset Logic: Reset everyone except Zaiki if version is old
-            if (parsed.dataVersion !== 2 && email !== 'zaikiwildan@gmail.com') {
-              parsed = createDefaultState(username, email, uid);
-              setState(parsed);
-              localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
-              return;
-            }
-
-            // Ensure Zaiki has the latest version without resetting
-            if (email === 'zaikiwildan@gmail.com' && parsed.dataVersion !== 2) {
-              parsed.dataVersion = 2;
-              localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
-            }
-
-            // Ensure userId matches Firebase Auth UID for Firestore permissions
-            if (uid && parsed.userId !== uid) {
-              parsed.userId = uid;
-              localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
-            }
-            
-            // Auto-grant Elite to Zaiki
-            if (email === 'zaikiwildan@gmail.com' || username.toLowerCase().includes('zaiki')) {
-              parsed.isPremium = true;
-              if (!parsed.badges.includes('ELITE_ZONE')) {
-                parsed.badges.push('ELITE_ZONE');
-              }
-            }
-
-            // Migration: ensure pathProgress exists
-            if (!parsed.pathProgress) parsed.pathProgress = {};
-            if (!parsed.titles) parsed.titles = [];
-            if (!parsed.unlockedTitles) parsed.unlockedTitles = [];
-            
-            // Migration: ensure missionsCompleted is synced with dailyStats if it's 0
-            if (!parsed.missionsCompleted && parsed.dailyStats) {
-              parsed.missionsCompleted = Object.values(parsed.dailyStats).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
-            }
-
-            // Migration: ensure highestRankAchieved is set
-            if (!parsed.highestRankAchieved) {
-              parsed.highestRankAchieved = getRankForLevel(parsed.level).name;
-            }
-            
-            // Auto-grant OG title to Zaiki
-            if (email === 'zaikiwildan@gmail.com' && !parsed.unlockedTitles.includes('OG')) {
-              parsed.unlockedTitles.push('OG');
-            }
-
-            setState(parsed);
-            get().checkAllTitles();
-          } catch (e) {
-            console.error("Error parsing saved state:", e);
-            setState(null);
-          }
-        } else {
-          // Try to fetch from Firestore if local storage is empty
-          if (db && uid) {
+          setActiveUserEmail(email);
+          const saved = localStorage.getItem(`lockin_user_${email}`);
+          
+          if (saved) {
             try {
-              const userDoc = await getDoc(doc(db, 'users', uid));
-              if (userDoc.exists()) {
-                const firestoreData = userDoc.data() as UserState;
-                // Ensure the state shows they are logged in
-                setState({
-                  ...firestoreData,
-                  isLoggedIn: true
-                });
-                localStorage.setItem(`lockin_user_${email}`, JSON.stringify(firestoreData));
-                get().checkAllTitles();
+              let parsed = JSON.parse(saved);
+              
+              if (!parsed || typeof parsed !== 'object') {
+                throw new Error("Invalid state in local storage");
+              }
+
+              // Data Reset Logic: Reset everyone except Zaiki if version is old
+              if (parsed.dataVersion !== 2 && email !== 'zaikiwildan@gmail.com') {
+                parsed = createDefaultState(username, email, uid);
+                setState(parsed);
+                localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
                 return;
               }
-            } catch (e) {
-              console.error("Error fetching user from Firestore:", e);
-            }
-          }
 
-          const newState = createDefaultState(username, email, uid);
-          setState(newState);
-          localStorage.setItem(`lockin_user_${email}`, JSON.stringify(newState));
-          get().checkAllTitles();
+              // Ensure Zaiki has the latest version without resetting
+              if (email === 'zaikiwildan@gmail.com' && parsed.dataVersion !== 2) {
+                parsed.dataVersion = 2;
+                localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
+              }
+
+              // Ensure userId matches Firebase Auth UID for Firestore permissions
+              if (uid && parsed.userId !== uid) {
+                parsed.userId = uid;
+                localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
+              }
+              
+              // Auto-grant Elite to Zaiki
+              if (email === 'zaikiwildan@gmail.com' || username.toLowerCase().includes('zaiki')) {
+                parsed.isPremium = true;
+                if (!parsed.badges.includes('ELITE_ZONE')) {
+                  parsed.badges.push('ELITE_ZONE');
+                }
+              }
+
+              // Migration: ensure pathProgress exists
+              if (!parsed.pathProgress) parsed.pathProgress = {};
+              if (!parsed.titles) parsed.titles = [];
+              if (!parsed.unlockedTitles) parsed.unlockedTitles = [];
+              
+              // Migration: ensure missionsCompleted is synced with dailyStats if it's 0
+              if (!parsed.missionsCompleted && parsed.dailyStats) {
+                parsed.missionsCompleted = Object.values(parsed.dailyStats).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+              }
+
+              // Migration: ensure highestRankAchieved is set
+              if (!parsed.highestRankAchieved) {
+                const rank = getRankForLevel(parsed.level);
+                parsed.highestRankAchieved = typeof rank.name === 'string' ? rank.name : rank.name.en;
+              }
+              
+              // Auto-grant OG title to Zaiki
+              if (email === 'zaikiwildan@gmail.com' && !parsed.unlockedTitles.includes('OG')) {
+                parsed.unlockedTitles.push('OG');
+              }
+
+              setState(parsed);
+              get().checkAllTitles();
+            } catch (e) {
+              console.error("Error parsing saved state:", e);
+              setState(null);
+            }
+          } else {
+            // Try to fetch from Firestore if local storage is empty
+            if (db && uid) {
+              try {
+                const userDoc = await getDoc(doc(db, 'users', uid));
+                if (userDoc.exists()) {
+                  const firestoreData = userDoc.data() as UserState;
+                  // Ensure the state shows they are logged in
+                  setState({
+                    ...firestoreData,
+                    isLoggedIn: true
+                  });
+                  localStorage.setItem(`lockin_user_${email}`, JSON.stringify(firestoreData));
+                  get().checkAllTitles();
+                  return;
+                }
+              } catch (e) {
+                console.error("Error fetching user from Firestore:", e);
+              }
+            }
+
+            const newState = createDefaultState(username, email, uid);
+            setState(newState);
+            localStorage.setItem(`lockin_user_${email}`, JSON.stringify(newState));
+            get().checkAllTitles();
+          }
+        } else {
+          setActiveUserEmail(null);
+          setState(null);
         }
-      } else {
-        setActiveUserEmail(null);
-        setState(null);
+      } catch (error) {
+        console.error("Critical error in onAuthStateChanged:", error);
+      } finally {
+        setAuthReady(true);
       }
-      setAuthReady(true);
     });
     return unsubscribe;
   },
@@ -205,7 +225,8 @@ export const useAppState = create<AppStore>((set, get) => ({
       for (let lvl = state.level + 1; lvl <= updates.level; lvl++) {
         const rank = RANKS.find(r => r.minLevel === lvl);
         if (rank) {
-          const frameId = `frame-${rank.name.toLowerCase()}`;
+          const rankNameEn = typeof rank.name === 'string' ? rank.name : rank.name.en;
+          const frameId = `frame-${rankNameEn.toLowerCase()}`;
           if (!newUnlockedFrames.includes(frameId)) {
             newUnlockedFrames.push(frameId);
             newUnlockedItems.push({ type: 'frame', id: frameId });
@@ -238,8 +259,11 @@ export const useAppState = create<AppStore>((set, get) => ({
     if (updates.level && updates.level > state.level) {
       const oldRank = RANKS.slice().reverse().find(r => state.level >= r.minLevel);
       const newRank = RANKS.slice().reverse().find(r => updates.level >= r.minLevel);
-      if (newRank && oldRank && newRank.name !== oldRank.name) {
-        newUnlockedItems.push({ type: 'rank', id: newRank.name });
+      const oldRankNameEn = oldRank ? (typeof oldRank.name === 'string' ? oldRank.name : oldRank.name.en) : '';
+      const newRankNameEn = newRank ? (typeof newRank.name === 'string' ? newRank.name : newRank.name.en) : '';
+
+      if (newRank && oldRank && newRankNameEn !== oldRankNameEn) {
+        newUnlockedItems.push({ type: 'rank', id: newRankNameEn });
       }
     }
 
@@ -270,139 +294,162 @@ export const useAppState = create<AppStore>((set, get) => ({
     }
 
     const ovrData = calculateOVR({ ...state, ...updates }, activeUserEmail);
-    const newState = { ...state, ...updates, ovr: ovrData.ovr, stats: ovrData.stats };
-    set({ state: newState });
-    localStorage.setItem(`lockin_user_${activeUserEmail}`, JSON.stringify(newState));
+    let newState: UserState = { ...state, ...updates, ovr: ovrData.ovr, stats: ovrData.stats };
+    
+    // Prune growable data to save bandwidth
+    newState = pruneState(newState);
 
-      // Sync to Firestore if available - optimized with debounce/delay
-      if (db && newState.userId) {
-        const userRef = doc(db, 'users', newState.userId);
-        const dataToSync = sanitizeForFirestore({ 
-          ...newState, 
-          lastUpdated: Date.now() 
-        });
-        
-        // Use a global timeout to debounce Firestore writes
-        if ((window as any)._firestoreSyncTimeout) {
-          clearTimeout((window as any)._firestoreSyncTimeout);
-        }
-        
-        (window as any)._firestoreSyncTimeout = setTimeout(() => {
-          setDoc(userRef, dataToSync, { merge: true }).catch(err => {
-            console.error("Error syncing to Firestore:", err);
-          });
-        }, 1000); // 1 second debounce
+    set({ state: newState });
+    
+    // Optimized localStorage sync with debounce
+    if ((window as any)._localStorageSyncTimeout) {
+      clearTimeout((window as any)._localStorageSyncTimeout);
+    }
+    (window as any)._localStorageSyncTimeout = setTimeout(() => {
+      localStorage.setItem(`lockin_user_${activeUserEmail}`, JSON.stringify(newState));
+    }, 1000); // 1 second debounce for local storage
+
+    // Sync to Firestore if available - optimized with longer debounce
+    if (db && newState.userId) {
+      const userRef = doc(db, 'users', newState.userId);
+      const dataToSync = sanitizeForFirestore({ 
+        ...newState, 
+        lastUpdated: Date.now() 
+      });
+      
+      // Use a global timeout to debounce Firestore writes - Increased to 10s to avoid bandwidth limits
+      if ((window as any)._firestoreSyncTimeout) {
+        clearTimeout((window as any)._firestoreSyncTimeout);
       }
-    },
+      
+      (window as any)._firestoreSyncTimeout = setTimeout(() => {
+        setDoc(userRef, dataToSync, { merge: true }).catch(err => {
+          if (err.code === 'resource-exhausted') {
+             console.warn("Firestore bandwidth exceeded, retrying with backoff handled by SDK.");
+          } else {
+             console.error("Error syncing to Firestore:", err);
+          }
+        });
+      }, 10000); // 10 second debounce for Firestore
+    }
+  },
 
   login: async (email, username, uid) => {
     const { setActiveUserEmail, setState } = get();
-    setActiveUserEmail(email);
     
-    // Check for OG Title logic
-    let isOg = false;
-    if (db && email !== 'zaikiwildan@gmail.com') {
-      try {
-        const ogRef = doc(db, 'system', 'og_counter_v2');
-        const ogDoc = await getDoc(ogRef);
-        let count = 0;
-        if (ogDoc.exists()) {
-          count = ogDoc.data().count || 0;
-        }
-        
-        if (count < 100) {
-          // Check if this user already has it in firestore
-          if (uid) {
-            const userDoc = await getDoc(doc(db, 'users', uid));
-            if (userDoc.exists() && userDoc.data().unlockedTitles?.includes('OG')) {
-              isOg = true;
-            } else if (!userDoc.exists() || !userDoc.data().unlockedTitles?.includes('OG')) {
-              // Increment and grant
-              await setDoc(ogRef, { count: count + 1 }, { merge: true });
-              isOg = true;
+    try {
+      setActiveUserEmail(email);
+      
+      // Check for OG Title logic
+      let isOg = false;
+      if (db && email !== 'zaikiwildan@gmail.com') {
+        try {
+          const ogRef = doc(db, 'system', 'og_counter_v2');
+          const ogDoc = await getDoc(ogRef);
+          let count = 0;
+          if (ogDoc.exists()) {
+            count = ogDoc.data().count || 0;
+          }
+          
+          if (count < 100) {
+            // Check if this user already has it in firestore
+            if (uid) {
+              const userDoc = await getDoc(doc(db, 'users', uid));
+              if (userDoc.exists() && userDoc.data().unlockedTitles?.includes('OG')) {
+                isOg = true;
+              } else if (!userDoc.exists() || !userDoc.data().unlockedTitles?.includes('OG')) {
+                // Increment and grant
+                await setDoc(ogRef, { count: count + 1 }, { merge: true });
+                isOg = true;
+              }
             }
           }
-        }
-      } catch (e) {
-        console.error("Error checking OG counter:", e);
-      }
-    }
-
-    const saved = localStorage.getItem(`lockin_user_${email}`);
-    if (saved) {
-      let parsed = JSON.parse(saved);
-
-      // Data Reset Logic: Reset everyone except Zaiki if version is old
-      if (parsed.dataVersion !== 2 && email !== 'zaikiwildan@gmail.com') {
-        parsed = createDefaultState(username, email, uid);
-        if (isOg && !parsed.unlockedTitles.includes('OG')) {
-          parsed.unlockedTitles.push('OG');
-          parsed.unlockedItemsQueue.push({ type: 'title', id: 'OG' });
-        }
-        setState(parsed);
-        localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
-        return;
-      }
-
-      // Ensure Zaiki has the latest version without resetting
-      if (email === 'zaikiwildan@gmail.com' && parsed.dataVersion !== 2) {
-        parsed.dataVersion = 2;
-        localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
-      }
-
-      // Ensure userId matches Firebase Auth UID for Firestore permissions
-      if (uid && parsed.userId !== uid) {
-        parsed.userId = uid;
-        localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
-      }
-      
-      // Auto-grant Elite to Zaiki
-      if (!parsed.isPremium && (email === 'zaikiwildan@gmail.com' || username.toLowerCase().includes('zaiki'))) {
-        parsed.isPremium = true;
-      }
-
-      if (isOg && !parsed.unlockedTitles?.includes('OG')) {
-        parsed.unlockedTitles = [...(parsed.unlockedTitles || []), 'OG'];
-        parsed.unlockedItemsQueue = [...(parsed.unlockedItemsQueue || []), { type: 'title', id: 'OG' }];
-      }
-
-      setState(parsed);
-    } else {
-      // Try to fetch from Firestore if local storage is empty
-      if (db) {
-        try {
-          // If we have a UID, use it. Otherwise, we might need to query by email if we were using a real DB.
-          // For now, let's try to find the user by a consistent ID if possible.
-          const docId = uid || email.replace(/[.@]/g, '_'); 
-          const userDoc = await getDoc(doc(db, 'users', docId));
-          
-          if (userDoc.exists()) {
-            const firestoreData = userDoc.data() as UserState;
-            // Ensure the state shows they are logged in and onboarding is done if it was done before
-            setState({
-              ...firestoreData,
-              isLoggedIn: true
-            });
-            localStorage.setItem(`lockin_user_${email}`, JSON.stringify(firestoreData));
-            return;
-          }
         } catch (e) {
-          console.error("Error fetching user from Firestore:", e);
+          console.error("Error checking OG counter:", e);
         }
       }
 
-      const newState = createDefaultState(username, email, uid);
-      if (isOg && !newState.unlockedTitles.includes('OG')) {
-        newState.unlockedTitles.push('OG');
-        newState.unlockedItemsQueue.push({ type: 'title', id: 'OG' });
+      const saved = localStorage.getItem(`lockin_user_${email}`);
+      if (saved) {
+        let parsed = JSON.parse(saved);
+
+        // Data Reset Logic: Reset everyone except Zaiki if version is old
+        if (parsed.dataVersion !== 2 && email !== 'zaikiwildan@gmail.com') {
+          parsed = createDefaultState(username, email, uid);
+          if (isOg && !parsed.unlockedTitles.includes('OG')) {
+            parsed.unlockedTitles.push('OG');
+            parsed.unlockedItemsQueue.push({ type: 'title', id: 'OG' });
+          }
+          setState(parsed);
+          localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
+          return;
+        }
+
+        // Ensure Zaiki has the latest version without resetting
+        if (email === 'zaikiwildan@gmail.com' && parsed.dataVersion !== 2) {
+          parsed.dataVersion = 2;
+          localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
+        }
+
+        // Ensure userId matches Firebase Auth UID for Firestore permissions
+        if (uid && parsed.userId !== uid) {
+          parsed.userId = uid;
+          localStorage.setItem(`lockin_user_${email}`, JSON.stringify(parsed));
+        }
+        
+        // Auto-grant Elite to Zaiki
+        if (!parsed.isPremium && (email === 'zaikiwildan@gmail.com' || username.toLowerCase().includes('zaiki'))) {
+          parsed.isPremium = true;
+        }
+
+        if (isOg && !parsed.unlockedTitles?.includes('OG')) {
+          parsed.unlockedTitles = [...(parsed.unlockedTitles || []), 'OG'];
+          parsed.unlockedItemsQueue = [...(parsed.unlockedItemsQueue || []), { type: 'title', id: 'OG' }];
+        }
+
+        setState(parsed);
+      } else {
+        // Try to fetch from Firestore if local storage is empty
+        if (db) {
+          try {
+            // If we have a UID, use it. Otherwise, we might need to query by email if we were using a real DB.
+            // For now, let's try to find the user by a consistent ID if possible.
+            const docId = uid || email.replace(/[.@]/g, '_'); 
+            const userDoc = await getDoc(doc(db, 'users', docId));
+            
+            if (userDoc.exists()) {
+              const firestoreData = userDoc.data() as UserState;
+              // Ensure the state shows they are logged in and onboarding is done if it was done before
+              setState({
+                ...firestoreData,
+                isLoggedIn: true
+              });
+              localStorage.setItem(`lockin_user_${email}`, JSON.stringify(firestoreData));
+              return;
+            }
+          } catch (e) {
+            console.error("Error fetching user from Firestore:", e);
+          }
+        }
+
+        const newState = createDefaultState(username, email, uid);
+        if (isOg && !newState.unlockedTitles.includes('OG')) {
+          newState.unlockedTitles.push('OG');
+          newState.unlockedItemsQueue.push({ type: 'title', id: 'OG' });
+        }
+        setState(newState);
+        localStorage.setItem(`lockin_user_${email}`, JSON.stringify(newState));
       }
-      setState(newState);
-      localStorage.setItem(`lockin_user_${email}`, JSON.stringify(newState));
+    } catch (error) {
+      console.error("Critical error in login function:", error);
+      // Fallback to default state if everything fails
+      const fallbackState = createDefaultState(username, email, uid);
+      setState(fallbackState);
     }
   },
 
   loginWithGoogle: async () => {
-    const { login } = get();
+    const { login, addNotification } = get();
     if (!auth) {
       console.error("Firebase Auth not initialized.");
       return;
@@ -414,20 +461,36 @@ export const useAppState = create<AppStore>((set, get) => ({
         const uid = result.user.uid;
         
         // Allow automatic sign up with Google
-        login(email, result.user.displayName || 'User', uid);
+        await login(email, result.user.displayName || 'User', uid);
       }
     } catch (error: any) {
       if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
         return;
       }
       console.error("Error signing in with Google:", error);
-      throw error;
+      
+      let message = "Failed to sign in with Google.";
+      if (error.code === 'auth/popup-blocked') {
+        message = "Popup blocked by browser. Please allow popups for this site.";
+      } else if (error.code === 'auth/unauthorized-domain') {
+        message = "This domain is not authorized for Google Sign-In.";
+      }
+
+      addNotification({
+        title: "Login Error",
+        description: message,
+        icon: 'AlertTriangle'
+      });
     }
   },
 
   logout: async () => {
     const { setActiveUserEmail, setState } = get();
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.error("Error during sign out:", e);
+    }
     setActiveUserEmail(null);
     setState(null);
   },
@@ -436,11 +499,41 @@ export const useAppState = create<AppStore>((set, get) => ({
     const { state, updateState } = get();
     if (!state) return;
 
+    // Check if missions from the previous run were failed
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayISO = yesterday.toISOString().split('T')[0];
+    
+    let newConsecutiveFailures = state.consecutiveFailures || 0;
+    
+    // If it's a new day and we have existing missions that weren't completed
+    if (state.lastMissionDate && state.lastMissionDate !== new Date().toISOString().split('T')[0]) {
+      const hasIncompleteMissions = state.missions.some(m => !m.completed);
+      if (hasIncompleteMissions) {
+        newConsecutiveFailures += 1;
+      } else {
+        newConsecutiveFailures = 0;
+      }
+    }
+
     const missions: Mission[] = [];
     const types: MissionType[] = (['REGULAR', 'DAILY', 'WEEKLY', 'ROUTINE'] as MissionType[]).filter(t => t !== 'ROUTINE' || path === 'OTHER');
     
+    let dailyStrongerFocus = '';
+    const day = new Date().getDay();
+
     types.forEach(type => {
-      const typePool = PATH_MISSIONS[path]?.[type] || [];
+      let typePool = PATH_MISSIONS[path]?.[type] || [];
+      
+      // Personalized Daily Logic for all paths
+      if (type === 'REGULAR') {
+        const schedule = getDayFocus(path, day, state);
+        if (schedule) {
+          typePool = [...schedule.missions];
+          dailyStrongerFocus = schedule.title;
+        }
+      }
+
       const customKey = `${path}_${type}`;
       const customPool = state.customMissions[customKey] || [];
       const pool = [...typePool, ...customPool];
@@ -497,7 +590,9 @@ export const useAppState = create<AppStore>((set, get) => ({
       missions,
       lastMissionDate: new Date().toISOString().split('T')[0],
       lastWeeklyDate: new Date().toISOString().split('T')[0],
-      chosenPath: path
+      chosenPath: path,
+      dailyStrongerFocus: dailyStrongerFocus || undefined,
+      consecutiveFailures: newConsecutiveFailures
     });
   },
 
@@ -654,9 +749,10 @@ export const useAppState = create<AppStore>((set, get) => ({
     }
 
     const currentRank = getRankForLevel(newLevel);
-    const highestRank = getRankForLevel(state.level); // Previous highest rank
-    const newHighestRankAchieved = (RANKS.findIndex(r => r.name === currentRank.name) > RANKS.findIndex(r => r.name === state.highestRankAchieved))
-      ? currentRank.name
+    const currentRankEn = typeof currentRank.name === 'string' ? currentRank.name : currentRank.name.en;
+    
+    const newHighestRankAchieved = (RANKS.findIndex(r => (typeof r.name === 'string' ? r.name : r.name.en) === currentRankEn) > RANKS.findIndex(r => (typeof r.name === 'string' ? r.name : r.name.en) === state.highestRankAchieved))
+      ? currentRankEn
       : state.highestRankAchieved;
 
     const today = getTodayISO();
@@ -814,6 +910,20 @@ export const useAppState = create<AppStore>((set, get) => ({
       newMissionCompletionCounts[mission.originalText] = (newMissionCompletionCounts[mission.originalText] || 0) + 1;
     }
 
+    // Update baseStats based on category to reflect in Radar Chart
+    const newBaseStats = { ...(state.baseStats || { physical: 0, discipline: 0, mental: 0, ambition: 0, intellect: 0, social: 0, other: 0 }) };
+    const statMapping: Record<string, string> = {
+      'STRONGER': 'physical',
+      'MENTAL_HEALTH': 'mental',
+      'PRODUCTIVE': 'intellect',
+      'SOCIAL': 'social',
+      'DISCIPLINE': 'discipline'
+    };
+    const statKey = statMapping[category];
+    if (statKey) {
+      newBaseStats[statKey] = (newBaseStats[statKey] || 0) + 0.2; // Small increment per mission
+    }
+
     // Integrity Score Logic (Calculated at the end to catch all penalties)
     let newIntegrityScore = Math.max(0, state.integrityScore - integrityPenalty);
     let newConsecutiveCleanMissions = isPenaltyTriggered ? 0 : state.consecutiveCleanMissions + 1;
@@ -847,6 +957,7 @@ export const useAppState = create<AppStore>((set, get) => ({
       unlockedItemsQueue: newUnlockedItems,
       missionAffinity: newMissionAffinity,
       missionCompletionCounts: newMissionCompletionCounts,
+      baseStats: newBaseStats,
       showStreakAnimation: newStreak > state.streak
     });
 
@@ -871,7 +982,17 @@ export const useAppState = create<AppStore>((set, get) => ({
 
     const missionType = mission.type;
     const path = state.chosenPath || 'PRODUCTIVE';
-    const typePool = PATH_MISSIONS[path]?.[missionType] || [];
+    let typePool = PATH_MISSIONS[path]?.[missionType] || [];
+
+    // Generalized Daily Logic for all paths
+    if (missionType === 'REGULAR') {
+      const day = new Date().getDay();
+      const focusData = getDayFocus(path, day, state);
+      if (focusData) {
+        typePool = [...focusData.missions];
+      }
+    }
+
     const customKey = `${path}_${missionType}`;
     const customPool = state.customMissions[customKey] || [];
     const pool = [...typePool, ...customPool];
@@ -1149,7 +1270,7 @@ export const useAppState = create<AppStore>((set, get) => ({
 
     // Send native notification if enabled
     if (state.notificationsEnabled) {
-      NotificationService.sendNotification(notif.title, notif.description);
+      NotificationService.sendNotification(notif.title, notif.description).catch(e => console.error("Native notification failed:", e));
     }
   },
 
@@ -1175,23 +1296,27 @@ export const useAppState = create<AppStore>((set, get) => ({
     updateState({ shareCount: state.shareCount + 1 });
   },
 
-  checkBossReset: () => {
+  checkBossReset: async () => {
     const { state, updateState } = get();
-    if (!state || !state.bossState) return;
-    
-    const today = new Date();
-    const isMonday = today.getDay() === 1;
-    
-    // If it's not Monday and boss is active, reset it to idle
-    if (!isMonday && state.bossState.status === 'active') {
-      updateState({
-        bossState: {
-          ...state.bossState,
-          status: 'idle',
-          isActive: false,
-          tasks: []
-        }
-      });
+    try {
+      if (!state || !state.bossState) return;
+      
+      const today = new Date();
+      const isMonday = today.getDay() === 1;
+      
+      // If it's not Monday and boss is active, reset it to idle
+      if (!isMonday && state.bossState.status === 'active') {
+        updateState({
+          bossState: {
+            ...state.bossState,
+            status: 'idle',
+            isActive: false,
+            tasks: []
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Error checking boss reset:", error);
     }
   },
   
@@ -1305,6 +1430,9 @@ export const useAppState = create<AppStore>((set, get) => ({
       sounds.playVictory();
     }
     
+    // Send background notification
+    NotificationService.notifyBossDefeated(state.bossState?.name || state.bossState?.topic || 'Guardian', state.language);
+    
     updateState({
       xp: newXp,
       totalXp: newTotalXp,
@@ -1399,7 +1527,10 @@ export const useAppState = create<AppStore>((set, get) => ({
   requestNotificationPermission: () => {
     if (typeof window !== 'undefined' && 'Notification' in window && (Notification as any).permission === 'default') {
       try {
-        Notification.requestPermission();
+        const promise = Notification.requestPermission();
+        if (promise && typeof promise.then === 'function') {
+          promise.catch((e: any) => console.warn('Notification permission promise rejected:', e));
+        }
       } catch (e) {
         console.warn('Notification permission request failed:', e);
       }
@@ -1424,6 +1555,84 @@ export const useAppState = create<AppStore>((set, get) => ({
     updateState({ 
       showCrushedAnimation: false,
       rivalData: null 
+    });
+  },
+  updateSchedule: (path, day, focus) => {
+    const { state, updateState } = get();
+    if (!state) return;
+    
+    const currentSchedules = state.customSchedules || {};
+    const pathSchedule = { ...(currentSchedules[path] || DEFAULT_SCHEDULES[path] || {}) };
+    
+    // Day conversion if needed (should already be 0-6)
+    pathSchedule[day] = { ...pathSchedule[day], ...focus };
+    
+    updateState({
+      customSchedules: {
+        ...currentSchedules,
+        [path]: pathSchedule
+      },
+      // Force mission regeneration if current path is modified
+      ...(state.chosenPath === path ? { lastMissionDate: '' } : {})
+    });
+  },
+  resetSchedules: (path) => {
+    const { state, updateState } = get();
+    if (!state) return;
+    
+    const currentSchedules = { ...state.customSchedules };
+    delete currentSchedules[path];
+    
+    updateState({
+      customSchedules: currentSchedules,
+      // Force mission regeneration if current path is modified
+      ...(state.chosenPath === path ? { lastMissionDate: '' } : {})
+    });
+  },
+  swapSchedules: (path, day1, day2) => {
+    const { state, updateState } = get();
+    if (!state) return;
+    
+    const currentSchedules = state.customSchedules || {};
+    const pathSchedule = { ...(currentSchedules[path] || DEFAULT_SCHEDULES[path] || {}) };
+    
+    // Ensure both days exist in CUSTOM pool before swapping
+    [0, 1, 2, 3, 4, 5, 6].forEach(d => {
+      if (!pathSchedule[d]) {
+        pathSchedule[d] = { ...DEFAULT_SCHEDULES[path][d] };
+      }
+    });
+
+    // Get effective schedules
+    const sched1 = { ...pathSchedule[day1] };
+    const sched2 = { ...pathSchedule[day2] };
+    
+    const getPrefix = (d: number) => {
+      const names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      return names[d];
+    };
+
+    const updateTitle = (title: string, newDay: number) => {
+      const clean = title.replace(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Senin|Selasa|Rabu|Kamis|Jumat|Sabtu|Minggu):\s*/i, '');
+      return `${getPrefix(newDay)}: ${clean}`;
+    };
+
+    // Before swapping, update titles to reflect their NEW effective day
+    // This allows the prefix to always match the slot it's in
+    sched1.title = updateTitle(sched1.title, day2);
+    sched2.title = updateTitle(sched2.title, day1);
+    
+    // Swap them
+    pathSchedule[day1] = sched2;
+    pathSchedule[day2] = sched1;
+    
+    updateState({
+      customSchedules: {
+        ...currentSchedules,
+        [path]: pathSchedule
+      },
+      // Force mission regeneration if current path is modified
+      ...(state.chosenPath === path ? { lastMissionDate: '' } : {})
     });
   }
 }));
@@ -1486,7 +1695,35 @@ export function extractGoal(text: string): number | undefined {
 }
 
 export function translateMissionText(text: string, lang: 'en' | 'id'): string {
+  if (!text) return text;
   if (lang === 'en') return text;
+  
+  // Try direct lookup first
+  if (MISSION_TRANSLATIONS[text]) return MISSION_TRANSLATIONS[text];
+  
+  // Handle dynamically swapped titles like "Monday: Physical Endurance" 
+  // where the original was "Tuesday: Physical Endurance"
+  const dayPrefixMatch = text.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday):\s*(.*)$/i);
+  if (dayPrefixMatch) {
+    const day = dayPrefixMatch[1];
+    const content = dayPrefixMatch[2];
+    
+    const dayMap: any = {
+      'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu', 
+      'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
+    };
+    
+    // Try to find a translation for just the content, or a legacy translation with ANY prefix
+    const baseEntry = Object.entries(MISSION_TRANSLATIONS).find(([k]) => k.includes(content));
+    if (baseEntry) {
+      const [, translatedValue] = baseEntry;
+      const translatedContent = translatedValue.replace(/^(Senin|Selasa|Rabu|Kamis|Jumat|Sabtu|Minggu):\s*/i, '');
+      return `${dayMap[day] || day}: ${translatedContent}`;
+    }
+
+    return `${dayMap[day] || day}: ${content}`;
+  }
+
   return MISSION_TRANSLATIONS[text] || text;
 }
 
@@ -1536,6 +1773,7 @@ export interface AppNotification {
 
 export interface BossState {
   status: 'idle' | 'pending_choice' | 'active' | 'defeated' | 'escaped';
+  name?: string;
   topic: string | null;
   isActive: boolean;
   lastEncounterDate: string | null;
@@ -1602,6 +1840,11 @@ export interface UserState {
   burstLockUntil?: number; // Timestamp until which mission completion is locked
   integrityScore: number;
   consecutiveCleanMissions: number;
+  consecutiveFailures: number;
+  isFocusing?: boolean;
+  lastFocusUpdate?: number;
+  dailyStrongerFocus?: string;
+  customSchedules?: Partial<Record<PathType, Record<number, { title: string; focus: string; missions: string[] }>>>;
   baseStats: Record<string, number>;
   stats?: Record<string, number>;
   ovr?: number;
@@ -1674,16 +1917,16 @@ export function isFrameUnlocked(frame: string, state: UserState): boolean {
 }
 
 export const RANKS = [
-  { name: 'Bronze', minLevel: 1, color: 'text-amber-700', bg: 'bg-amber-700', hex: '#b45309' },
-  { name: 'Silver', minLevel: 3, color: 'text-gray-300', bg: 'bg-gray-300', hex: '#d1d5db' },
-  { name: 'Gold', minLevel: 6, color: 'text-amber-400', bg: 'bg-amber-400', hex: '#fbbf24' },
-  { name: 'Platinum', minLevel: 10, color: 'text-cyan-400', bg: 'bg-cyan-400', hex: '#22d3ee' },
-  { name: 'Diamond', minLevel: 15, color: 'text-blue-500', bg: 'bg-blue-500', hex: '#3b82f6' },
-  { name: 'Master', minLevel: 21, color: 'text-purple-500', bg: 'bg-purple-500', hex: '#a855f7' },
-  { name: 'Grandmaster', minLevel: 28, color: 'text-amber-300', bg: 'bg-amber-300', hex: '#fcd34d' },
-  { name: 'Challenger', minLevel: 36, color: 'text-rose-500', bg: 'bg-rose-500', hex: '#f43f5e' },
-  { name: 'Legend', minLevel: 43, color: 'text-emerald-400', bg: 'bg-emerald-400', hex: '#34d399' },
-  { name: 'Mythic', minLevel: 50, color: 'text-fuchsia-500', bg: 'bg-fuchsia-500', hex: '#d946ef' },
+  { name: { en: 'Bronze', id: 'Perunggu' }, minLevel: 1, color: 'text-amber-700', bg: 'bg-amber-700', hex: '#b45309' },
+  { name: { en: 'Silver', id: 'Perak' }, minLevel: 3, color: 'text-gray-300', bg: 'bg-gray-300', hex: '#d1d5db' },
+  { name: { en: 'Gold', id: 'Emas' }, minLevel: 6, color: 'text-amber-400', bg: 'bg-amber-400', hex: '#fbbf24' },
+  { name: { en: 'Platinum', id: 'Platinum' }, minLevel: 10, color: 'text-cyan-400', bg: 'bg-cyan-400', hex: '#22d3ee' },
+  { name: { en: 'Diamond', id: 'Berlian' }, minLevel: 15, color: 'text-blue-500', bg: 'bg-blue-500', hex: '#3b82f6' },
+  { name: { en: 'Master', id: 'Master' }, minLevel: 21, color: 'text-purple-500', bg: 'bg-purple-500', hex: '#a855f7' },
+  { name: { en: 'Grandmaster', id: 'Grandmaster' }, minLevel: 28, color: 'text-amber-300', bg: 'bg-amber-300', hex: '#fcd34d' },
+  { name: { en: 'Challenger', id: 'Penantang' }, minLevel: 36, color: 'text-rose-500', bg: 'bg-rose-500', hex: '#f43f5e' },
+  { name: { en: 'Legend', id: 'Legenda' }, minLevel: 43, color: 'text-emerald-400', bg: 'bg-emerald-400', hex: '#34d399' },
+  { name: { en: 'Mythic', id: 'Mitos' }, minLevel: 50, color: 'text-fuchsia-500', bg: 'bg-fuchsia-500', hex: '#d946ef' },
 ];
 
 export const BADGES = [
@@ -1729,13 +1972,63 @@ export function getRankForLevel(level: number) {
   return RANKS[0];
 }
 
-export function getIntegrityRating(score: number) {
-  if (score >= 90) return { letter: 'S', label: 'Supreme', color: '#00FFFF', glow: 'shadow-[0_0_15px_#00FFFF]' };
-  if (score >= 75) return { letter: 'A', label: 'Honest', color: '#39FF14', glow: 'shadow-[0_0_15px_#39FF14]' };
-  if (score >= 50) return { letter: 'B', label: 'Average', color: '#FFFFFF', glow: 'shadow-[0_0_15px_#FFFFFF]' };
-  if (score >= 25) return { letter: 'C', label: 'Suspicious', color: '#FFD300', glow: 'shadow-[0_0_15px_#FFD300]' };
-  return { letter: 'D', label: 'Dishonest', color: '#FF3131', glow: 'shadow-[0_0_15px_#FF3131] animate-pulse' };
+export function getIntegrityRating(score: number, language: 'en' | 'id' = 'en') {
+  if (score >= 90) return { letter: 'S', label: language === 'id' ? 'Supreme' : 'Supreme', color: '#00FFFF', glow: 'shadow-[0_0_15px_#00FFFF]' };
+  if (score >= 75) return { letter: 'A', label: language === 'id' ? 'Jujur' : 'Honest', color: '#39FF14', glow: 'shadow-[0_0_15px_#39FF14]' };
+  if (score >= 50) return { letter: 'B', label: language === 'id' ? 'Biasa' : 'Average', color: '#FFFFFF', glow: 'shadow-[0_0_15px_#FFFFFF]' };
+  if (score >= 25) return { letter: 'C', label: language === 'id' ? 'Mencurigakan' : 'Suspicious', color: '#FFD300', glow: 'shadow-[0_0_15px_#FFD300]' };
+  return { letter: 'D', label: language === 'id' ? 'Tidak Jujur' : 'Dishonest', color: '#FF3131', glow: 'shadow-[0_0_15px_#FF3131] animate-pulse' };
 }
+
+// Prune old data to keep document size under control
+export const pruneState = (state: UserState): UserState => {
+  const pruned = { ...state };
+  const maxDays = 90;
+  
+  // Prune dailyStats
+  if (pruned.dailyStats) {
+    const dailyStatsKeys = Object.keys(pruned.dailyStats);
+    if (dailyStatsKeys.length > maxDays) {
+      dailyStatsKeys.sort();
+      const toRemove = dailyStatsKeys.slice(0, dailyStatsKeys.length - maxDays);
+      toRemove.forEach(key => delete pruned.dailyStats[key]);
+    }
+  }
+
+  // Prune dailyCategoryStats
+  if (pruned.dailyCategoryStats) {
+    const dailyCatKeys = Object.keys(pruned.dailyCategoryStats);
+    if (dailyCatKeys.length > maxDays) {
+      dailyCatKeys.sort();
+      const toRemove = dailyCatKeys.slice(0, dailyCatKeys.length - maxDays);
+      toRemove.forEach(key => delete pruned.dailyCategoryStats[key]);
+    }
+  }
+
+  // Prune missionCompletionCounts - keep only non-zero and limit total
+  if (pruned.missionCompletionCounts) {
+    const missionCountsKeys = Object.keys(pruned.missionCompletionCounts);
+    if (missionCountsKeys.length > 200) {
+      // Sort by count descending and keep top 200
+      const sorted = missionCountsKeys
+        .sort((a, b) => (pruned.missionCompletionCounts[b] || 0) - (pruned.missionCompletionCounts[a] || 0))
+        .slice(200);
+      sorted.forEach(key => delete pruned.missionCompletionCounts[key]);
+    }
+  }
+
+  // Prune notifications - keep only last 20 instead of 50 for bandwidth
+  if (pruned.notifications && pruned.notifications.length > 20) {
+    pruned.notifications = pruned.notifications.slice(0, 20);
+  }
+
+  // Prune shownNotifications to avoid massive array
+  if (pruned.shownNotifications && pruned.shownNotifications.length > 100) {
+    pruned.shownNotifications = pruned.shownNotifications.slice(-100);
+  }
+
+  return pruned;
+};
 
 export function calculateOVR(state: UserState, activeUserEmail?: string | null) {
   if (!state) return { ovr: 44, stats: { physical: 40, discipline: 40, mental: 40, ambition: 40, intellect: 40, social: 40, other: 40 } };
@@ -1769,7 +2062,30 @@ export function calculateOVR(state: UserState, activeUserEmail?: string | null) 
   const ambition = Math.floor(Math.min(99, 40 + baseAmbition + (totalLevels * 1.5) + (badgesCount * 1.5)));
 
   // Weighted average (excluding 'other' from main OVR calculation as requested)
-  let ovr = Math.floor((physical + discipline + mental + ambition + intellect + social) / 6);
+  const baseOvr = Math.floor((physical + discipline + mental + ambition + intellect + social) / 6);
+
+  // Integrity Penalty Logic: Integrity directly scales the OVR
+  // If integrity is 100, OVR remains 100% of its value.
+  // If integrity is 0, OVR is slashed, but we cap the penalty at 20 points.
+  const integrity = Number(state.integrityScore ?? 100);
+  const integrityFactor = (integrity / 100);
+  
+  // Apply a penalty: if integrity is below 80, we add extra weight to the drop
+  let penaltyMultiplier = 1.0;
+  if (integrity < 80) {
+    const penaltyGap = (80 - integrity) / 20; 
+    penaltyMultiplier = Math.max(0.6, 1.0 - (penaltyGap * 0.2));
+  }
+  
+  const rawCalculatedOvr = Math.floor(baseOvr * integrityFactor * penaltyMultiplier);
+  const totalPenalty = baseOvr - rawCalculatedOvr;
+  
+  // Cap the total drop from base OVR at 20 points
+  const cappedPenalty = Math.min(20, totalPenalty);
+  let ovr = baseOvr - cappedPenalty;
+  
+  // Ensure OVR is within 10-99 range
+  ovr = Math.max(10, Math.min(99, ovr));
 
   return {
     ovr,
@@ -1878,6 +2194,7 @@ export const createDefaultState = (username: string, email?: string, uid?: strin
     burstLockUntil: 0,
     integrityScore: 90,
     consecutiveCleanMissions: 0,
+    consecutiveFailures: 0,
     bossState: {
       status: 'idle',
       topic: null,
@@ -1924,7 +2241,7 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Read a self-help article", "Organize your files", "Plan your week",
       "Write down 3 priorities for today", "Clear your email inbox", "Declutter your workspace",
       "Listen to an educational podcast", "Watch a tutorial on a new tool", "Brainstorm ideas",
-      "Review your monthly goals", "Update your to-do list", "Unsubscribe from 3 useless emails",
+      "Review your monthly goals", "Update your to-do list", "Unsubscribe from 3 newsletters",
       "Organize your computer desktop", "Read 1 chapter of a non-fiction book", "Plan your meals",
       "Write a journal entry about your progress", "Delete unused apps from your phone", "Focus on one task for 15 minutes",
       "Review your budget", "Create a morning routine",
@@ -2152,13 +2469,15 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Drink a glass of water", "Look out the window", "Write down 1 positive thought",
       "Do a body scan for 5 minutes", "Close your eyes for 1 minute", "Smile for 30 seconds",
       "Say a positive affirmation", "Wash your face", "Step outside",
-      "Pet an animal or look at cute pictures", "Unclench your jaw and relax your shoulders", "Write down worries",
+      "Challenge a negative thought", "Identify a personal boundary",
+      "Pet an animal", "Unclench your jaw and relax your shoulders", "Write down worries",
       "Do a 3-minute guided meditation", "Listen to nature sounds for 10 minutes", "Doodle or draw",
       "Read a positive quote", "Stretch arms and back",
       "Do 10 deep breaths", "Look at the sky for 1 minute", "Write down 1 thing you love", 
       "Stretch your legs", "Drink herbal tea", "Listen to a calming song", 
       "Close your eyes", "Say 3 affirmations", "Wash hands mindfully", 
       "Focus on your breathing",
+      "Practice self-compassion", "Reflect on a personal value",
       "Light a candle and sit", "Drink tea", "Take a break", 
       "Look at a beautiful picture", "Listen to guided meditation for 10 minutes", "Do a body scan", 
       "Write self-love list", "Reflect and forgive", "Reflect and let go", 
@@ -2170,6 +2489,7 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
     DAILY: [
       "20 minutes of meditation", "Write 3 things you are grateful for", "Take a 15-minute walk",
       "Get 8 hours of sleep", "Spend 15 minutes in the sun", "Limit news consumption",
+      "Challenge 3 negative thoughts", "Identify 1 boundary and communicate it", "Practice self-compassion for 10 minutes",
       "Do something you enjoy for 30 mins", "Write a journal entry", "Practice self-compassion",
       "Disconnect from work after hours", "Eat a nourishing meal", "Do a 10-minute yoga routine",
       "Talk to a supportive friend", "Read a chapter of a fiction book", "Spend 10 minutes in silence",
@@ -2192,13 +2512,13 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
       "Spend 2 hours with loved ones", "Try a new hobby", "Visit a park",
       "Do a digital detox for 12 hours", "Read for pleasure for 60 minutes", "Home spa day for 2 hours",
       "Tech-free day for 24 hours", "Go for a hike for 2 hours", "Have a long bath", 
-      "Do a creative project for 60 minutes", "Do nothing for 24 hours",
+      "Do a creative project for 60 minutes",
       "Therapy session for 60 minutes", "Attend a support group for 1 hour", "Spend 24 hours offline", 
       "Spend 24 hours in nature", "Go camping for 24 hours", "Go to a spa for 2 hours", 
       "Get a massage for 60 minutes", "Take a day trip for 8 hours", "Visit a garden for 1 hour", 
       "Visit an art museum for 2 hours", "Do a 2-hour creative project", "Bake from scratch for 90 minutes", 
       "Cook a complex meal for 2 hours", "Read a fiction book for 3 hours", "Watch 2 movies for 4 hours", 
-      "Have a pajama day for 24 hours", "Sleep in without an alarm", "Do a 1-hour meditation", 
+      "Sleep in without an alarm", "Do a 1-hour meditation", 
       "Do a 1-hour yoga class", "Write a short story for 60 minutes"
     ],
     ROUTINE: []
@@ -2208,6 +2528,71 @@ const PATH_MISSIONS: Record<PathType, Record<MissionType, string[]>> = {
     DAILY: [],
     WEEKLY: [],
     ROUTINE: []
+  }
+};
+
+// Helper to get day focus (handles custom vs default)
+export const getDayFocus = (path: PathType, day: number, state: UserState) => {
+  if (state.customSchedules?.[path]?.[day]) {
+    return state.customSchedules[path][day];
+  }
+  return DEFAULT_SCHEDULES[path]?.[day];
+};
+
+export const DEFAULT_SCHEDULES: Record<PathType, Record<number, { title: string; focus: string; missions: string[] }>> = {
+  STRONGER: {
+    1: { title: "Monday: Chest & Triceps (Push)", focus: "Bodybuilding - Heavy Push", missions: ["Do 20 push-ups", "Do 15 diamond push-ups", "Do 10 military presses", "Do 15 bench dips", "Do 10 lateral raises", "Run for 15 minutes"] },
+    2: { title: "Tuesday: Back & Biceps (Pull)", focus: "Bodybuilding - Heavy Pull", missions: ["Do 15 pull-ups or rows", "Do 10 lat pulldowns", "Do 15 chin-ups", "Do 10 inverted rows", "Do 15 bicep curls", "Do 10 hammer curls"] },
+    3: { title: "Wednesday: Leg Day (Quadriceps)", focus: "Bodybuilding - Foundation", missions: ["Do 20 squats", "Do 15 lunges per leg", "Do 25 calf raises", "Do 10 pistol squats", "Do 15 jump lunges", "Do 20 box jumps"] },
+    4: { title: "Thursday: Shoulders & Abs (V-Taper)", focus: "Bodybuilding - Aesthetics", missions: ["Do 15 shoulder presses", "Do 10 military presses", "Do 15 leg raises", "Do 30 crunches", "Do 20 Russian twists", "Do 10 tuck jumps"] },
+    5: { title: "Friday: Arm Mastery", focus: "Bodybuilding - High Reps", missions: ["Do 20 bicep curls", "Do 20 tricep dips", "Do 15 hammer curls", "Do 20 push-ups", "Do 15 incline push-ups", "Do 30 minutes of exercise"] },
+    6: { title: "Saturday: Cardio & Functional Power", focus: "Athletic Conditioning", missions: ["Run for 20 minutes", "Do 50 jumping jacks", "Do 20 burpees", "Do 20 high knees", "Do 10 speed skaters", "30 minutes deep stretching"] },
+    0: { title: "Sunday: Active Recovery & Mobility", focus: "Bodybuilding - Maintenance", missions: ["15 minutes deep stretching", "10-minute yoga routine", "Walk for 30 minutes", "Do 10 cat-cow stretches", "Foam roll your legs", "Take a 20-minute light swim"] }
+  },
+  PRODUCTIVE: {
+    1: { title: "Monday: Strategic Planning", focus: "Deep Focus Beginnings", missions: ["Plan your week", "Focus on one task for 15 minutes", "Set goals for the next month", "Journal for 15 minutes", "Review your long-term goals"] },
+    2: { title: "Tuesday: Massive Execution", focus: "High Output Cycle", missions: ["Focus on one task for 15 minutes", "Clean for 20 minutes", "Do 30 minutes of exercise", "Read 20 pages of a book", "Finish a 500-piece puzzle"] },
+    3: { title: "Wednesday: Radical Learning", focus: "Mastery & Growth", missions: ["Learn something new for 20 minutes", "Flashcard review", "Watch 1 educational video", "Read 1 article", "Listen to an inspiring talk"] },
+    4: { title: "Thursday: Networking & Sync", focus: "Systemic Connection", missions: ["Call an old friend", "Update your resume", "Update your LinkedIn", "Clean workspace", "Review flashcards"] },
+    5: { title: "Friday: The Great Cleanup", focus: "Optimizing Systems", missions: ["Clean desk", "Clear email inbox", "Organize your files", "Organize your computer desktop", "Back up your computer"] },
+    6: { title: "Saturday: Vision & Creativity", focus: "Expanding Horizons", missions: ["Write a haiku", "Draw for 20 minutes", "Visit a library", "Visit a museum", "Build a piece of furniture"] },
+    0: { title: "Sunday: System Recharge", focus: "Energy Conservation", missions: ["Plan your meals", "Go to bed 30 minutes earlier", "Review your budget", "Take a 20-minute nap", "Walk 5,000 steps"] }
+  },
+  SOCIAL: {
+    1: { title: "Monday: Old Ties Reconnection", focus: "Social Legacy", missions: ["Call an old friend", "Text a friend something nice", "Write a reflection", "Journal for 15 minutes", "Compliment 3 people"] },
+    2: { title: "Tuesday: Digital Influence", focus: "Presence & Impact", missions: ["Share an interesting article", "Update LinkedIn", "Clear email inbox", "Join a group conversation", "Update your contacts"] },
+    3: { title: "Wednesday: Communal Mastery", focus: "Collective Learning", missions: ["Join a meetup", "Attend a workshop", "Visit a library", "Participate in a discussion", "Listen actively"] },
+    4: { title: "Thursday: Inner Circle High Quality", focus: "Intimate Bonds", missions: ["Visit a relative", "Have lunch with someone", "Help a neighbor", "Cook a nice meal", "Watch a funny video"] },
+    5: { title: "Friday: Outward Exploration", focus: "The Event Cycle", missions: ["Attend a social event", "Go out for coffee", "Go to a comedy show", "Go to a karaoke bar", "Visit an art gallery"] },
+    6: { title: "Saturday: Community Contribution", focus: "Social Stewardship", missions: ["Volunteer at a shelter", "Volunteer at a food bank", "Donate to a charity", "Donate blood", "Feed the birds"] },
+    0: { title: "Sunday: Gratitude Exchange", focus: "Cycle of Giving", missions: ["Write self-love list", "Say 3 affirmations", "Say thank you to someone", "Take a photo of a landscape"] }
+  },
+  DISCIPLINE: {
+    1: { title: "Monday: Stoic Initiation", focus: "Mental Foundations", missions: ["Wake up 30 minutes earlier", "Cold shower", "Plan your tomorrow", "Do 10 deep breaths", "Sit with straight posture"] },
+    2: { title: "Tuesday: Physical Endurance", focus: "Building Grit", missions: ["Run a 5K", "Do 24-hour fast", "Take the stairs", "No caffeine for a week", "No sugar for a week"] },
+    3: { title: "Wednesday: Minimalist Protocol", focus: "Removing Noise", missions: ["Declutter 10 items", "Clear browser tabs", "Clear your downloads folder", "Empty downloads", "No fast food for a week"] },
+    4: { title: "Thursday: Habit Precision", focus: "Routine Mastery", missions: ["Track spending for the day", "Update your passwords", "Check your calendar", "Update to-do list", "Review habits"] },
+    5: { title: "Friday: System Stewardship", focus: "Organizing Chaos", missions: ["Organize your phone apps", "Organize your computer desktop", "Organize your closet", "Clean the bathroom", "Vacuum your room"] },
+    6: { title: "Saturday: Radical Challenge", focus: "Voluntary Hardship", missions: ["Go on a 5-mile hike", "Take a different route to work/school", "Try 3 new places", "Learn a magic trick", "Finish a project"] },
+    0: { title: "Sunday: Deep Calibration", focus: "Silent Reflection", missions: ["Meditate for 1 hour total", "Review your budget", "Reflect and forgive", "Plan next week", "Read a book"] }
+  },
+  MENTAL_HEALTH: {
+    1: { title: "Monday: Morning Clarity", focus: "Intention Flow", missions: ["Do a 5-minute meditation", "Take 5 deep breaths", "Write Down Worries", "Reflect on your day for 5 minutes", "Say 3 affirmations"] },
+    2: { title: "Tuesday: Emotional Literacy", focus: "Self-Understanding", missions: ["Express feelings", "Reflect and forgive", "Write in gratitude journal", "Write to future self", "Write in journal"] },
+    3: { title: "Wednesday: Nervous System Calm", focus: "Digital Detox Focus", missions: ["Light a candle and sit", "Listen to calming music", "Focus on your breathing", "Deep breath and sigh", "Massage your temples"] },
+    4: { title: "Thursday: Self-Compassion Protocol", focus: "Healing Cycle", missions: ["Practice self-compassion", "Write self-love list", "Treat yourself to something nice", "Reflect and let go", "Practice mindfulness"] },
+    5: { title: "Friday: The Joy Hunt", focus: "Hobby Reconnection", missions: ["Try a new hobby", "Draw for 20 minutes", "Paint a picture", "Doodle or draw", "Listen to a podcast for 30 minutes"] },
+    6: { title: "Saturday: Nature Connection", focus: "External Release", missions: ["Visit a park", "Spend 30 minutes outdoors", "Go stargazing", "Watch a meteor shower", "Take a photo of a landscape"] },
+    0: { title: "Sunday: Deep Presence", focus: "Silent Awareness", missions: ["Do a body scan", "Close your eyes", "Sit with straight posture", "Full-body stretch", "Foam roll your legs"] }
+  },
+  OTHER: {
+    1: { title: "Monday: Holistic Start", focus: "Balanced Beginnings", missions: ["Plan your week", "Stretch your body", "Drink 2L water", "Read for 10 mins", "Call family"] },
+    2: { title: "Tuesday: Energy Optimization", focus: "Physical & Mental", missions: ["Do 30 mins workout", "Focus on one task", "Eat healthy meal", "Meditate for 5 mins", "Clean space"] },
+    3: { title: "Wednesday: Connection Day", focus: "Social Synergy", missions: ["Compliment someone", "Help a neighbor", "Try a new recipe", "Watch educational video", "Write a haiku"] },
+    4: { title: "Thursday: Systems Day", focus: "Organizing Life", missions: ["Track spending", "Review goals", "Clean your room", "Check calendar", "Update passwords"] },
+    5: { title: "Friday: Expansion Day", focus: "New Horizons", missions: ["Learn a magic trick", "Try a new route", "Listen to new music", "Bake cookies", "Organize photos"] },
+    6: { title: "Saturday: Adventure Day", focus: "Recreation", missions: ["Visit a new city", "Go for bike ride", "Host movie night", "Play a sport", "Take photos"] },
+    0: { title: "Sunday: Rest & Reset", focus: "Recovery", missions: ["Take a nap", "Plan tomorrow", "Deep breathing", "Review your week", "Go to bed early"] }
   }
 };
 
@@ -2282,10 +2667,10 @@ export const analyzeMissionPath = (text: string): PathType => {
   const lower = text.toLowerCase();
   
   // Mental Health - Moved up and expanded keywords
-  if (/(meditate|breathe|breath|journal|calm|relax|sleep|nap|yoga|meditasi|nafas|tenang|tidur|jurnal|doa|pray|ibadah|sholat|dzikir|healing|mindful|rest|istirahat|self-care|syukur|gratitude|terima|kasih|thanks|puji|ikhlas|sabar|patience|maaf|forgive|ampun|tobat|muhasabah|renung|refleksi|reflection|hening|silent|solitude|me-time|hobi|hobby|senang|happy|bahagia|puas|content|lega|bebas|free|lepas|let|go|water|air|minum|window|jendela|outside|luar|animal|hewan|kucing|anjing|doodle|quote|kutipan|sky|langit|tea|teh|bath|mandi|shower|news|berita|social media|sosmed|offline|detox|therapy|terapi|spa|massage|pijat|garden|taman|museum|smile|senyum|laugh|tertawa|santai|affirmation|afirmasi|thought|pikiran|feeling|perasaan|emotion|emosi|mental|jiwa|batin|rohani)/.test(lower)) return 'MENTAL_HEALTH';
+  if (/(meditate|breathe|breath|journal|calm|relax|sleep|nap|yoga|meditasi|nafas|tenang|tidur|jurnal|doa|pray|ibadah|sholat|dzikir|healing|mindful|rest|istirahat|self-care|syukur|gratitude|terima|kasih|thanks|puji|ikhlas|sabar|patience|maaf|forgive|ampun|tobat|muhasabah|renung|refleksi|reflection|hening|silent|solitude|me-time|hobi|hobby|senang|happy|bahagia|puas|content|lega|bebas|free|lepas|let|go|window|jendela|outside|luar|animal|hewan|kucing|anjing|doodle|quote|kutipan|sky|langit|tea|teh|bath|mandi|shower|news|berita|social media|sosmed|offline|detox|therapy|terapi|spa|massage|pijat|garden|taman|museum|smile|senyum|laugh|tertawa|santai|affirmation|afirmasi|thought|pikiran|feeling|perasaan|emotion|emosi|mental|jiwa|batin|rohani)/.test(lower)) return 'MENTAL_HEALTH';
 
   // Physical / Stronger
-  if (/(push|pull|run|walk|jog|gym|workout|exercise|squat|plank|situp|sit-up|crunch|burpee|jump|lari|jalan|otot|fisik|olahraga|renang|sepeda|angkat|sweat|cardio|training|fitness|bola|basket|futsal|badminton|tenis|stretching|boxing|muaythai|karate|silat|treadmill|dumbell|barbell|lifting|kardio|sehat|kesehatan|atlet|atletik|maraton|sprint|lompat|tendang|pukul|tangkis|sparring|gowes|pedal|kolam|lap|set|rep|reps|kalori|bakar|lemak)/.test(lower)) return 'STRONGER';
+  if (/(push|pull|run|walk|jog|gym|workout|exercise|squat|plank|situp|sit-up|crunch|burpee|jump|lari|jalan|otot|fisik|olahraga|renang|sepeda|angkat|sweat|cardio|training|fitness|bola|basket|futsal|badminton|tenis|stretching|boxing|muaythai|karate|silat|treadmill|dumbell|barbell|lifting|kardio|sehat|kesehatan|atlet|atletik|maraton|sprint|lompat|tendang|pukul|tangkis|sparring|gowes|pedal|kolam|lap|set|rep|reps|kalori|bakar|lemak|water|air|minum)/.test(lower)) return 'STRONGER';
   
   // Productivity / Productive
   if (/(read|book|study|learn|course|tutorial|code|math|baca|buku|belajar|kursus|bahasa|artikel|article|work|project|tugas|kerja|nulis|write|skripsi|exam|ujian|coding|dev|design|produktivitas|fokus|focus|prioritas|priority|jadwal|schedule|rencana|plan|organisir|organize|rapi|bersih|meja|email|inbox|belanja|masak|makan|persiapan|prep|resume|cv|portofolio|portfolio|investasi|invest|nabung|tabungan|keuangan|budget|anggaran|bisnis|usaha|omzet|sales|marketing|penjualan|klien|client|meeting|rapat|notulensi|notula|catatan|note|notes|ide|idea|kreatif|creative|gambar|lukis|desain|edit|video|audio|musik|instrumen|alat|latihan|practice|subscription|langganan|download|unduhan|password|sandi|contact|kontak|backup|cadangan|wallet|dompet|file|berkas|folder|trash|sampah|mail|surat|bill|tagihan|bank|balance|saldo|bake|panggang|cook)/.test(lower)) return 'PRODUCTIVE';

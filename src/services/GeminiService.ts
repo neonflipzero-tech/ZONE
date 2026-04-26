@@ -32,8 +32,11 @@ export const analyzeOnboardingAnswers = async (answers: string[], language: 'en'
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Analyze these onboarding answers from a user of a self-improvement app called "Lock In".
+      model: "gemini-1.5-flash",
+      contents: [{
+        role: 'user',
+        parts: [{
+          text: `Analyze these onboarding answers from a user of a self-improvement app called "Lock In".
       The user is answering questions about their morning routine, archetype, energy levels, and goals.
       
       Answers:
@@ -44,7 +47,9 @@ export const analyzeOnboardingAnswers = async (answers: string[], language: 'en'
       
       Also suggest stat adjustments for: intellect, physical, social, ambition, discipline, mental.
       Total adjustments should sum to roughly 20-30 points.
-      IMPORTANT: Return ALL 6 stats in the statAdjustments object.`,
+      IMPORTANT: Return ALL 6 stats in the statAdjustments object.`
+        }]
+      }],
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -73,7 +78,19 @@ export const analyzeOnboardingAnswers = async (answers: string[], language: 'en'
       }
     });
 
-    const parsed = JSON.parse(response.text);
+    // Handle different response structures across SDK versions
+    let text = '';
+    if (typeof (response as any).text === 'function') {
+      text = (response as any).text();
+    } else if (typeof (response as any).text === 'string') {
+      text = (response as any).text;
+    } else if ((response as any).candidates && (response as any).candidates[0]?.content?.parts[0]?.text) {
+      text = (response as any).candidates[0].content.parts[0].text;
+    }
+
+    if (!text) throw new Error("Could not extract text from Gemini response");
+    
+    const parsed = JSON.parse(text);
     
     // Final safety check to ensure all stats are numeric
     const stats = parsed.statAdjustments;
